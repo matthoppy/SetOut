@@ -1,0 +1,81 @@
+import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.wrangler/**',
+      '**/worker-configuration.d.ts',
+      '**/test/goldens/**',
+    ],
+  },
+
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
+    },
+  },
+
+  // The engine is pure: no screen, no network, no clock, no storage, no
+  // chance. The same design and rules must give the same answer everywhere.
+  {
+    files: ['packages/engine/src/**'],
+    rules: {
+      'no-console': 'error',
+      'no-restricted-globals': [
+        'error',
+        ...['window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'fetch', 'process', 'crypto'].map(
+          (name) => ({ name, message: 'The engine is pure. It cannot use the platform it happens to run on.' })
+        ),
+      ],
+      'no-restricted-properties': [
+        'error',
+        { object: 'Math', property: 'random', message: 'The engine cannot depend on chance.' },
+        { object: 'Date', property: 'now', message: 'The engine cannot read the clock.' },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        { selector: "NewExpression[callee.name='Date']", message: 'The engine cannot read the clock.' },
+      ],
+    },
+  },
+
+  // Company data is reached through the data layer and nowhere else.
+  {
+    files: ['apps/api/src/**'],
+    ignores: ['apps/api/src/db/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[property.name='DB']",
+          message: 'Only src/db touches the database. Use companyDb(env, companyId).',
+        },
+      ],
+    },
+  },
+
+  // The browser apps.
+  {
+    files: ['apps/designer/src/**', 'apps/workspace/src/**', 'packages/ui/src/**'],
+    languageOptions: { globals: globals.browser },
+    plugins: { 'react-hooks': reactHooks },
+    rules: reactHooks.configs.recommended.rules,
+  },
+
+  // Config files and the moved engine tests run in Node.
+  {
+    files: ['**/*.config.{js,ts}', '**/*.mjs'],
+    languageOptions: { globals: globals.node },
+  }
+);

@@ -1,0 +1,194 @@
+{
+  "name": "door-to-ceiling-40-gap",
+  "title": "Single door to the ceiling with a 40mm air gap",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "door",
+          "width_mm": 810,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2362,
+      "isFloorToCeiling": true,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 810,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 4,
+            "floorLowEnd": "end",
+            "floorStartMm": 1000,
+            "floorEndMm": 1004,
+            "ceilingStartMm": 2405,
+            "ceilingEndMm": 2402
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": 50,
+          "gapMiddleMm": null,
+          "gapTopMm": 50
+        },
+        "endWall": {
+          "gapBottomMm": 760,
+          "gapMiddleMm": null,
+          "gapTopMm": 758
+        },
+        "method": "laser",
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false,
+        "crossReadings": {
+          "leftBottomMm": 50,
+          "leftTopMm": 50,
+          "rightBottomMm": 760,
+          "rightTopMm": 758,
+          "floorLeftMm": 1000,
+          "floorRightMm": 1004,
+          "ceilingLeftMm": 1405,
+          "ceilingRightMm": 1398
+        },
+        "ceilingHeightMm": 2402
+      },
+      "topGapMm": 40
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 810,
+          "tightHeightMm": 2362,
+          "cutWidthMm": 795,
+          "cutHeightMm": 2342,
+          "weightKg": 46.55,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 5,
+              "total": 10,
+              "breakdown": [
+                "Left wall channel: -5mm",
+                "Right wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 800,
+            "cutHeight": 2342
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 2092,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1069.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1272.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Bellagio",
+            "hingeCount": 2,
+            "hingeReason": "2 × Bellagio carries 795mm / 46.55kg (rated 1000mm / 50kg).",
+            "hingeHeightsMm": [
+              250,
+              2092
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1795,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 1171,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 1069.5,
+              "upperMm": 1272.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 810,
+      "wallRuns": [],
+      "totalChannelLengthMm": 810,
+      "heightMm": 2362,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 46.6,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 810mm measured at the floor (to a centre cross: 50 + 760 at the bottom, 50 + 758 at the top), 808mm derived at the top",
+        "Out of true: far wall 2mm out of plumb, leaning in (gap 760mm at the bottom, 758mm at the top); floor 4mm lower at the end (readings 1000 and 1004); ceiling 2405mm on the left and 2402mm on the right",
+        "Checked with: Laser plumb line, set 50mm off the wall.",
+        "Single door to the ceiling: ceiling 2402mm (lowest side), door 2362mm, leaving a 40mm air gap above it."
+      ],
+      "warnings": [
+        "Review: the glass is 2362mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
+        "P1 — Door (Front): Review: the door is 2342mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 46.55kg weight and the maker's current limits."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

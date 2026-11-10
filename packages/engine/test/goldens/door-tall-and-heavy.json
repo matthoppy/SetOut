@@ -1,0 +1,188 @@
+{
+  "name": "door-tall-and-heavy",
+  "title": "A 950 by 2300 door, over the hinge review height",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "door",
+          "width_mm": 950,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2300,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 950,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 950,
+          "tightHeightMm": 2300,
+          "cutWidthMm": 935,
+          "cutHeightMm": 2280,
+          "weightKg": 53.3,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 5,
+              "total": 10,
+              "breakdown": [
+                "Left wall channel: -5mm",
+                "Right wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 940,
+            "cutHeight": 2280
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1140,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 2030,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1038.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1241.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 3,
+            "hingeReason": "Beyond the range of 3 × Geneva — needs a different design.",
+            "hingeHeightsMm": [
+              250,
+              1140,
+              2030
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1733,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 1140,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 1038.5,
+              "upperMm": 1241.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 950,
+      "wallRuns": [],
+      "totalChannelLengthMm": 950,
+      "heightMm": 2300,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 53.3,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 950mm measured at the floor, 950mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [
+        "Review: the glass is 2300mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
+        "P1 — Door (Front): Door is 935mm wide; the widest we hang is 813mm (3 × Geneva).",
+        "P1 — Door (Front): Review: the door is 2280mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 53.3kg weight and the maker's current limits.",
+        "P1 — Door (Front): Panel weighs 53.3kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

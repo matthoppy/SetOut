@@ -1,0 +1,219 @@
+{
+  "name": "panel-door-clamps",
+  "title": "Panel and door on clamps",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 400
+        },
+        {
+          "id": "p2",
+          "kind": "door",
+          "width_mm": 700,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [
+        {
+          "angle_deg": 180
+        }
+      ],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "clamps",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 1100,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 400,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 397,
+          "cutHeightMm": 1994,
+          "weightKg": 19.79,
+          "deductions": {
+            "vertical": {
+              "top": 3,
+              "bottom": 3,
+              "total": 6,
+              "breakdown": [
+                "Top clamps: -3mm",
+                "Bottom clamps: -3mm"
+              ]
+            },
+            "horizontal": {
+              "left": 3,
+              "right": 0,
+              "total": 3,
+              "breakdown": [
+                "Left clamps: -3mm"
+              ]
+            },
+            "cutWidth": 397,
+            "cutHeight": 1994
+          },
+          "notches": [],
+          "cutouts": []
+        },
+        {
+          "id": "p2",
+          "label": "P2 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 700,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 692,
+          "cutHeightMm": 1994,
+          "weightKg": 34.5,
+          "deductions": {
+            "vertical": {
+              "top": 3,
+              "bottom": 3,
+              "total": 6,
+              "breakdown": [
+                "Top clamps: -3mm",
+                "Bottom clamps: -3mm"
+              ]
+            },
+            "horizontal": {
+              "left": 0,
+              "right": 3,
+              "total": 3,
+              "breakdown": [
+                "Right clamps: -3mm"
+              ]
+            },
+            "cutWidth": 697,
+            "cutHeight": 1994
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1744,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 895.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1098.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 2,
+            "hingeReason": "2 × Geneva carries 692mm / 34.5kg (rated 711mm / 36kg).",
+            "hingeHeightsMm": [
+              250,
+              1744
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1447,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 997,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 895.5,
+              "upperMm": 1098.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 1100,
+      "wallRuns": [],
+      "totalChannelLengthMm": 1100,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "clamps",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 54.3,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 1100mm measured at the floor, 1100mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [],
+      "blockingIssues": []
+    }
+  }
+}

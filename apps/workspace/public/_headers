@@ -1,0 +1,10 @@
+# Sent with every file the Worker serves. API responses set their own.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+
+# The designer is made to be shown in a frame on a company's own website.
+# Which websites may frame it is decided per designer, in step 1.
+/designer/*
+  ! X-Frame-Options

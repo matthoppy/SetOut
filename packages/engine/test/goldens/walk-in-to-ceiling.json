@@ -1,0 +1,129 @@
+{
+  "name": "walk-in-to-ceiling",
+  "title": "Walk-in screen to the ceiling, wall leaning out, ceiling falling 6mm",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 900
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": false,
+      "heightMm": 2350,
+      "isFloorToCeiling": true,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 900,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 3,
+            "floorLowEnd": "end",
+            "floorStartMm": 1000,
+            "floorEndMm": 1003,
+            "ceilingStartMm": 2350,
+            "ceilingEndMm": 2344
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": 50,
+          "gapMiddleMm": null,
+          "gapTopMm": 57
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": "laser",
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": 1600,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 900,
+          "tightHeightMm": 2350,
+          "cutWidthMm": 895,
+          "cutHeightMm": 2326,
+          "weightKg": 52.04,
+          "deductions": {
+            "vertical": {
+              "top": 12,
+              "bottom": 12,
+              "total": 24,
+              "breakdown": [
+                "Top channel (F2C): -12mm",
+                "Bottom channel (F2C): -12mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 0,
+              "total": 5,
+              "breakdown": [
+                "Left wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 895,
+            "cutHeight": 2326
+          },
+          "notches": [],
+          "cutouts": []
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 900,
+      "wallRuns": [],
+      "totalChannelLengthMm": 900,
+      "heightMm": 2350,
+      "isFloorToCeiling": true,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 52,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 900mm measured at the floor, 907mm derived at the top",
+        "Out of true: first wall 7mm out of plumb, leaning out (gap 50mm at the bottom, 57mm at the top); floor 3mm lower at the end (readings 1000 and 1003); ceiling 2350mm at the start falling to 2344mm at the end (6mm slope, top edge cut straight between them); walk-in gap 700mm (whole opening 1600mm)",
+        "Checked with: Laser plumb line, set 50mm off the wall.",
+        "The opening: ceiling 2350mm at one end falling 6mm to 2344mm at the end — top edge cut as one straight line between them."
+      ],
+      "warnings": [
+        "Review: the glass is 2350mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
+        "P1 — Fixed (Front): Panel weighs 52.04kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit.",
+        "Review: the ceiling along the the opening slopes 6mm. The glass on that run is cut to the 2350mm bounding height with a raked top edge; Custom Showers will confirm the ceiling line before ordering.",
+        "No door in this run — quoted as fixed panels only."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

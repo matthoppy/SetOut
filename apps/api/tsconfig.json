@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Runtime and binding types come from `wrangler types`, never by hand.
+    "types": []
+  },
+  "include": ["src", "worker-configuration.d.ts"]
+}

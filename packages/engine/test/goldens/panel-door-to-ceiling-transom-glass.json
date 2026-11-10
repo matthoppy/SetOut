@@ -1,0 +1,226 @@
+{
+  "name": "panel-door-to-ceiling-transom-glass",
+  "title": "Panel and door to the ceiling, glass above the door",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 400
+        },
+        {
+          "id": "p2",
+          "kind": "door",
+          "width_mm": 700,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [
+        {
+          "angle_deg": 180
+        }
+      ],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2400,
+      "isFloorToCeiling": true,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 1100,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": 2400,
+            "ceilingEndMm": 2400
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": "packers",
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      },
+      "aboveDoor": "glass",
+      "doorHeightMm": 2000
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 400,
+          "tightHeightMm": 2400,
+          "cutWidthMm": 395,
+          "cutHeightMm": 2376,
+          "weightKg": 23.46,
+          "deductions": {
+            "vertical": {
+              "top": 12,
+              "bottom": 12,
+              "total": 24,
+              "breakdown": [
+                "Top channel (F2C): -12mm",
+                "Bottom channel (F2C): -12mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 0,
+              "total": 5,
+              "breakdown": [
+                "Left wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 395,
+            "cutHeight": 2376
+          },
+          "notches": [],
+          "cutouts": []
+        },
+        {
+          "id": "p2",
+          "label": "P2 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 700,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 690,
+          "cutHeightMm": 1980,
+          "weightKg": 34.16,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 0,
+              "right": 5,
+              "total": 5,
+              "breakdown": [
+                "Right wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 695,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1730,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 888.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1091.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 2,
+            "hingeReason": "2 × Geneva carries 690mm / 34.16kg (rated 711mm / 36kg).",
+            "hingeHeightsMm": [
+              250,
+              1730
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1433,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 990,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 888.5,
+              "upperMm": 1091.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 1100,
+      "wallRuns": [],
+      "totalChannelLengthMm": 1100,
+      "heightMm": 2400,
+      "isFloorToCeiling": true,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 57.6,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 1100mm measured at the floor, 1100mm derived at the top",
+        "Customer reports the opening as square and level.",
+        "Checked with: Spirit level and glazing packers.",
+        "The opening: ceiling 2400mm at both ends."
+      ],
+      "warnings": [
+        "Review: the glass is 2400mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
+        "Review: glass transom above the door, about 700 × 400mm before deductions (door 2000mm, glass to 2400mm). Custom Showers will size the transom and its fixings by hand."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

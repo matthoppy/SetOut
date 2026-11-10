@@ -1,0 +1,243 @@
+{
+  "name": "layout-corner-door-return",
+  "title": "Corner, door and side, as first shown",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 800
+        },
+        {
+          "id": "p2",
+          "kind": "door",
+          "width_mm": 700,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [
+        {
+          "angle_deg": 90
+        }
+      ],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 800,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          },
+          {
+            "widthAtFloorMm": 700,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Return left)",
+          "kind": "fixed",
+          "plane": "return_left",
+          "tightWidthMm": 800,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 783,
+          "cutHeightMm": 1980,
+          "weightKg": 38.76,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 12,
+              "total": 17,
+              "breakdown": [
+                "Left wall channel: -5mm",
+                "Right corner (butts behind): -12mm"
+              ]
+            },
+            "cutWidth": 783,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": []
+        },
+        {
+          "id": "p2",
+          "label": "P2 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 700,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 690,
+          "cutHeightMm": 1980,
+          "weightKg": 34.16,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 0,
+              "right": 5,
+              "total": 5,
+              "breakdown": [
+                "Right wall channel: -5mm",
+                "Left corner (runs through): -0mm"
+              ]
+            },
+            "cutWidth": 695,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1730,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 888.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1091.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 2,
+            "hingeReason": "2 × Geneva carries 690mm / 34.16kg (rated 711mm / 36kg).",
+            "hingeHeightsMm": [
+              250,
+              1730
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1433,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 990,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 888.5,
+              "upperMm": 1091.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 1,
+      "totalRunWidthMm": 1500,
+      "wallRuns": [
+        {
+          "wall": "Wall 1",
+          "widthMm": 800
+        },
+        {
+          "wall": "Wall 2",
+          "widthMm": 700
+        }
+      ],
+      "totalChannelLengthMm": 1500,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 72.9,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "Left return: 800mm measured at the floor, 800mm derived at the top; Front: 700mm measured at the floor, 700mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [],
+      "blockingIssues": []
+    }
+  }
+}

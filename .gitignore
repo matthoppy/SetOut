@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Wrangler: local state, and types generated from wrangler.jsonc
+.wrangler/
+worker-configuration.d.ts
+
+# Secrets for local development. Never commit these.
+.dev.vars*
+.env*
+!.env.example
+
+.DS_Store
+*.log

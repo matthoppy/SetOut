@@ -1,0 +1,124 @@
+{
+  "name": "layout-over-bath",
+  "title": "Over a bath, as first shown",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 850
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": false,
+      "heightMm": 1500,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 850,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 850,
+          "tightHeightMm": 1500,
+          "cutWidthMm": 845,
+          "cutHeightMm": 1480,
+          "weightKg": 31.27,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 0,
+              "total": 5,
+              "breakdown": [
+                "Left wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 845,
+            "cutHeight": 1480
+          },
+          "notches": [],
+          "cutouts": []
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 850,
+      "wallRuns": [],
+      "totalChannelLengthMm": 850,
+      "heightMm": 1500,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 31.3,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 850mm measured at the floor, 850mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [
+        "No door in this run — quoted as fixed panels only."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

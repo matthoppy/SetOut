@@ -1,0 +1,189 @@
+{
+  "name": "door-laser-out-of-plumb",
+  "title": "Single door by laser, walls out of plumb, floor falling 4mm",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "door",
+          "width_mm": 702,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 702,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 4,
+            "floorLowEnd": "end",
+            "floorStartMm": 1000,
+            "floorEndMm": 1004,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": 50,
+          "gapMiddleMm": null,
+          "gapTopMm": 46
+        },
+        "endWall": {
+          "gapBottomMm": 652,
+          "gapMiddleMm": null,
+          "gapTopMm": 655
+        },
+        "method": "laser",
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": true,
+        "crossReadings": {
+          "leftBottomMm": 50,
+          "leftTopMm": 46,
+          "rightBottomMm": 652,
+          "rightTopMm": 655,
+          "floorLeftMm": 1000,
+          "floorRightMm": 1004,
+          "ceilingLeftMm": null,
+          "ceilingRightMm": null
+        },
+        "ceilingHeightMm": null
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 702,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 687,
+          "cutHeightMm": 1980,
+          "weightKg": 34.01,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 5,
+              "total": 10,
+              "breakdown": [
+                "Left wall channel: -5mm",
+                "Right wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 692,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1730,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 888.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1091.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 2,
+            "hingeReason": "2 × Geneva carries 687mm / 34.01kg (rated 711mm / 36kg).",
+            "hingeHeightsMm": [
+              250,
+              1730
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1433,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 990,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 888.5,
+              "upperMm": 1091.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 702,
+      "wallRuns": [],
+      "totalChannelLengthMm": 702,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 34,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 702mm measured at the floor (to a centre cross: 50 + 652 at the bottom, 46 + 655 at the top), 701mm derived at the top",
+        "Out of true: first wall 4mm out of plumb, leaning in (gap 50mm at the bottom, 46mm at the top); far wall 3mm out of plumb, leaning out (gap 652mm at the bottom, 655mm at the top); floor 4mm lower at the end (readings 1000 and 1004)",
+        "Checked with: Laser plumb line, set 50mm off the wall."
+      ],
+      "warnings": [],
+      "blockingIssues": []
+    }
+  }
+}

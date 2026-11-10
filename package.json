@@ -1,0 +1,33 @@
+{
+  "name": "setout",
+  "private": true,
+  "type": "module",
+  "description": "SetOut: design, measure, quote and make frameless showers. One engine, shared by the embedded designer, the trade workspace and the API.",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run build && npm run dev -w @setout/api",
+    "build": "npm run build -w @setout/workspace && npm run build -w @setout/designer",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run lint && npm run typecheck && npm run build && npm run test",
+    "deploy:staging": "npm run build && npm run deploy:staging -w @setout/api",
+    "deploy:production": "npm run build && npm run deploy:production -w @setout/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}

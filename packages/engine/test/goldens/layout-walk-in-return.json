@@ -1,0 +1,190 @@
+{
+  "name": "layout-walk-in-return",
+  "title": "Walk-in with return, as first shown",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 900
+        },
+        {
+          "id": "p2",
+          "kind": "fixed",
+          "width_mm": 300
+        }
+      ],
+      "junctions": [
+        {
+          "angle_deg": 90
+        }
+      ],
+      "leftWall": true,
+      "rightWall": false,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 900,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          },
+          {
+            "widthAtFloorMm": 300,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 900,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 895,
+          "cutHeightMm": 1980,
+          "weightKg": 44.3,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 0,
+              "total": 5,
+              "breakdown": [
+                "Left wall channel: -5mm",
+                "Right corner (runs through): -0mm"
+              ]
+            },
+            "cutWidth": 895,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": []
+        },
+        {
+          "id": "p2",
+          "label": "P2 — Fixed (Return right)",
+          "kind": "fixed",
+          "plane": "return_right",
+          "tightWidthMm": 300,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 288,
+          "cutHeightMm": 1980,
+          "weightKg": 14.26,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 12,
+              "right": 0,
+              "total": 12,
+              "breakdown": [
+                "Left corner (butts behind): -12mm"
+              ]
+            },
+            "cutWidth": 288,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": []
+        }
+      ],
+      "cornerCount": 1,
+      "totalRunWidthMm": 1200,
+      "wallRuns": [
+        {
+          "wall": "Wall 1",
+          "widthMm": 900
+        },
+        {
+          "wall": "Wall 2",
+          "widthMm": 300
+        }
+      ],
+      "totalChannelLengthMm": 1200,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 58.6,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "Front: 900mm measured at the floor, 900mm derived at the top; Right return: 300mm measured at the floor, 300mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [
+        "No door in this run — quoted as fixed panels only."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

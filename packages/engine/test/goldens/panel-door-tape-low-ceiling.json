@@ -1,0 +1,223 @@
+{
+  "name": "panel-door-tape-low-ceiling",
+  "title": "Panel and door by level and packers, with the ceiling below the glass height",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 400
+        },
+        {
+          "id": "p2",
+          "kind": "door",
+          "width_mm": 700,
+          "door": {
+            "hinge_side": "right",
+            "swing": "out"
+          }
+        }
+      ],
+      "junctions": [
+        {
+          "angle_deg": 180
+        }
+      ],
+      "leftWall": true,
+      "rightWall": true,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 1100,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 8,
+            "floorLowEnd": "end",
+            "floorStartMm": 0,
+            "floorEndMm": 8,
+            "ceilingStartMm": 1950,
+            "ceilingEndMm": 1980
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": 0,
+          "gapMiddleMm": 3,
+          "gapTopMm": 6
+        },
+        "endWall": {
+          "gapBottomMm": 4,
+          "gapMiddleMm": null,
+          "gapTopMm": 0
+        },
+        "method": "packers",
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": "ceiling",
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 400,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 395,
+          "cutHeightMm": 1980,
+          "weightKg": 19.55,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 5,
+              "right": 0,
+              "total": 5,
+              "breakdown": [
+                "Left wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 395,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": []
+        },
+        {
+          "id": "p2",
+          "label": "P2 — Door (Front)",
+          "kind": "door",
+          "plane": "front",
+          "tightWidthMm": 700,
+          "tightHeightMm": 2000,
+          "cutWidthMm": 690,
+          "cutHeightMm": 1980,
+          "weightKg": 34.16,
+          "deductions": {
+            "vertical": {
+              "top": 10,
+              "bottom": 10,
+              "total": 20,
+              "breakdown": [
+                "Top channel: -10mm",
+                "Bottom channel: -10mm"
+              ]
+            },
+            "horizontal": {
+              "left": 0,
+              "right": 5,
+              "total": 5,
+              "breakdown": [
+                "Right wall channel: -5mm"
+              ]
+            },
+            "cutWidth": 695,
+            "cutHeight": 1980
+          },
+          "notches": [],
+          "cutouts": [
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 250,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Hinge notch 58 × 47, r8",
+              "heightMm": 1730,
+              "edge": "hinge side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 888.5,
+              "edge": "handle side"
+            },
+            {
+              "description": "Handle hole Ø12, 76mm in from the edge",
+              "heightMm": 1091.5,
+              "edge": "handle side"
+            }
+          ],
+          "door": {
+            "hingeSide": "right",
+            "swing": "out",
+            "sealType": "90° stopper seal",
+            "swingDeductionMm": 5,
+            "hingeBrand": "Geneva",
+            "hingeCount": 2,
+            "hingeReason": "2 × Geneva carries 690mm / 34.16kg (rated 711mm / 36kg).",
+            "hingeHeightsMm": [
+              250,
+              1730
+            ],
+            "hingePlacement": {
+              "topHingeOffset": 250,
+              "bottomHingeOffset": 250,
+              "clearGap": 1433,
+              "warning": null
+            },
+            "handlePlacement": {
+              "handleHeight": 990,
+              "edgeClearance": 76,
+              "isValid": true,
+              "warning": null
+            },
+            "handleHoleHeightsMm": {
+              "lowerMm": 888.5,
+              "upperMm": 1091.5
+            }
+          }
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 1100,
+      "wallRuns": [],
+      "totalChannelLengthMm": 1100,
+      "heightMm": 2000,
+      "isFloorToCeiling": false,
+      "mounting": "channel",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 53.7,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 1100mm measured at the floor, 1102mm derived at the top",
+        "Out of true: first wall 6mm out of plumb, leaning out (gap 0mm at the bottom, 6mm at the top); far wall 4mm out of plumb, leaning in (gap 4mm at the bottom, 0mm at the top); floor 8mm lower at the end (readings 0 and 8); ceiling 1980mm at the end falling to 1950mm at the start (30mm slope, top edge cut straight between them)",
+        "Checked with: Spirit level and glazing packers.",
+        "The opening: ceiling 1980mm at one end falling 30mm to 1950mm at the start — top edge cut as one straight line between them."
+      ],
+      "warnings": [
+        "Review: the ceiling over the the opening is 1950mm at its lowest, not above the 2000mm glass. Custom Showers will confirm the height with you."
+      ],
+      "blockingIssues": []
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "name": "over-bath-clamps",
+  "title": "Bath screen on clamps",
+  "source": "Custom Showers configurator at 73ca0b6",
+  "document": {
+    "format": 1,
+    "design": {
+      "panels": [
+        {
+          "id": "p1",
+          "kind": "fixed",
+          "width_mm": 850
+        }
+      ],
+      "junctions": [],
+      "leftWall": true,
+      "rightWall": false,
+      "heightMm": 1500,
+      "isFloorToCeiling": false,
+      "mounting": "clamps",
+      "glassThicknessMm": 10,
+      "glassType": "clear",
+      "glassCoating": "none",
+      "finishId": "chrome",
+      "handleId": "pull",
+      "opening": {
+        "runs": [
+          {
+            "widthAtFloorMm": 850,
+            "halfAMm": null,
+            "halfBMm": null,
+            "widthAtTopCheckMm": null,
+            "widthAtMiddleCheckMm": null,
+            "floorFallMm": 0,
+            "floorLowEnd": null,
+            "floorStartMm": null,
+            "floorEndMm": null,
+            "ceilingStartMm": null,
+            "ceilingEndMm": null
+          }
+        ],
+        "startWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "endWall": {
+          "gapBottomMm": null,
+          "gapMiddleMm": null,
+          "gapTopMm": null
+        },
+        "method": null,
+        "laserOffsetMm": 50,
+        "walkInOpeningMm": null,
+        "aboveGlass": null,
+        "shapeConfirmed": false
+      }
+    }
+  },
+  "expected": {
+    "spec": {
+      "panels": [
+        {
+          "id": "p1",
+          "label": "P1 — Fixed (Front)",
+          "kind": "fixed",
+          "plane": "front",
+          "tightWidthMm": 850,
+          "tightHeightMm": 1500,
+          "cutWidthMm": 847,
+          "cutHeightMm": 1494,
+          "weightKg": 31.64,
+          "deductions": {
+            "vertical": {
+              "top": 3,
+              "bottom": 3,
+              "total": 6,
+              "breakdown": [
+                "Top clamps: -3mm",
+                "Bottom clamps: -3mm"
+              ]
+            },
+            "horizontal": {
+              "left": 3,
+              "right": 0,
+              "total": 3,
+              "breakdown": [
+                "Left clamps: -3mm"
+              ]
+            },
+            "cutWidth": 847,
+            "cutHeight": 1494
+          },
+          "notches": [],
+          "cutouts": []
+        }
+      ],
+      "cornerCount": 0,
+      "totalRunWidthMm": 850,
+      "wallRuns": [],
+      "totalChannelLengthMm": 850,
+      "heightMm": 1500,
+      "isFloorToCeiling": false,
+      "mounting": "clamps",
+      "glassThicknessMm": 10,
+      "totalGlassWeightKg": 31.6,
+      "support": {
+        "supportPanelRequired": false,
+        "supportPanelReason": null,
+        "supportBarRequired": false,
+        "supportBarReason": null,
+        "supportBarPanelId": null
+      },
+      "rakeNotes": [
+        "The opening: 850mm measured at the floor, 850mm derived at the top",
+        "Customer reports the opening as square and level."
+      ],
+      "warnings": [
+        "No door in this run — quoted as fixed panels only."
+      ],
+      "blockingIssues": []
+    }
+  }
+}
