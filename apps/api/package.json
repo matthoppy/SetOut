@@ -8,9 +8,7 @@
     "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
     "types": "wrangler types --strict-vars false",
     "typecheck": "wrangler types --strict-vars false && tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.json",
-    "test": "vitest run",
-    "deploy:staging": "wrangler d1 migrations apply DB --env staging --remote && wrangler deploy --env staging",
-    "deploy:production": "wrangler d1 migrations apply DB --env production --remote && wrangler deploy --env production"
+    "test": "vitest run"
   },
   "dependencies": {
     "@setout/engine": "*",

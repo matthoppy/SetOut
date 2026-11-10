@@ -17,8 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check": "npm run lint && npm run typecheck && npm run build && npm run test",
-    "deploy:staging": "npm run build && npm run deploy:staging -w @setout/api",
-    "deploy:production": "npm run build && npm run deploy:production -w @setout/api"
+    "deploy:staging": "npm run build && node scripts/deploy.mjs staging",
+    "deploy:production": "npm run check && node scripts/deploy.mjs production"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

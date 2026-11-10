@@ -1,0 +1,65 @@
+# Production is deployed on purpose, by a person, from a commit that has
+# already been through staging.
+#
+# In GitHub: Actions, then "Deploy to production", then "Run workflow".
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type "production" to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Check, then deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Confirm this is meant
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "production" ]; then
+            echo "::error::Not deployed. Type the word production to confirm."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Not deployed. Production is only deployed from main."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The same checks as CI, run again on exactly what is about to ship.
+      - name: Lint, typecheck, build and test
+        run: npm run check
+
+      - name: Deploy
+        id: deploy
+        run: node scripts/deploy.mjs production
+
+      - name: Ask the deploy whether it is healthy
+        run: node scripts/check-deploy.mjs "${{ steps.deploy.outputs.url }}" production "${{ github.sha }}"
