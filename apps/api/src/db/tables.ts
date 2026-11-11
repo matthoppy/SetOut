@@ -128,6 +128,58 @@ export interface MembershipRow {
   updated_at: string;
 }
 
+export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'withdrawn'] as const;
+export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
+export const QUOTE_UNITS = ['each', 'm2', 'm', 'set', 'job'] as const;
+export type QuoteUnit = (typeof QUOTE_UNITS)[number];
+
+/** One thing priced on a quote. Its total is worked out on the server. */
+export interface QuoteLine {
+  /** What it is the price of, so the price can be offered again. Null for a line typed by hand. */
+  key: string | null;
+  description: string;
+  /** Up to two decimal places: square metres of glass, metres of channel. */
+  quantity: number;
+  unit: QuoteUnit;
+  /** Before VAT. */
+  unitPricePence: number;
+}
+
+export interface QuoteRow {
+  id: string;
+  job_id: string;
+  number: number;
+  status: QuoteStatus;
+  lines: QuoteLine[];
+  priced: { designId: string; revisionId: string; number: number }[];
+  note: string | null;
+  currency: string;
+  vat_rate_bp: number;
+  subtotal_pence: number;
+  vat_pence: number;
+  total_pence: number;
+  valid_days: number;
+  valid_until: string | null;
+  link_token_hash: string | null;
+  created_by: string | null;
+  sent_by: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  accepted_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PriceRow {
+  id: string;
+  key: string;
+  unit: QuoteUnit;
+  unit_price_pence: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export const AUDIT_ACTIONS = ['member_added', 'member_removed', 'role_changed'] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -177,6 +229,8 @@ export interface Tables {
   job_events: { row: JobEventRow; required: 'job_id' | 'type' | 'actor_kind' };
   memberships: { row: MembershipRow; required: 'user_id' | 'role' };
   audit_log: { row: AuditRow; required: 'action' };
+  quotes: { row: QuoteRow; required: 'job_id' | 'number' };
+  price_list: { row: PriceRow; required: 'key' | 'unit' | 'unit_price_pence' };
 }
 
 export type TableName = keyof Tables;
@@ -264,6 +318,22 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: ['data'],
     tracksUpdates: false,
   },
+  quotes: {
+    id: 'quote',
+    columns: [
+      'id', 'job_id', 'number', 'status', 'lines', 'priced', 'note', 'currency', 'vat_rate_bp',
+      'subtotal_pence', 'vat_pence', 'total_pence', 'valid_days', 'valid_until', 'link_token_hash',
+      'created_by', 'sent_by', 'sent_at', 'accepted_at', 'accepted_name', 'created_at', 'updated_at',
+    ],
+    json: ['lines', 'priced'],
+    tracksUpdates: true,
+  },
+  price_list: {
+    id: 'price',
+    columns: ['id', 'key', 'unit', 'unit_price_pence', 'created_at', 'updated_at'],
+    json: [],
+    tracksUpdates: true,
+  },
 };
 
 /**
@@ -277,4 +347,6 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   job_events: { actor_kind: ACTOR_KINDS },
   memberships: { role: ROLES },
   audit_log: { action: AUDIT_ACTIONS },
+  quotes: { status: QUOTE_STATUSES },
+  price_list: { unit: QUOTE_UNITS },
 };

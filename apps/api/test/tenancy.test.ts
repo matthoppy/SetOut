@@ -28,6 +28,8 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   job_events: { type: 'tampered' },
   memberships: { role: 'staff' },
   audit_log: { data: { tampered: true } },
+  quotes: { note: 'tampered' },
+  price_list: { unit_price_pence: 1 },
 };
 
 let ours: Seeded;

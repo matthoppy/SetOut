@@ -17,7 +17,7 @@ const SPECIAL_TABLES = ['rulesets', 'usage_monthly'];
  * The only indexes that may start with something other than the company:
  * the keys that say which company a request belongs to.
  */
-const GLOBAL_LOOKUPS = ['designers.site_key', 'drafts.resume_token_hash', 'memberships.user_id'];
+const GLOBAL_LOOKUPS = ['designers.site_key', 'drafts.resume_token_hash', 'memberships.user_id', 'quotes.link_token_hash'];
 
 const all = async <T>(sql: string) => (await env.DB.prepare(sql).all<T>()).results;
 

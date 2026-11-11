@@ -171,6 +171,40 @@ export async function resolveDraft(env: Pick<Env, 'DB'>, token: unknown): Promis
 }
 
 // ---------------------------------------------------------------------------
+// Quote links
+// ---------------------------------------------------------------------------
+
+/**
+ * The link a customer reads and accepts a quote with. Whoever holds it can
+ * see that one quote and accept it, and nothing else, so it is long, random
+ * and never stored: only its hash is.
+ */
+export function newQuoteToken(): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let token = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(32))) token += alphabet[byte & 31];
+  return `qt_${token}`;
+}
+
+const QUOTE_TOKEN = /^qt_[a-z0-9]{32}$/;
+
+/**
+ * Which quote a link opens, and so which company the request belongs to.
+ * Null for a link that is not one, is unknown, or whose company is no longer
+ * active. A withdrawn quote is still found, so the customer can be told.
+ */
+export async function resolveQuoteLink(env: Pick<Env, 'DB'>, token: unknown): Promise<{ companyId: string; quoteId: string } | null> {
+  if (typeof token !== 'string' || !QUOTE_TOKEN.test(token)) return null;
+  const row = await env.DB.prepare(
+    `SELECT q.company_id AS companyId, q.id AS quoteId FROM quotes q JOIN companies c ON c.id = q.company_id
+      WHERE q.link_token_hash = ? AND c.status = 'active'`
+  )
+    .bind(await hashResumeToken(token))
+    .first<{ companyId: string; quoteId: string }>();
+  return row ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // People
 // ---------------------------------------------------------------------------
 

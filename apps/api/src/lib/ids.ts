@@ -24,6 +24,8 @@ export const ID_PREFIX = {
   user: 'usr',
   member: 'mem',
   audit: 'aud',
+  quote: 'qte',
+  price: 'prc',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

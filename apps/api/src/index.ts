@@ -13,6 +13,7 @@ import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
 import { designer } from './routes/designer';
+import { quote } from './routes/quote';
 import { workspace } from './routes/workspace';
 import { serveSite, surfaceFor } from './site';
 
@@ -54,6 +55,16 @@ app.use('/api/designer/*', async (c, next) => {
   await next();
 });
 app.route('/api/designer', designer);
+
+// A customer's quote is read and accepted on the designer's address, the
+// public one, too.
+app.use('/api/quote/*', async (c, next) => {
+  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'workspace') {
+    return c.json({ error: 'not_found' }, 404);
+  }
+  await next();
+});
+app.route('/api/quote', quote);
 
 app.use('/api/workspace/*', async (c, next) => {
   if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'designer') {

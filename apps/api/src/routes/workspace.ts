@@ -36,6 +36,7 @@ import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { signInEmail } from '../lib/sign-in-email';
+import { staffQuotes } from './staff-quotes';
 import { addedToTeamEmail } from '../lib/team-email';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
@@ -317,11 +318,12 @@ staff.get('/jobs/:id', async (c) => {
   const job = await db.get('jobs', c.req.param('id'));
   if (!job) return c.json({ error: 'not_found', message: 'There is no such job.' }, 404, PRIVATE);
 
-  const [customer, designs, files, events] = await Promise.all([
+  const [customer, designs, files, events, quotes] = await Promise.all([
     db.get('customers', job.customer_id),
     db.find('designs', { where: { job_id: job.id }, orderBy: { column: 'position' } }),
     db.find('files', { where: { job_id: job.id }, orderBy: { column: 'created_at' } }),
     db.find('job_events', { where: { job_id: job.id }, orderBy: { column: 'created_at' }, limit: 500 }),
+    db.find('quotes', { where: { job_id: job.id }, orderBy: { column: 'number' } }),
   ]);
   const revisions = await Promise.all(
     designs.map((d) => db.find('design_revisions', { where: { design_id: d.id, number: d.current_revision }, limit: 1 }))
@@ -366,6 +368,18 @@ staff.get('/jobs/:id', async (c) => {
         sizeBytes: f.size_bytes,
         revisionId: f.revision_id,
         createdAt: f.created_at,
+      })),
+      quotes: quotes.map((q) => ({
+        id: q.id,
+        number: q.number,
+        status: q.status,
+        totalPence: q.total_pence,
+        currency: q.currency,
+        createdAt: q.created_at,
+        sentAt: q.sent_at,
+        validUntil: q.valid_until,
+        acceptedAt: q.accepted_at,
+        acceptedName: q.accepted_name,
       })),
       events: events.map((e) => ({
         id: e.id,
@@ -477,6 +491,8 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
   const [revision] = await db.find('design_revisions', { where: { design_id: design.id, number: design.current_revision }, limit: 1 });
   return revision ? { job, design, revision } : null;
 }
+
+staff.route('/', staffQuotes);
 
 // ---------------------------------------------------------------------------
 // Changing a design

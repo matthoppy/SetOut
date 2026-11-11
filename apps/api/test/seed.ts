@@ -84,6 +84,16 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     data: { email: `owner@${prefix.toLowerCase()}.example`, role: 'owner' },
   });
 
+  const quote = await db.insert('quotes', {
+    job_id: job.id,
+    number: 1,
+    lines: [{ key: 'fitting', description: 'Fitting', quantity: 1, unit: 'job', unitPricePence: 25_000 }],
+    subtotal_pence: 25_000,
+    vat_pence: 5_000,
+    total_pence: 30_000,
+  });
+  const price = await db.insert('price_list', { key: 'fitting', unit: 'job', unit_price_pence: 25_000 });
+
   return {
     company,
     db,
@@ -98,6 +108,8 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       job_events: event,
       memberships: membership,
       audit_log: audit,
+      quotes: quote,
+      price_list: price,
     },
   };
 }

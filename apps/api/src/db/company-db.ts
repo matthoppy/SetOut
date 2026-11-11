@@ -22,9 +22,13 @@ import { newId, nowIso } from '../lib/ids';
 import {
   ALLOWED_VALUES,
   JOB_STAGES,
+  QUOTE_STATUSES,
+  QUOTE_UNITS,
   TABLES,
   type JobStage,
   type NewRow,
+  type QuoteStatus,
+  type QuoteUnit,
   type Row,
   type RowChanges,
   type TableName,
@@ -151,6 +155,24 @@ export interface CompanyDb {
     inbox(options?: InboxOptions): Promise<InboxJob[]>;
     /** How many jobs are at each stage, of those a search finds, or of all of them. */
     stageCounts(search?: string): Promise<Record<JobStage, number>>;
+  };
+
+  quotes: {
+    /** The next quote number for a job: 1, then 2. */
+    nextNumber(jobId: string): Promise<number>;
+    /**
+     * Move a quote on from one status to the next, only if it is still at the
+     * first: two people sending and withdrawing at once cannot both win. The
+     * moved quote, or null if it was not where it was expected to be.
+     */
+    move(id: string, from: QuoteStatus, changes: RowChanges<'quotes'>): Promise<Row<'quotes'> | null>;
+  };
+
+  prices: {
+    /** What the company last sent for each thing it quotes, by key. */
+    all(): Promise<Map<string, number>>;
+    /** Keep these as the prices to start from next time. */
+    remember(prices: { key: string; unit: QuoteUnit; unitPricePence: number }[]): Promise<void>;
   };
 }
 
@@ -460,6 +482,54 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
           .bind(companyId, month)
           .first<{ enquiries: number; quotes_sent: number }>();
         return row ?? { enquiries: 0, quotes_sent: 0 };
+      },
+    },
+
+    quotes: {
+      async nextNumber(jobId) {
+        const row = await d1
+          .prepare('SELECT COALESCE(MAX(number), 0) + 1 AS n FROM quotes WHERE company_id = ? AND job_id = ?')
+          .bind(companyId, jobId)
+          .first<{ n: number }>();
+        return row?.n ?? 1;
+      },
+
+      async move(id, from, changes) {
+        if (!QUOTE_STATUSES.includes(from)) throw new DataError(`"${String(from)}" is not a quote status.`);
+        const built = buildUpdate(companyId, 'quotes', id, changes, nowIso());
+        const sql = built.sql.replace(' WHERE company_id = ? AND id = ? ', ' WHERE company_id = ? AND id = ? AND status = ? ');
+        if (sql === built.sql) throw new DataError('The quote could not be moved on.');
+        const row = await d1
+          .prepare(sql)
+          .bind(...built.params, from)
+          .first<Record<string, unknown>>();
+        return row ? decode('quotes', row) : null;
+      },
+    },
+
+    prices: {
+      async all() {
+        const rows = await d1
+          .prepare('SELECT key, unit_price_pence AS pence FROM price_list WHERE company_id = ?')
+          .bind(companyId)
+          .all<{ key: string; pence: number }>();
+        return new Map(rows.results.map((r) => [r.key, r.pence]));
+      },
+
+      async remember(prices) {
+        if (prices.length === 0) return;
+        const at = nowIso();
+        await d1.batch(
+          prices.map((p) => {
+            if (!QUOTE_UNITS.includes(p.unit)) throw new DataError(`"${String(p.unit)}" is not a unit.`);
+            return d1
+              .prepare(
+                `INSERT INTO price_list (company_id, id, key, unit, unit_price_pence, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT (company_id, key) DO UPDATE SET unit = excluded.unit, unit_price_pence = excluded.unit_price_pence, updated_at = excluded.updated_at`
+              )
+              .bind(companyId, newId('price'), p.key, p.unit, p.unitPricePence, at, at);
+          })
+        );
       },
     },
 
