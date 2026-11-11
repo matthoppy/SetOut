@@ -84,6 +84,8 @@ export interface JobFile {
   id: string;
   kind: 'drawing' | 'measuring_photo' | 'photo' | 'pdf' | 'other';
   name: string;
+  /** The revision a drawing was drawn for. */
+  revisionId: string | null;
   contentType: string;
   sizeBytes: number;
   createdAt: string;
@@ -104,11 +106,15 @@ export interface Revision {
   document: { format: number; design: ConfiguratorState };
   computed: ConfiguratorSpec;
   engine_version: string;
-  author_kind: string;
   checked_by: string | null;
   checked_at: string | null;
   /** Who checked it, if they are still on the team. */
   checkedBy: { name: string | null; email: string } | null;
+  author_kind: 'customer' | 'staff' | 'system';
+  /** Why staff changed it, for a revision they saved. */
+  reason: string | null;
+  /** Who saved it, for a revision staff saved, if they are still on the team. */
+  changedBy: { name: string | null; email: string } | null;
   created_at: string;
 }
 

@@ -76,8 +76,8 @@ describe('the designer’s address', () => {
     expect((await get(`${DESIGNER}/api/health`)).status).toBe(200);
   });
 
-  test('never offers the workspace', async () => {
-    for (const path of ['/', '/jobs/12', '/settings']) {
+  test('never offers the workspace, nor the editor staff change a design in', async () => {
+    for (const path of ['/', '/jobs/12', '/settings', '/edit/job_1/dsg_1']) {
       expect(await title(await get(DESIGNER + path)), path).not.toBe('workspace');
     }
   });
@@ -108,6 +108,15 @@ describe('the workspace’s address', () => {
     }
   });
 
+  test('serves the editor staff change a design in, which can never be framed', async () => {
+    const response = await get(`${APP}/edit/job_1/dsg_1`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-frame-options')).toBe('DENY');
+    expect(response.headers.get('content-security-policy')).toBe("frame-ancestors 'none'");
+    expect(response.headers.get('cache-control')).toBe('no-cache');
+    expect(await title(response)).toBe('editor');
+  });
+
   test('still answers the health check, and passes other files through', async () => {
     expect((await get(`${APP}/api/health`)).status).toBe(200);
     const icon = await get(`${APP}/favicon.ico`);
@@ -123,6 +132,7 @@ describe('one address for both, as on staging', () => {
     expect(await title(await get(`${BOTH}/designer`))).toBe('designer');
     expect(await title(await get(`${BOTH}/`))).toBe('workspace');
     expect(await title(await get(`${BOTH}/jobs/12`))).toBe('workspace');
+    expect(await title(await get(`${BOTH}/edit/job_1/dsg_1`))).toBe('editor');
     expect((await get(`${BOTH}/designer/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/api/designer/config?key=${testKey}`)).status).toBe(200);

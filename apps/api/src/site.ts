@@ -29,6 +29,8 @@ export function surfaceFor(env: Pick<Env, 'DESIGNER_HOST' | 'APP_HOST'>, hostnam
 }
 
 const isEmbedScript = (path: string) => path === '/embed.js' || path === '/designer/embed.js';
+/** Where staff change a sent design: /edit/<job>/<shower>. */
+const isEditorPath = (path: string) => path.startsWith('/edit/');
 const isDesignerPath = (path: string) => path === '/designer' || path.startsWith('/designer/');
 
 /** An origin as it may appear in a header: https and a host, nothing else. */
@@ -103,6 +105,21 @@ async function workspacePage(c: SiteContext): Promise<Response> {
   });
 }
 
+/**
+ * The editor staff change a sent design in. It is the designer's own code,
+ * served on the workspace's address, because it works with a staff session,
+ * and it may never be framed.
+ */
+async function editorPage(c: SiteContext): Promise<Response> {
+  const page = await c.env.ASSETS.fetch(new Request(new URL('/designer/edit', c.req.url), { headers: c.req.raw.headers }));
+  return withHeaders(page, {
+    ...COMMON,
+    'Content-Security-Policy': "frame-ancestors 'none'",
+    'X-Frame-Options': 'DENY',
+    'Cache-Control': 'no-cache',
+  });
+}
+
 const notFound = () => new Response('Not found', { status: 404, headers: { ...COMMON, 'Cache-Control': 'no-store' } });
 
 /** Everything that is not the API: the designer, its embed script and the workspace. */
@@ -114,6 +131,7 @@ export async function serveSite(c: SiteContext): Promise<Response> {
   const surface = surfaceFor(c.env, url.hostname);
   const path = url.pathname;
 
+  if (surface !== 'designer' && isEditorPath(path)) return editorPage(c);
   if (surface === 'workspace') {
     if (isEmbedScript(path) || isDesignerPath(path)) return notFound();
     return workspacePage(c);

@@ -12,6 +12,7 @@
  * pages.
  */
 
+import { buildSpec, DOCUMENT_FORMAT, DocumentError, ENGINE_VERSION, upgradeDocument } from '@setout/engine';
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
@@ -30,7 +31,9 @@ import { companyDb } from '../db/company-db';
 import { usersByIds } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
+import { designerConfig } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
+import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { signInEmail } from '../lib/sign-in-email';
 import { addedToTeamEmail } from '../lib/team-email';
@@ -328,6 +331,7 @@ staff.get('/jobs/:id', async (c) => {
     ...new Set([
       ...events.filter((e) => e.actor_kind === 'staff' && e.actor_id).map((e) => e.actor_id as string),
       ...revisions.flatMap(([r]) => (r?.checked_by ? [r.checked_by] : [])),
+      ...revisions.flatMap(([r]) => (r?.author_kind === 'staff' && r.author_id ? [r.author_id] : [])),
     ]),
   ];
   const people = await usersByIds(c.env, c.get('session').companyId, staffIds);
@@ -343,6 +347,7 @@ staff.get('/jobs/:id', async (c) => {
           revision: revision && {
             ...revision,
             checkedBy: revision.checked_by ? (people[revision.checked_by] ?? null) : null,
+            changedBy: revision.author_kind === 'staff' && revision.author_id ? (people[revision.author_id] ?? null) : null,
           },
         };
       }),
@@ -472,6 +477,199 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
   const [revision] = await db.find('design_revisions', { where: { design_id: design.id, number: design.current_revision }, limit: 1 });
   return revision ? { job, design, revision } : null;
 }
+
+// ---------------------------------------------------------------------------
+// Changing a design
+// ---------------------------------------------------------------------------
+
+/**
+ * What the staff editor needs to open a shower: the designer the job came
+ * from, with its company's options and rules, and the revision the shower
+ * stands at. The shower is drawn and worked out exactly as its customer saw it.
+ */
+staff.get('/jobs/:id/designs/:designId/editor', async (c) => {
+  const session = c.get('session');
+  const db = companyDb(c.env, session.companyId);
+  const found = await currentRevision(db, c.req.param('id'), c.req.param('designId'));
+  if (!found) return c.json({ error: 'not_found', message: 'There is no such shower on this job.' }, 404, PRIVATE);
+  const { job, design, revision } = found;
+
+  const designerId = job.designer_id ?? (await db.find('designers', { limit: 1 }))[0]?.id;
+  const config = designerId ? await designerConfig(c.env, session.companyId, designerId) : null;
+  if (!config) {
+    return c.json({ error: 'no_designer', message: 'This company has no designer to change the shower in.' }, 409, PRIVATE);
+  }
+  const [[received], customer] = await Promise.all([
+    db.find('job_events', { where: { job_id: job.id, type: 'received' }, limit: 1 }),
+    db.get('customers', job.customer_id),
+  ]);
+  return c.json(
+    {
+      config,
+      job: { id: job.id, reference: job.reference, customer: customer?.name ?? null },
+      design: { id: design.id, label: design.label },
+      revision: { number: revision.number, document: revision.document },
+      templateId: typeof received?.data.template === 'string' ? received.data.template : null,
+    },
+    200,
+    PRIVATE
+  );
+});
+
+/** A reason is asked for every change, for the timeline. */
+const MAX_REASON = 500;
+/** The plan, the elevation and what was measured, with room to spare. */
+const MAX_DRAWINGS = 4;
+/** Four drawings as base64, and the design. */
+const MAX_REVISION_BYTES = 12 * 1024 * 1024;
+
+/** A value as text with its keys in order, so two designs that say the same thing compare equal. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/**
+ * Save a changed design as the shower's next revision.
+ *
+ * The design is checked and worked out again here, with the company's rules,
+ * as a customer's is. The request names the revision the change was made
+ * from: if someone else saved one since, this is refused rather than lost
+ * over theirs. The new revision is not checked, whatever the last one was.
+ */
+staff.post('/jobs/:id/designs/:designId/revisions', async (c) => {
+  const session = c.get('session');
+  const db = companyDb(c.env, session.companyId);
+  if (Number(c.req.header('content-length') ?? 0) > MAX_REVISION_BYTES) {
+    return c.json({ error: 'too_large', message: 'That is too much to save at once.' }, 413, PRIVATE);
+  }
+  const body = (await c.req.json().catch(() => null)) as {
+    basedOn?: unknown;
+    document?: unknown;
+    reason?: unknown;
+    attachments?: unknown;
+  } | null;
+  if (!body) return c.json({ error: 'invalid_request', message: 'The request must be a JSON object.' }, 400, PRIVATE);
+
+  const found = await currentRevision(db, c.req.param('id'), c.req.param('designId'));
+  if (!found) return c.json({ error: 'not_found', message: 'There is no such shower on this job.' }, 404, PRIVATE);
+  const { job, design, revision } = found;
+  if (body.basedOn !== revision.number) {
+    return c.json(
+      {
+        error: 'stale',
+        message: `Someone saved revision ${revision.number} of this shower while you were changing it. Open it again to see their change.`,
+      },
+      409,
+      PRIVATE
+    );
+  }
+  const reason = typeof body.reason === 'string' ? body.reason.replace(/\s+/g, ' ').trim() : '';
+  if (!reason) return c.json({ error: 'reason_needed', message: 'Say what changed and why, for the timeline.' }, 400, PRIVATE);
+  if (reason.length > MAX_REASON) {
+    return c.json({ error: 'reason_too_long', message: `Keep the reason to ${MAX_REASON} characters.` }, 400, PRIVATE);
+  }
+
+  let document;
+  try {
+    document = upgradeDocument(body.document);
+  } catch (error) {
+    if (error instanceof DocumentError) {
+      return c.json({ error: 'invalid_design', message: `That design could not be read: ${error.message}` }, 422, PRIVATE);
+    }
+    throw error;
+  }
+  if (canonical(document.design) === canonical(revision.document.design)) {
+    return c.json({ error: 'unchanged', message: `Nothing has changed since revision ${revision.number}.` }, 400, PRIVATE);
+  }
+  let drawings;
+  try {
+    drawings = readFiles(body.attachments, MAX_DRAWINGS).filter((f) => f.kind === 'drawing');
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+
+  const { context, rulesetVersion } = await db.engineContext();
+  const computed = buildSpec(document.design, context);
+  const number = revision.number + 1;
+  let revisionId = '';
+  try {
+    await db.batch((batch) => {
+      revisionId = batch.insert('design_revisions', {
+        design_id: design.id,
+        number,
+        document,
+        format_version: DOCUMENT_FORMAT,
+        engine_version: ENGINE_VERSION,
+        ruleset_version: rulesetVersion,
+        computed,
+        author_kind: 'staff',
+        author_id: session.userId,
+        reason,
+      });
+      batch.update('designs', design.id, { current_revision: number });
+      batch.insert('job_events', {
+        job_id: job.id,
+        type: 'revision_saved',
+        actor_kind: 'staff',
+        actor_id: session.userId,
+        data: {
+          designId: design.id,
+          label: design.label,
+          revision: number,
+          reason,
+          warnings: computed.warnings.length,
+          blockingIssues: computed.blockingIssues.length,
+        },
+      });
+    });
+  } catch (error) {
+    // Two people saving from the same revision at once: the database keeps
+    // revision numbers unique, so the second is refused here.
+    if (/UNIQUE/i.test(error instanceof Error ? error.message : String(error))) {
+      return c.json(
+        { error: 'stale', message: 'Someone else saved a change to this shower at the same moment. Open it again to see theirs.' },
+        409,
+        PRIVATE
+      );
+    }
+    throw error;
+  }
+
+  // The change is safe. Now its drawings, which the job page shows for it.
+  const stored: { key: string; file: (typeof drawings)[number] }[] = [];
+  for (const file of drawings) {
+    const key = `${session.companyId}/jobs/${job.id}/${crypto.randomUUID()}-${file.filename}`;
+    try {
+      await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
+      stored.push({ key, file });
+    } catch (error) {
+      console.error(JSON.stringify({ message: 'drawing not stored', job: job.id, error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
+  if (stored.length > 0) {
+    await db.batch((batch) => {
+      for (const { key, file } of stored) {
+        batch.insert('files', {
+          job_id: job.id,
+          revision_id: revisionId,
+          kind: 'drawing',
+          storage_key: key,
+          content_type: file.contentType,
+          size_bytes: file.bytes.length,
+        });
+      }
+    });
+  }
+  return c.json({ ok: true, revision: number, drawings: stored.length }, 201, PRIVATE);
+});
 
 const MAX_NOTE = 4000;
 

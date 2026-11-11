@@ -36,7 +36,16 @@ export function Job({ id }: { id: string }) {
   }
 
   const received = detail.events.find((e) => e.type === 'received');
-  const drawings = orderDrawings(detail.files.filter((f) => f.kind === 'drawing'));
+  // Each shower shows the drawings of the revision it stands at. Those of
+  // earlier revisions are kept, further down, for reference.
+  const drawingsFor = (revision: Revision | null, i: number) =>
+    orderDrawings(
+      detail.files.filter(
+        (f) => f.kind === 'drawing' && revision && (f.revisionId === revision.id || (f.revisionId === null && revision.number === 1 && i === 0))
+      )
+    );
+  const shown = new Set(detail.designs.flatMap((d, i) => drawingsFor(d.revision, i).map((f) => f.id)));
+  const earlier = detail.files.filter((f) => f.kind === 'drawing' && !shown.has(f.id));
   const photos = detail.files.filter((f) => f.kind === 'photo' || f.kind === 'measuring_photo');
   const others = detail.files.filter((f) => f.kind === 'pdf' || f.kind === 'other');
 
@@ -85,10 +94,34 @@ export function Job({ id }: { id: string }) {
             design={design.revision.document.design}
             spec={design.revision.computed}
             revision={design.revision.number}
-            drawings={i === 0 ? drawings : []}
+            drawings={drawingsFor(design.revision, i)}
+            editHref={`/edit/${encodeURIComponent(detail.job.id)}/${encodeURIComponent(design.id)}`}
+            changed={design.revision.author_kind === 'staff' ? { by: design.revision.changedBy, reason: design.revision.reason, at: design.revision.created_at } : null}
             signOff={<SignOff jobId={detail.job.id} designId={design.id} revision={design.revision} canBeMade={design.revision.computed.blockingIssues.length === 0} onChanged={job.reload} />}
           />
         ) : null
+      )}
+
+      {earlier.length > 0 && (
+        <Section title="Earlier drawings">
+          <details className="rounded-lg border border-rule bg-surface p-3 text-sm">
+            <summary className="cursor-pointer text-quiet">
+              {earlier.length === 1 ? '1 drawing' : `${earlier.length} drawings`} of a revision since changed
+            </summary>
+            <ul className="mt-3 space-y-3">
+              {earlier.map((d) => (
+                <li key={d.id} className="overflow-hidden rounded-md border border-rule bg-white">
+                  <a href={fileUrl(d.id)} target="_blank" rel="noreferrer" className="block">
+                    <img src={fileUrl(d.id)} alt={`Earlier ${d.name}`} loading="lazy" className="mx-auto max-h-[50vh] w-auto max-w-full" />
+                  </a>
+                  <p className="border-t border-rule bg-surface px-3 py-1.5 text-xs text-quiet">
+                    {DRAWING_NAMES[d.name.replace(/\.[a-z]+$/, '')] ?? d.name}, {whenExactly(d.createdAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </Section>
       )}
 
       {photos.length > 0 && (
@@ -157,7 +190,7 @@ function orderDrawings(files: JobFile[]): JobFile[] {
 }
 
 const DRAWING_NAMES: Record<string, string> = {
-  measurements: 'What the customer measured',
+  measurements: 'What was measured',
   'plan-view': 'Plan',
   'elevation-view': 'Elevation',
 };
@@ -214,6 +247,8 @@ function Shower({
   revision,
   drawings,
   signOff,
+  editHref,
+  changed,
 }: {
   title: string | null;
   layout: string | null;
@@ -222,6 +257,10 @@ function Shower({
   revision: number;
   drawings: JobFile[];
   signOff: React.ReactNode;
+  /** Where staff change this shower. */
+  editHref: string;
+  /** For a revision staff saved: who, why and when. */
+  changed: { by: { name: string | null; email: string } | null; reason: string | null; at: string } | null;
 }) {
   const readings = journeySummary(design).filter((row) => row.status !== 'optional' || row.value);
   return (
@@ -235,6 +274,18 @@ function Shower({
           {spec.cornerCount > 0 ? `, ${spec.cornerCount === 1 ? '1 corner' : `${spec.cornerCount} corners`}` : ''}, {spec.totalGlassWeightKg}kg of glass
           {spec.isFloorToCeiling ? ', floor to ceiling' : ''}
         </p>
+        {changed && (
+          <p className="mt-2 rounded-md bg-ground px-3 py-2 text-sm">
+            <span className="font-semibold">Changed by {changed.by ? (changed.by.name ?? changed.by.email) : 'the team'}</span>, {whenExactly(changed.at)}
+            {changed.reason ? `: ${changed.reason}` : ''}
+          </p>
+        )}
+        <a
+          href={editHref}
+          className="mt-3 inline-flex h-10 items-center rounded-md border border-rule bg-surface px-4 text-sm font-semibold"
+        >
+          Change this shower
+        </a>
         <Checks spec={spec} />
         {signOff}
       </Section>
@@ -474,6 +525,8 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} moved it from ${STAGE_NAMES[d.from as Stage] ?? String(d.from)} to ${STAGE_NAMES[d.to as Stage] ?? String(d.to)}.`;
     case 'note':
       return String(d.text ?? '');
+    case 'revision_saved':
+      return `${who ?? 'Someone'} saved revision ${String(d.revision)} of ${named(d.label) ?? 'the shower'}${typeof d.reason === 'string' && d.reason ? `: ${d.reason}` : '.'}`;
     case 'revision_checked':
       return `${who ?? 'Someone'} checked ${named(d.label) ?? 'the shower'} and is happy for it to be made.`;
     case 'revision_unchecked':

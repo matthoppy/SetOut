@@ -115,6 +115,42 @@ function safeFilename(name: unknown, index: number, contentType: EnquiryFile['co
   return `${base || `file-${index + 1}`}.${extension}`;
 }
 
+/**
+ * Pictures sent as base64, checked one by one: that each is a JPEG, PNG or
+ * WebP by its own bytes, whatever it says it is, and that none, nor all
+ * together, is too big.
+ */
+export function readFiles(attachments: unknown = [], max = MAX_FILES): EnquiryFile[] {
+  if (!Array.isArray(attachments) || attachments.length > max) {
+    throw new RequestError(400, 'invalid_request', `No more than ${max} drawings and photos can be sent.`);
+  }
+  let total = 0;
+  return attachments.map((a: unknown, i) => {
+    if (!isObject(a) || typeof a.content !== 'string') {
+      throw new RequestError(400, 'invalid_request', `File ${i + 1} is not a readable file.`);
+    }
+    const bytes = decodeBase64(a.content, `File ${i + 1}`);
+    total += bytes.length;
+    if (bytes.length > MAX_FILE_BYTES) {
+      throw new RequestError(413, 'file_too_large', `File ${i + 1} is too large. The limit is 8MB.`);
+    }
+    if (total > MAX_TOTAL_BYTES) {
+      throw new RequestError(413, 'files_too_large', 'Those files are too large together. The limit is 30MB.');
+    }
+    const contentType = imageType(bytes);
+    if (!contentType) {
+      throw new RequestError(400, 'unsupported_file', `File ${i + 1} is not a JPEG, PNG or WebP picture.`);
+    }
+    return {
+      kind: a.kind === 'drawing' ? 'drawing' : 'photo',
+      filename: safeFilename(a.filename, i, contentType),
+      contentType,
+      bytes,
+      base64: a.content,
+    };
+  });
+}
+
 export function readEnquiry(body: unknown): Enquiry {
   if (!isObject(body)) throw new RequestError(400, 'invalid_request', 'The request must be a JSON object.');
 
@@ -142,35 +178,7 @@ export function readEnquiry(body: unknown): Enquiry {
     );
   }
 
-  const attachments = body.attachments === undefined ? [] : body.attachments;
-  if (!Array.isArray(attachments) || attachments.length > MAX_FILES) {
-    throw new RequestError(400, 'invalid_request', `No more than ${MAX_FILES} drawings and photos can be sent.`);
-  }
-  let total = 0;
-  const files: EnquiryFile[] = attachments.map((a, i) => {
-    if (!isObject(a) || typeof a.content !== 'string') {
-      throw new RequestError(400, 'invalid_request', `File ${i + 1} is not a readable file.`);
-    }
-    const bytes = decodeBase64(a.content, `File ${i + 1}`);
-    total += bytes.length;
-    if (bytes.length > MAX_FILE_BYTES) {
-      throw new RequestError(413, 'file_too_large', `File ${i + 1} is too large. The limit is 8MB.`);
-    }
-    if (total > MAX_TOTAL_BYTES) {
-      throw new RequestError(413, 'files_too_large', 'Those files are too large together. The limit is 30MB.');
-    }
-    const contentType = imageType(bytes);
-    if (!contentType) {
-      throw new RequestError(400, 'unsupported_file', `File ${i + 1} is not a JPEG, PNG or WebP picture.`);
-    }
-    return {
-      kind: a.kind === 'drawing' ? 'drawing' : 'photo',
-      filename: safeFilename(a.filename, i, contentType),
-      contentType,
-      bytes,
-      base64: a.content,
-    };
-  });
+  const files = readFiles(body.attachments);
 
   const antispam = isObject(body.antispam) ? body.antispam : {};
   return {

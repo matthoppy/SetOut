@@ -122,6 +122,8 @@ A person is one user, whatever companies they belong to. A membership says which
 | `POST /api/workspace/jobs/:id/notes` | Add a note to a job's timeline |
 | `POST /api/workspace/jobs/:id/designs/:designId/check` | Mark the revision a shower stands at as checked. The request names the revision that was looked over |
 | `DELETE /api/workspace/jobs/:id/designs/:designId/check` | Take a check back |
+| `GET /api/workspace/jobs/:id/designs/:designId/editor` | What the editor needs to open a shower: the designer its job came from, with the company's options and rules, and the revision it stands at |
+| `POST /api/workspace/jobs/:id/designs/:designId/revisions` | Save a changed shower as its next revision, with a reason and its new drawings. The request names the revision the change was made from |
 | `GET /api/workspace/files/:id` | A job's drawing or photo, to its company's signed-in staff alone |
 | `GET /api/workspace/team` | Everyone on the team. Owners also get the latest changes to it |
 | `POST /api/workspace/team` | An owner puts someone on the team. They are emailed to say so |
@@ -131,6 +133,8 @@ A person is one user, whatever companies they belong to. A membership says which
 These answer on the workspace's address only. Nothing running in the public designer can reach them.
 
 A shower is made only from a design a member of staff has checked. On the job page, staff look over the drawings, cut sizes and readings and mark the shower as checked. The request names the revision they looked at, so a design that changed meanwhile is never checked unseen, and a design that cannot be made as drawn cannot be checked at all. Checking, and taking a check back, both go on the job's timeline with who did it. The database lets nothing about a revision change afterwards except its check.
+
+Staff change a shower in the same screens its customer used: its measurements, its layout and its hardware, with the drawings and cut sizes following as they go. The editor is the designer's own code, served at `/edit/<job>/<shower>` on the workspace's address, because it works with a staff session, and never on the designer's. A change is saved as the shower's next revision, with a reason that goes on the timeline, and is checked and worked out again on the server with the company's rules, as a customer's design is. Whatever the browser worked out is not even read. The request names the revision the change was made from, so a change made from an older copy is refused rather than saved over someone else's, and the database keeps revision numbers unique for two saves at the same moment. A design with no change, or no reason, is refused. A new revision starts unchecked. Its drawings are stored with it, and the job page shows each shower's drawings for the revision it stands at, with earlier ones kept below.
 
 Owners run their own team. Adding someone needs only their address: they are emailed to say who added them and as what, with a button that opens the sign-in page with their address filled in. The email carries no sign-in link, because a link runs out in minutes and the email may not be opened for days. A company can add up to twenty people a day, so nobody can use SetOut to send mail in bulk. A company always keeps at least one owner, checked inside the statement that makes the change, so two owners demoting each other at once cannot leave it with none. Every change to the team is written to the company's audit log in the same batch as the change, and only if the change was made.
 

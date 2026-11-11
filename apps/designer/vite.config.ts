@@ -12,6 +12,14 @@ export default defineConfig({
     // Both apps build into one folder, which the API's Worker serves.
     outDir: '../../dist/site/designer',
     emptyOutDir: true,
+    rollupOptions: {
+      // The customer's designer, and the editor staff change a sent design in.
+      // The Worker serves the editor on the workspace's address only.
+      input: {
+        main: path.resolve(import.meta.dirname, 'index.html'),
+        edit: path.resolve(import.meta.dirname, 'edit.html'),
+      },
+    },
   },
   server: {
     port: 5174,

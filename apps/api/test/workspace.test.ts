@@ -751,3 +751,110 @@ describe('checking a shower', () => {
     expect((await check(ourJob.job.id, ourJob.designs[0].id, 1, rival)).status).toBe(404);
   });
 });
+
+describe('changing a shower', () => {
+  interface Editor {
+    config: { brand: { name: string }; rules: unknown };
+    job: { id: string; reference: string; customer: string | null };
+    design: { id: string };
+    revision: { number: number; document: { format: number; design: { heightMm: number; panels: unknown[] } } };
+    templateId: string | null;
+  }
+  interface Saved {
+    job: { id: string };
+    designs: {
+      id: string;
+      revision: { id: string; number: number; author_kind: string; reason: string | null; checked_at: string | null; computed: { heightMm: number } };
+    }[];
+    files: { kind: string; name: string; revisionId: string | null }[];
+    events: { type: string; actor: { email: string } | null; data: Record<string, unknown> }[];
+  }
+  let jobId = '';
+  let designId = '';
+  const editorFor = async (cookie = owner) => api(`/jobs/${jobId}/designs/${designId}/editor`, { cookie });
+  const save = (body: unknown, cookie = owner) => post(`/jobs/${jobId}/designs/${designId}/revisions`, body, { cookie });
+  const changed = (editor: Editor, heightMm: number) => ({
+    ...editor.revision.document,
+    design: { ...editor.revision.document.design, heightMm },
+  });
+
+  beforeAll(async () => {
+    await enquire(ours, 'Eve Editor', 'eve@example.test', 'EV1 1AA');
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Eve', { cookie: owner }));
+    jobId = jobs[0].id;
+    const job = await json<Saved>(await api(`/jobs/${jobId}`, { cookie: owner }));
+    designId = job.designs[0].id;
+  });
+
+  test('staff open a shower with its company’s designer and the revision it stands at', async () => {
+    const response = await editorFor();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    const editor = await json<Editor>(response);
+    expect(editor.config.brand.name).toBe('Custom Showers');
+    expect(editor.config.rules).toBeTruthy();
+    expect(editor.job).toMatchObject({ id: jobId, customer: 'Eve Editor' });
+    expect(editor.revision.number).toBe(1);
+    expect(editor.revision.document.design.panels).toHaveLength(2);
+    expect(editor.templateId).toBe('alcove-panel-door');
+    expect((await editorFor(rival)).status).toBe(404);
+    expect((await api(`/jobs/${jobId}/designs/${designId}/editor`)).status).toBe(401);
+  });
+
+  test('a change is saved as the next revision, worked out again here, with its drawings', async () => {
+    const editor = await json<Editor>(await editorFor());
+    const response = await save({
+      basedOn: 1,
+      document: changed(editor, 1950),
+      // Whatever a browser says the sizes are is not even read.
+      computed: { heightMm: 9999 },
+      reason: '  Surveyed:   the tray is   50mm lower. ',
+      attachments: [{ filename: 'plan-view.png', content: PNG, kind: 'drawing' }],
+    });
+    expect(response.status).toBe(201);
+    expect(await json(response)).toMatchObject({ revision: 2, drawings: 1 });
+
+    const job = await json<Saved>(await api(`/jobs/${jobId}`, { cookie: owner }));
+    const now = job.designs[0].revision;
+    expect(now).toMatchObject({ number: 2, author_kind: 'staff', reason: 'Surveyed: the tray is 50mm lower.', checked_at: null });
+    expect(now.computed.heightMm).toBe(1950);
+    expect(job.files.filter((f) => f.revisionId === now.id).map((f) => [f.kind, f.name])).toEqual([['drawing', 'plan-view.png']]);
+    expect(job.events.at(-1)).toMatchObject({
+      type: 'revision_saved',
+      actor: { email: 'owner@cs.example' },
+      data: { designId, revision: 2, reason: 'Surveyed: the tray is 50mm lower.' },
+    });
+    // Revision 1 is as the customer sent it.
+    const [first] = await ours.db.find('design_revisions', { where: { design_id: designId, number: 1 } });
+    expect(first.author_kind).toBe('customer');
+  });
+
+  test('a change made from an older revision is refused, not saved over a newer one', async () => {
+    const editor = await json<Editor>(await editorFor());
+    expect(editor.revision.number).toBe(2);
+    const stale = await save({ basedOn: 1, document: changed(editor, 1900), reason: 'From an old copy' });
+    expect(stale.status).toBe(409);
+    expect((await json<{ error: string }>(stale)).error).toBe('stale');
+  });
+
+  test('a change needs a reason, must change something, and must be a design', async () => {
+    const editor = await json<Editor>(await editorFor());
+    const codes = async (body: unknown) => {
+      const response = await save(body);
+      return [response.status, (await json<{ error: string }>(response)).error];
+    };
+    expect(await codes({ basedOn: 2, document: changed(editor, 1900), reason: '   ' })).toEqual([400, 'reason_needed']);
+    expect(await codes({ basedOn: 2, document: editor.revision.document, reason: 'Nothing really' })).toEqual([400, 'unchanged']);
+    expect(await codes({ basedOn: 2, document: { format: 1, design: 'a bath' }, reason: 'Broken' })).toEqual([422, 'invalid_design']);
+    expect(
+      await codes({ basedOn: 2, document: changed(editor, 1900), reason: 'Bad file', attachments: [{ filename: 'x.png', content: btoa('not a picture'), kind: 'drawing' }] })
+    ).toEqual([400, 'unsupported_file']);
+    expect((await json<Saved>(await api(`/jobs/${jobId}`, { cookie: owner }))).designs[0].revision.number).toBe(2);
+  });
+
+  test('another company’s shower can be neither opened nor changed', async () => {
+    const editor = await json<Editor>(await editorFor());
+    expect((await save({ basedOn: 2, document: changed(editor, 1900), reason: 'Not ours' }, rival)).status).toBe(404);
+    expect((await json<Saved>(await api(`/jobs/${jobId}`, { cookie: owner }))).designs[0].revision.number).toBe(2);
+  });
+});

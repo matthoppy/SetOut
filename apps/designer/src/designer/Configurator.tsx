@@ -6,7 +6,7 @@
  * serves every company's embedded designer.
  */
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ensureTurnstile } from '@/lib/turnstile';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, X } from 'lucide-react';
@@ -15,7 +15,6 @@ import { ElevationView } from './views/ElevationView';
 import { ShapeStep } from './steps/ShapeStep';
 import {
   checkMeasurements,
-  hydrateOpening,
   keepSetup,
   syncRuns,
 } from '@setout/engine';
@@ -36,6 +35,8 @@ import { slotSortKey, type Photo } from './photos';
 import { drawingsToPngBase64, sendDesign, svgToPngBase64, type EnquiryAttachment } from './submit';
 import { MeasuredDrawings } from './measure/MeasuredDrawings';
 import { canSendReview } from './canSendReview';
+import { hydrateState } from './hydrate';
+import { MEASURED_SHEET } from './measure/sheet';
 
 const EMPTY_CUSTOMER: CustomerDetails = {
   name: '',
@@ -45,18 +46,6 @@ const EMPTY_CUSTOMER: CustomerDetails = {
   notes: '',
   measurementsAcknowledged: false,
 };
-
-/** Where the measuring drawings wait to be sent: off screen, at the width they are drawn for, in the light colours. */
-const MEASURED_SHEET = {
-  position: 'fixed',
-  left: -10000,
-  top: 0,
-  width: 400,
-  '--background': '0 0% 100%',
-  '--foreground': '0 0% 20%',
-  '--muted-foreground': '0 0% 40%',
-  '--measure-accent': '210 50% 23%',
-} as CSSProperties;
 
 /**
  * Progress, saved in the browser.
@@ -111,14 +100,6 @@ function worthResuming(saved: SavedDesign): boolean {
     saved.state.opening?.method !== null ||
     !!saved.customer?.name
   );
-}
-
-/** Fill in anything a saved design predates, so last week's design still loads. */
-function hydrateState(saved: ConfiguratorState, config: DesignerConfig): ConfiguratorState {
-  const fresh = createInitialState(config.glassThicknessMm);
-  const state: ConfiguratorState = { ...fresh, ...saved };
-  state.opening = hydrateOpening(saved.opening, runWidthsMm(state.panels, state.junctions));
-  return state;
 }
 
 const hydrate = (saved: SavedDesign, config: DesignerConfig) => hydrateState(saved.state, config);
