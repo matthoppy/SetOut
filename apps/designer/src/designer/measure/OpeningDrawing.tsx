@@ -15,27 +15,12 @@
 
 import { CROSS_POINTS, ceilingSlope, wallLean, type CrossKey, type OpeningMeasurements } from '@setout/engine';
 import type { ConfiguratorPanel } from '@setout/engine';
+import { ACCENT, AcrossReading, BG, DimLine, EX, ExaggerationNote, FAINT, FONT, GLASS, GUTTER, INK, LASER, TICK, UprightReading, W } from './drawing/parts';
 
-const INK = 'hsl(var(--foreground) / 0.8)';
-const FAINT = 'hsl(var(--muted-foreground) / 0.5)';
-const ACCENT = 'hsl(var(--measure-accent))';
-const BG = 'hsl(var(--background))';
-const LASER = '#e11d48';
-const GLASS = 'hsl(var(--measure-accent) / 0.08)';
-const FONT = 'system-ui, sans-serif';
-/** How many times bigger a lean, a fall or a slope is drawn than it is. */
-const EX = 8;
-
-// The page, in drawing units. One unit is about one pixel on a phone.
-const W = 340;
-/** Each side of the opening: a column for the readings, then one for the height they add up to. */
-const GUTTER = 82;
-/** Above and below it: a row for the readings, then one for the width they add up to. */
+/** Above and below the opening: a row for the readings, then one for the width they add up to. */
 const BAND = 56;
 /** The opening is never drawn taller than this, so the drawing fits a phone. */
 const MAX_TALL = 270;
-const TICK = 4;
-const MARK_R = 6.5;
 
 interface Props {
   opening: OpeningMeasurements;
@@ -46,69 +31,6 @@ interface Props {
   className?: string;
 }
 
-/** A dimension line with a tick at each end. */
-function DimLine({ x1, y1, x2, y2, tone, weight = 1 }: { x1: number; y1: number; x2: number; y2: number; tone: string; weight?: number }) {
-  const upright = x1 === x2;
-  return (
-    <g stroke={tone} strokeWidth={1}>
-      <line x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth={weight} />
-      {[
-        [x1, y1],
-        [x2, y2],
-      ].map(([x, y], i) => (upright ? <line key={i} x1={x - TICK} y1={y} x2={x + TICK} y2={y} /> : <line key={i} x1={x} y1={y - TICK} x2={x} y2={y + TICK} />))}
-    </g>
-  );
-}
-
-/** How much room a reading takes when written out: its circled number, then the figure. */
-const readingWidth = (value: number) => MARK_R * 2 + 3 + String(value).length * 6.4;
-
-/** A reading as written on the drawing, with the same circled number as its card. */
-function Reading({ n, value, x, y, anchor }: { n: number; value: number; x: number; y: number; anchor: 'start' | 'middle' | 'end' }) {
-  const width = readingWidth(value);
-  const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
-  return (
-    <g fontFamily={FONT} fill={ACCENT}>
-      <circle cx={left + MARK_R} cy={y} r={MARK_R} fill={BG} stroke={ACCENT} strokeWidth={1} />
-      <text x={left + MARK_R} y={y + 3} textAnchor="middle" fontSize={8.5} fontWeight={700}>
-        {n}
-      </text>
-      <text x={left + MARK_R * 2 + 3} y={y + 3.9} fontSize={11} fontWeight={600}>
-        {value}
-      </text>
-    </g>
-  );
-}
-
-/**
- * A wall-to-laser reading. The number sits beside its line, or beyond the
- * wall end of it when the line is too short to carry the number, as on any
- * drawing.
- */
-function AcrossReading({ n, value, wallX, laserX, y, labelY }: { n: number; value: number; wallX: number; laserX: number; y: number; labelY: number }) {
-  const fits = Math.abs(laserX - wallX) >= readingWidth(value) + 8;
-  const leftOfLaser = wallX < laserX;
-  return (
-    <g>
-      <DimLine x1={wallX} y1={y} x2={laserX} y2={y} tone={ACCENT} />
-      {fits ? (
-        <Reading n={n} value={value} x={(wallX + laserX) / 2} y={labelY} anchor="middle" />
-      ) : (
-        <Reading n={n} value={value} x={leftOfLaser ? wallX - 7 : wallX + 7} y={y} anchor={leftOfLaser ? 'end' : 'start'} />
-      )}
-    </g>
-  );
-}
-
-/** A floor or ceiling reading, from the level line to the surface, with its number beside it. */
-function UprightReading({ n, value, x, lineY, surfaceY, side }: { n: number; value: number; x: number; lineY: number; surfaceY: number; side: 'left' | 'right' }) {
-  return (
-    <g>
-      <DimLine x1={x} y1={lineY} x2={x} y2={surfaceY} tone={ACCENT} />
-      <Reading n={n} value={value} x={side === 'left' ? x - 6 : x + 6} y={(lineY + surfaceY) / 2} anchor={side === 'left' ? 'end' : 'start'} />
-    </g>
-  );
-}
 
 /** What the readings say about the walls, floor and ceiling, in words. */
 export function openingFindings(opening: OpeningMeasurements, toCeiling: boolean, topGapMm: number, heightMm: number): string[] {
@@ -300,18 +222,18 @@ export function OpeningDrawing({ opening, heightMm, toCeiling, topGapMm, panels 
         </g>
 
         {/* Readings 1 to 4: each wall to the laser, along the floor and at the top. */}
-        <AcrossReading n={1} value={lb} wallX={blx} laserX={crossX} y={rowB} labelY={rowB + 11} />
-        <AcrossReading n={3} value={rb} wallX={brx} laserX={crossX} y={rowB} labelY={rowB + 11} />
-        <AcrossReading n={2} value={lt} wallX={tlx} laserX={crossX} y={rowT} labelY={rowT - 11} />
-        <AcrossReading n={4} value={rt} wallX={trx} laserX={crossX} y={rowT} labelY={rowT - 11} />
+        <AcrossReading n={1} value={lb} outerX={blx} innerX={crossX} y={rowB} labelY={rowB + 11} />
+        <AcrossReading n={3} value={rb} outerX={brx} innerX={crossX} y={rowB} labelY={rowB + 11} />
+        <AcrossReading n={2} value={lt} outerX={tlx} innerX={crossX} y={rowT} labelY={rowT - 11} />
+        <AcrossReading n={4} value={rt} outerX={trx} innerX={crossX} y={rowT} labelY={rowT - 11} />
 
         {/* Readings 5 to 8: the floor and the ceiling to the level line. */}
-        <UprightReading n={5} value={fl} x={readL} lineY={lineY} surfaceY={floorL} side="left" />
-        <UprightReading n={6} value={fr} x={readR} lineY={lineY} surfaceY={floorR} side="right" />
+        <UprightReading n={5} value={fl} x={readL} y1={lineY} y2={floorL} side="left" />
+        <UprightReading n={6} value={fr} x={readR} y1={lineY} y2={floorR} side="right" />
         {toCeiling && (
           <>
-            <UprightReading n={7} value={cl} x={readL} lineY={lineY} surfaceY={ceilL} side="left" />
-            <UprightReading n={8} value={cr} x={readR} lineY={lineY} surfaceY={ceilR} side="right" />
+            <UprightReading n={7} value={cl} x={readL} y1={lineY} y2={ceilL} side="left" />
+            <UprightReading n={8} value={cr} x={readR} y1={lineY} y2={ceilR} side="right" />
           </>
         )}
 
@@ -337,11 +259,7 @@ export function OpeningDrawing({ opening, heightMm, toCeiling, topGapMm, panels 
           </>
         )}
       </svg>
-      {outOfTrue && (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          Leans, falls and slopes are drawn {EX} times bigger so you can see them. The numbers are yours.
-        </figcaption>
-      )}
+      {outOfTrue && <ExaggerationNote />}
     </figure>
   );
 }

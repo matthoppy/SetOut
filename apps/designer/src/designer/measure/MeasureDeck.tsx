@@ -14,8 +14,10 @@ import {
   openingContext,
   readField,
   readingCards,
+  unreadCards,
   writeField,
   type ConfiguratorState,
+  type DeckOptions,
 } from '@setout/engine';
 import { useEngine } from '../engine';
 import { MeasureCard } from './MeasureCard';
@@ -32,6 +34,8 @@ export interface MeasureDeckProps {
   onExit: () => void;
   /** The customer has said the numbers are right. */
   onDone: () => void;
+  /** What the engine cannot tell from the design alone, such as a screen standing on a bath. */
+  options: DeckOptions;
   /**
    * Whether the designer has the whole screen to itself. In a frame that
    * grows with its content there is no screen height to fill, so the card
@@ -40,30 +44,30 @@ export interface MeasureDeckProps {
   fillsViewport: boolean;
 }
 
-export function MeasureDeck({ state, setState, index, setIndex, onExit, onDone, fillsViewport }: MeasureDeckProps) {
+export function MeasureDeck({ state, setState, index, setIndex, onExit, onDone, fillsViewport, options }: MeasureDeckProps) {
   const { rules } = useEngine();
-  const cards = buildCards(state);
+  const cards = buildCards(state, options);
   const readings = readingCards(cards);
   const at = Math.min(Math.max(index, 0), cards.length - 1);
   const card = cards[at];
 
-  // The readings already typed, by their number, so the picture can show them.
-  const done = cards
-    .filter((c) => c.field?.kind === 'cross' && readField(state, c.field) !== null)
-    .map((c) => (c.visual?.kind === 'cross-reading' ? c.visual.point : 0))
-    .filter((n) => n > 0);
-
   const frame = fillsViewport ? 'h-[100dvh]' : 'h-[640px]';
 
   if (card.kind === 'review') {
-    const problems = checkMeasurements(state.opening, openingContext(state))
-      .filter((c) => c.level === 'blocking' && c.code !== 'shape-unconfirmed')
-      .map((c) => c.message);
+    // A reading that was never typed is said once, by name. The checks then
+    // speak for the numbers that are there.
+    const unread = unreadCards(state, cards);
+    const problems = unread.length
+      ? [`We still need ${unread.length === 1 ? 'one reading' : `${unread.length} readings`}. ${unread.length === 1 ? 'It is' : 'They are'} marked below.`]
+      : checkMeasurements(state.opening, openingContext(state))
+          .filter((c) => c.level === 'blocking' && c.code !== 'shape-unconfirmed')
+          .map((c) => c.message);
     return (
       <div className={`mx-auto w-full max-w-xl ${frame}`}>
         <MeasureReview
           state={state}
           cards={cards}
+          options={options}
           problems={problems}
           onEdit={(cardId) => setIndex(Math.max(0, cards.findIndex((c) => c.id === cardId)))}
           onConfirm={onDone}
@@ -87,9 +91,7 @@ export function MeasureDeck({ state, setState, index, setIndex, onExit, onDone, 
         onNext={() => setIndex(at + 1)}
         onBack={() => (at === 0 ? onExit() : setIndex(at - 1))}
         canBack
-        visual={
-          card.visual ? <CardPicture visual={card.visual} value={value} done={done} glassMm={state.heightMm} /> : null
-        }
+        visual={<CardPicture card={card} cards={cards} state={state} options={options} />}
         nextLabel={at === cards.length - 2 ? 'See my measurements' : undefined}
       />
     </div>

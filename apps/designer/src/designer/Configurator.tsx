@@ -19,7 +19,7 @@ import {
   keepSetup,
   syncRuns,
 } from '@setout/engine';
-import { buildCards, isSingleDoor, openingContext, runPanelIndices, runWidthsMm, toolFor } from '@setout/engine';
+import { buildCards, hasDeck, openingContext, runPanelIndices, runWidthsMm } from '@setout/engine';
 import { MeasureStep } from './steps/MeasureStep';
 import { MeasureDeck } from './measure/MeasureDeck';
 import { buildJourney, canLeaveScreen, measureScreenCount } from '@setout/engine';
@@ -254,11 +254,12 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
   // The journey decides how many from the shape and the tool in hand; a
   // change of either can shorten it, so the index is clamped to what exists.
   //
-  // A single door measured with a laser has the card deck, one reading to a
-  // card. The other shapes and the tape still have the older screens until
-  // their decks are written.
-  const usesDeck = isSingleDoor(state) && toolFor(state.opening.method) === 'laser';
-  const cardTotal = usesDeck ? buildCards(state).length : measureScreenCount(state);
+  // Measured with a laser, every layout has the card deck, one reading to a
+  // card. Measuring with a tape keeps the older screens until its decks are
+  // written.
+  const usesDeck = hasDeck(state);
+  const deckOptions = useMemo(() => ({ overBath: templateId === 'over-bath' }), [templateId]);
+  const cardTotal = usesDeck ? buildCards(state, deckOptions).length : measureScreenCount(state);
   const inMeasureCards = stepId === 'measure' && !usesDeck;
   useEffect(() => {
     if (measureCard > cardTotal - 1) setMeasureCard(cardTotal - 1);
@@ -424,6 +425,7 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
         index={measureCard}
         setIndex={setMeasureCard}
         fillsViewport={fillsViewport}
+        options={deckOptions}
         onExit={() => setStepId('shape')}
         onDone={() => {
           setState((s) => ({ ...s, opening: { ...s.opening, shapeConfirmed: true } }));

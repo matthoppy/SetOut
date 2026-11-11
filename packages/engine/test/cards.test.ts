@@ -488,6 +488,16 @@ describe('what each layout is asked', () => {
     expect(cards.find((c) => c.id === 'width-2')?.instruction).toMatch(/^Hook the tape on the back wall/);
   });
 
+  test('the tape marks are shown from above only when the glass turns a corner', () => {
+    const marks = (id: string) => deck(id).find((c) => c.id === 'marks')?.visual?.kind;
+    expect(marks('alcove-panel-door')).toBe('marks');
+    expect(marks('walk-in')).toBe('marks');
+    expect(marks('over-bath')).toBe('marks');
+    expect(marks('walk-in-return')).toBe('plan-marks');
+    expect(marks('corner-door-return')).toBe('plan-marks');
+    expect(marks('three-sided')).toBe('plan-marks');
+  });
+
   test('each picture is told what is at either side of its run', () => {
     expect(runViews(layout('three-sided')).map((v) => [v.left, v.right, v.door])).toEqual([
       ['wall', 'corner', false],
@@ -495,6 +505,11 @@ describe('what each layout is asked', () => {
       ['corner', 'wall', false],
     ]);
     expect(runViews(layout('walk-in')).map((v) => [v.left, v.right])).toEqual([['wall', 'open']]);
+    // Which side of the shower each run is, for the small plan on its picture.
+    expect(runViews(layout('three-sided')).map((v) => v.faces)).toEqual(['left', 'front', 'right']);
+    expect(runViews(layout('corner-door-return')).map((v) => v.faces)).toEqual(['left', 'front']);
+    expect(runViews(layout('walk-in-return')).map((v) => v.faces)).toEqual(['front', 'right']);
+    expect(runViews(layout('alcove-panel-door')).map((v) => v.faces)).toEqual(['front']);
     expect(runViews(layout('over-bath'), { overBath: true })[0].surface).toBe('bath');
   });
 });

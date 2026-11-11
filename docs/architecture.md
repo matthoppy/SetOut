@@ -84,7 +84,11 @@ The deck is dealt by the engine, in `packages/engine/src/cards.ts`, from the sha
 
 The last card is the opening drawn from the numbers, with every reading on it under the same circled number it had on its card, and one button to say the numbers are right. It is laid out as a dimensioned drawing: only the door and the laser cross inside the opening, each reading on its own line just outside the surface it was taken from, and the sizes they add up to beyond that. Leans, falls and slopes are drawn eight times bigger than they are, and the drawing says so. Nothing on it is drawn from a guess: with a reading missing there is no drawing.
 
-A single door between two walls, measured with a laser, has its deck. The other layouts and tape measuring still use the older screens until their decks are written.
+There are two kinds of deck. A single door between two walls is measured to a laser cross in the middle of the opening: eight readings from one place. Every other layout is measured a run at a time, in the steps agreed for it: how wide the run is, in two halves to the laser where there is a door in it; the floor under it as two readings up to the level line; floor to ceiling at each end where the glass reaches it; and each wall the glass ends on as two readings to the laser's upright line, stood 50mm off it. The cards come in the order the customer meets them walking along the glass, so the laser is moved as little as possible.
+
+For those layouts the last card draws each run face on from outside the shower, under a plan from above when the glass turns a corner.
+
+Every layout has its deck when it is measured with a laser. Measuring with a tape and a level still uses the older screens until its decks are written.
 
 ## The two addresses
 

@@ -16,7 +16,7 @@
  * cross-check stays where it was.
  */
 
-import { isSingleDoor, runPanelIndices } from './geometry';
+import { derivePlanes, isSingleDoor, runPanelIndices } from './geometry';
 import { runEndNames, runNames, wallNames } from './journey';
 import { scaleRunPanels } from './layout';
 import {
@@ -51,6 +51,8 @@ export interface RunView {
   right: EndKind;
   /** Whether there is a door in this run. */
   door: boolean;
+  /** Which side of the shower the run is, seen from above with the front nearest. */
+  faces: 'front' | 'left' | 'right' | 'back';
   /** What the glass stands on. */
   surface: 'floor' | 'bath';
 }
@@ -273,13 +275,16 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** What is at each side of each run, for its picture. */
 export function runViews(state: ConfiguratorState, options: DeckOptions = {}): RunView[] {
   const runs = runPanelIndices(state.panels, state.junctions);
+  const planes = derivePlanes(state.panels, state.junctions);
   const last = runs.length - 1;
+  const sides = { front: 'front', return_left: 'left', return_right: 'right', back: 'back' } as const;
   return runs.map((indices, i) => ({
     run: i,
     of: runs.length,
     left: i === 0 ? (state.leftWall ? 'wall' : 'open') : 'corner',
     right: i === last ? (state.rightWall ? 'wall' : 'open') : 'corner',
     door: indices.some((p) => state.panels[p].kind === 'door'),
+    faces: sides[planes[indices[0]] ?? 'front'],
     surface: options.overBath ? 'bath' : 'floor',
   }));
 }
@@ -341,7 +346,8 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
       kind: 'instruction',
       title: 'Mark where the glass goes',
       instruction: `Stick a short piece of masking tape ${where}`,
-      visual: multi || openEnd ? { kind: 'plan-marks' } : { kind: 'marks' },
+      // Seen from above only when the glass turns a corner.
+      visual: multi ? { kind: 'plan-marks' } : { kind: 'marks' },
     },
     {
       id: 'laser-on',

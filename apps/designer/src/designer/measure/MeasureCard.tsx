@@ -34,8 +34,22 @@ export function MeasureCard({ card, step, stepCount, readingCount, value, onChan
 
   const isReading = card.kind === 'reading';
   const n = text.trim() === '' ? null : Number(text);
-  const inRange = n !== null && Number.isFinite(n) && n >= (card.minMm ?? 1) && n <= (card.maxMm ?? 9999);
-  const canNext = !isReading || inRange;
+  const min = card.minMm ?? 1;
+  const max = card.maxMm ?? 9999;
+  const inRange = n !== null && Number.isFinite(n) && n >= min && n <= max;
+  // A reading that may be skipped can be passed with its box empty.
+  const skipping = isReading && !!card.optional && n === null;
+  const canNext = !isReading || inRange || skipping;
+  // A button that will not press has to say why. The usual slip is the wrong
+  // units, so where ten times the number would fit, that is what is offered.
+  const problem =
+    !isReading || n === null || inRange
+      ? null
+      : n > max
+        ? 'That looks too big. We need millimetres, so 1 metre is 1000.'
+        : n * 10 >= min && n * 10 <= max
+          ? `That looks too small. We need millimetres, so ${n} centimetres is ${n * 10}.`
+          : 'That looks too small. We need millimetres, so 1 metre is 1000.';
   const progress = isReading
     ? `Reading ${card.readingIndex} of ${readingCount}`
     : card.kind === 'review'
@@ -95,6 +109,11 @@ export function MeasureCard({ card, step, stepCount, readingCount, value, onChan
               mm
             </span>
           </div>
+          {problem && (
+            <p role="alert" className="mt-1 text-xs text-red-700 dark:text-red-300">
+              {problem}
+            </p>
+          )}
         </div>
       )}
 
@@ -104,7 +123,7 @@ export function MeasureCard({ card, step, stepCount, readingCount, value, onChan
           <span className="hidden sm:inline">Back</span>
         </Button>
         <Button type="button" className="h-12 flex-1 text-base" onClick={onNext} disabled={!canNext}>
-          {nextLabel ?? 'Next'}
+          {skipping ? 'Skip' : (nextLabel ?? 'Next')}
           <ArrowRight className="h-5 w-5" />
         </Button>
       </div>

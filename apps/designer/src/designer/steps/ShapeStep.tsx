@@ -7,7 +7,7 @@
 
 import { Check, Pencil } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { ceilingChoice, TEMPLATES, type ShowerTemplate } from '@setout/engine';
+import { ceilingChoice, hasTransom, TEMPLATES, type ShowerTemplate } from '@setout/engine';
 import { useEngine } from '../engine';
 import { TemplateThumbnail } from '../views/TemplateThumbnail';
 import type { StepProps } from './types';
@@ -166,6 +166,41 @@ function SetupQuestions({
           })}
         </div>
       </div>
+
+      {hasTransom(state) && (
+        // A door with other glass, going to the ceiling: the fixed glass goes
+        // all the way up and the door stops short, so something is above it.
+        <div className="space-y-2">
+          <Label className="text-sm">What goes above the door?</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['open', 'Leave it open', 'A gap above the door, to let air and steam out.'],
+                ['glass', 'Glass', 'A fixed piece of glass above the door, up to the ceiling.'],
+              ] as const
+            ).map(([id, label, blurb]) => {
+              const selected = state.aboveDoor === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => update({ aboveDoor: id })}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    selected ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The door is {state.doorHeightMm ?? rules.making.heights.transomDoorHeightMm}mm tall unless you ask for another height in your notes.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label className="text-sm">Which finish would you like for the hardware?</Label>
