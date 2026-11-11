@@ -22,6 +22,7 @@ import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
+import { MakingSheet } from './pages/MakingSheet';
 import { QuotePage } from './pages/QuotePage';
 import { Team } from './pages/Team';
 import { Problem } from './pages/parts';
@@ -67,9 +68,12 @@ function App() {
 
   const jobMatch = /^\/jobs\/([A-Za-z0-9_]+)$/.exec(path);
   const quoteMatch = /^\/jobs\/([A-Za-z0-9_]+)\/quotes\/([A-Za-z0-9_]+)$/.exec(path);
+  const makingMatch = /^\/jobs\/([A-Za-z0-9_]+)\/making$/.exec(path);
   const page =
     path === '/team' ? (
       <Team me={me.data} />
+    ) : makingMatch ? (
+      <MakingSheet id={makingMatch[1]} />
     ) : quoteMatch ? (
       <QuotePage jobId={quoteMatch[1]} quoteId={quoteMatch[2]} />
     ) : jobMatch ? (
@@ -147,7 +151,7 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
 
   return (
     <div className="min-h-[100dvh]">
-      <header className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur print:hidden">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link to="/jobs" className="min-w-0 truncate font-bold">
             {me.company?.name ?? 'SetOut'}

@@ -45,3 +45,15 @@
     @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-ground;
   }
 }
+
+/* Making sheets print on A4, black on white, whatever the screen's theme. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+}

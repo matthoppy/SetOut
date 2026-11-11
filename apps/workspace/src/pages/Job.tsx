@@ -439,14 +439,19 @@ function SignOff({
         <p>
           <span className="font-semibold text-good">✓ Checked</span> by {who}, {whenExactly(revision.checked_at)}
         </p>
-        <button
-          type="button"
-          disabled={state.busy}
-          onClick={() => act(() => api.uncheck(jobId, designId), 'The check could not be taken back.')}
-          className="text-sm font-medium text-quiet underline underline-offset-2 disabled:opacity-60"
-        >
-          Take back
-        </button>
+        <span className="flex items-center gap-4">
+          <Link to={`/jobs/${jobId}/making`} className="text-sm font-semibold text-accent underline underline-offset-2">
+            Making sheet
+          </Link>
+          <button
+            type="button"
+            disabled={state.busy}
+            onClick={() => act(() => api.uncheck(jobId, designId), 'The check could not be taken back.')}
+            className="text-sm font-medium text-quiet underline underline-offset-2 disabled:opacity-60"
+          >
+            Take back
+          </button>
+        </span>
         {state.error && (
           <p role="alert" className="w-full text-bad">
             {state.error}
