@@ -37,6 +37,7 @@ import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { signInEmail } from '../lib/sign-in-email';
 import { staffQuotes } from './staff-quotes';
+import { staffSettings } from './settings';
 import { addedToTeamEmail } from '../lib/team-email';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
@@ -496,6 +497,7 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
 }
 
 staff.route('/', staffQuotes);
+staff.route('/', staffSettings);
 
 // ---------------------------------------------------------------------------
 // Changing a design

@@ -1,0 +1,470 @@
+/**
+ * A company's settings, as its owners change them in the workspace: its name,
+ * the colours and logo its customers see, how a new quote starts, and, for
+ * each designer, the finishes and handles it offers and who hears about each
+ * design.
+ *
+ * Everything sent is checked here before anything is saved, and a request
+ * with one thing wrong changes nothing. What changed is worked out here too,
+ * for the audit log.
+ *
+ * Left out on purpose: which websites may show a designer, which is a
+ * security setting, and the making rules, which change cut sizes.
+ */
+
+import { normaliseEmail } from '../db/auth';
+import type { DesignerSettings } from '../db/platform';
+import { BRANDING_DEFAULTS, offeredOptions } from './designer-config';
+import { RequestError } from './enquiry';
+
+export interface Finish {
+  id: string;
+  label: string;
+  swatch: string;
+}
+
+export interface Handle {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface Branding {
+  primary: string;
+  primaryForeground: string;
+  logoUrl: string | null;
+}
+
+export interface QuoteSettings {
+  /** VAT in hundredths of a percent: 2000 is 20%. */
+  vatRateBp: number;
+  /** How long a quote stands once it is sent. */
+  validDays: number;
+}
+
+export const LIMITS = {
+  /** Finishes, and handles, that one designer may offer. */
+  options: 30,
+  /** Characters in the name of a finish or handle. */
+  label: 60,
+  description: 200,
+  /** Addresses emailed when a design arrives. */
+  notifyEmails: 5,
+  companyName: 100,
+  logoUrl: 500,
+} as const;
+
+/** How a new quote starts until the company says otherwise. */
+export const QUOTE_DEFAULTS: QuoteSettings = { vatRateBp: 2000, validDays: 30 };
+
+/** The longest id made for a new option, which still leaves room in a price key such as handle:<id>:<id>. */
+const MAX_ID = 40;
+const COLOUR = /^#[0-9a-f]{6}$/;
+
+const isWhole = (value: unknown, min: number, max: number): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
+
+/** Words on one line: invisible formatting goes, and any run of spaces, breaks or control characters becomes one space. */
+const oneLine = (value: string) =>
+  value
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[\s\p{Cc}]+/gu, ' ')
+    .trim();
+
+const parsed = (text: string): Record<string, unknown> => {
+  try {
+    const value: unknown = JSON.parse(text);
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+};
+
+const list = (text: string): unknown[] => {
+  try {
+    const value: unknown = JSON.parse(text);
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
+
+// ---------------------------------------------------------------------------
+// As they stand
+// ---------------------------------------------------------------------------
+
+/** The company's colours and logo as its pages use them, from what is stored. */
+export function brandingOf(branding: Record<string, unknown>): Branding {
+  const hex = (value: unknown, fallback: string) => {
+    if (typeof value !== 'string') return fallback;
+    const text = value.trim().toLowerCase();
+    if (COLOUR.test(text)) return text;
+    const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(text);
+    return short ? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}` : fallback;
+  };
+  return {
+    primary: hex(branding.primary, BRANDING_DEFAULTS.primary),
+    primaryForeground: hex(branding.primaryForeground, BRANDING_DEFAULTS.primaryForeground),
+    logoUrl: typeof branding.logoUrl === 'string' && branding.logoUrl ? branding.logoUrl : null,
+  };
+}
+
+/** How a new quote starts, from the company's settings. */
+export function quoteSettingsOf(settings: Record<string, unknown>): QuoteSettings {
+  return {
+    vatRateBp: isWhole(settings.vatRateBp, 0, 10_000) ? settings.vatRateBp : QUOTE_DEFAULTS.vatRateBp,
+    validDays: isWhole(settings.quoteValidDays, 1, 365) ? settings.quoteValidDays : QUOTE_DEFAULTS.validDays,
+  };
+}
+
+export interface CompanyView {
+  name: string;
+  branding: Branding;
+  quotes: QuoteSettings;
+}
+
+export function companyView(stored: { name: string; branding: string; settings: string }): CompanyView {
+  return { name: stored.name, branding: brandingOf(parsed(stored.branding)), quotes: quoteSettingsOf(parsed(stored.settings)) };
+}
+
+export interface DesignerView {
+  id: string;
+  name: string;
+  active: boolean;
+  finishes: Finish[];
+  handles: Handle[];
+  notifyEmails: string[];
+}
+
+export function designerView(stored: { id: string; name: string; status: string; config: string; notify_emails: string }): DesignerView {
+  const { finishes, handles } = offeredOptions(parsed(stored.config) as DesignerSettings);
+  return {
+    id: stored.id,
+    name: stored.name,
+    active: stored.status === 'active',
+    finishes,
+    handles,
+    notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
+  };
+}
+
+/**
+ * A short fingerprint of a setting as it stands. A change says which one it
+ * was made from, so one made from an older copy is refused rather than saved
+ * over someone else's.
+ */
+export async function versionOf(value: unknown): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value) ?? 'null'));
+  return [...new Uint8Array(digest).slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function companyVersions(company: CompanyView) {
+  const [name, branding, quotes] = await Promise.all([versionOf(company.name), versionOf(company.branding), versionOf(company.quotes)]);
+  return { name, branding, quotes };
+}
+
+export async function designerVersions(designer: DesignerView) {
+  const [finishes, handles, notifyEmails] = await Promise.all([
+    versionOf(designer.finishes),
+    versionOf(designer.handles),
+    versionOf(designer.notifyEmails),
+  ]);
+  return { finishes, handles, notifyEmails };
+}
+
+// ---------------------------------------------------------------------------
+// Checking what an owner sends
+// ---------------------------------------------------------------------------
+
+export function readCompanyName(input: unknown): string {
+  const name = typeof input === 'string' ? oneLine(input) : '';
+  if (!name || name.length > LIMITS.companyName) {
+    throw new RequestError(400, 'invalid_name', `A company needs a name of up to ${LIMITS.companyName} characters.`);
+  }
+  return name;
+}
+
+function readColour(value: unknown, fallback: string, what: string, example: string): string {
+  if (value === undefined) return fallback;
+  const text = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!COLOUR.test(text)) throw new RequestError(400, 'invalid_branding', `${what} must be written like ${example}.`);
+  return text;
+}
+
+function urlOf(text: string): URL | null {
+  try {
+    return new URL(text);
+  } catch {
+    return null;
+  }
+}
+
+function readLogoUrl(value: unknown): string | null {
+  if (value === null || (typeof value === 'string' && value.trim() === '')) return null;
+  const url = typeof value === 'string' ? urlOf(value.trim()) : null;
+  if (!url || url.protocol !== 'https:' || url.username || url.password || !url.hostname.includes('.')) {
+    throw new RequestError(400, 'invalid_branding', 'The logo must be a link to a picture on the web, starting https://.');
+  }
+  if (url.href.length > LIMITS.logoUrl) {
+    throw new RequestError(400, 'invalid_branding', `Keep the link to the logo to ${LIMITS.logoUrl} characters.`);
+  }
+  return url.href;
+}
+
+/** Colours and a logo as an owner sent them. Anything left out stays as it is. */
+export function readBranding(input: unknown, current: Branding): Branding {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_branding', 'Send the colours or the logo to change.');
+  }
+  const b = input as Record<string, unknown>;
+  return {
+    primary: readColour(b.primary, current.primary, 'The colour of buttons', '#1e293b'),
+    primaryForeground: readColour(b.primaryForeground, current.primaryForeground, 'The colour of the words on buttons', '#ffffff'),
+    logoUrl: b.logoUrl === undefined ? current.logoUrl : readLogoUrl(b.logoUrl),
+  };
+}
+
+/** How a new quote starts, as an owner sent it. Anything left out stays as it is. */
+export function readQuoteSettings(input: unknown, current: QuoteSettings): QuoteSettings {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_request', 'Send the VAT or how long a quote stands.');
+  }
+  const q = input as Record<string, unknown>;
+  if (q.vatRateBp !== undefined && !isWhole(q.vatRateBp, 0, 10_000)) {
+    throw new RequestError(400, 'invalid_vat', 'VAT must be between 0% and 100%, to two decimal places at most.');
+  }
+  if (q.validDays !== undefined && !isWhole(q.validDays, 1, 365)) {
+    throw new RequestError(400, 'invalid_validity', 'A quote stands for between 1 and 365 days.');
+  }
+  return {
+    vatRateBp: (q.vatRateBp as number | undefined) ?? current.vatRateBp,
+    validDays: (q.validDays as number | undefined) ?? current.validDays,
+  };
+}
+
+/** The addresses a designer emails, as an owner sent them: tidied, each once, one to five of them. */
+export function readNotifyEmails(input: unknown): string[] {
+  if (!Array.isArray(input)) throw new RequestError(400, 'invalid_emails', 'The addresses must be a list.');
+  if (input.length > LIMITS.notifyEmails) {
+    throw new RequestError(400, 'invalid_emails', `Up to ${LIMITS.notifyEmails} addresses can be emailed.`);
+  }
+  const emails: string[] = [];
+  for (const raw of input) {
+    const email = normaliseEmail(raw);
+    if (!email) {
+      throw new RequestError(
+        400,
+        'invalid_emails',
+        typeof raw === 'string' && raw.trim() ? `“${oneLine(raw).slice(0, 80)}” does not look like an email address.` : 'Each address must be an email address.'
+      );
+    }
+    if (!emails.includes(email)) emails.push(email);
+  }
+  if (emails.length === 0) {
+    throw new RequestError(400, 'invalid_emails', 'Add at least one address, so each new design reaches someone.');
+  }
+  return emails;
+}
+
+type Kind = 'finish' | 'handle';
+const WORDS: Record<Kind, { one: string; One: string; many: string; code: string }> = {
+  finish: { one: 'finish', One: 'Finish', many: 'finishes', code: 'invalid_finishes' },
+  handle: { one: 'handle', One: 'Handle', many: 'handles', code: 'invalid_handles' },
+};
+
+/**
+ * An id for a new option, made from its name: "Gunmetal grey" gives
+ * gunmetal-grey. Lower-case letters, digits and hyphens only, so it fits in
+ * a price key, and never one already taken.
+ */
+export function optionId(label: string, taken: ReadonlySet<string>, kind: Kind): string {
+  const base =
+    label
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+/, '')
+      .slice(0, MAX_ID - 3)
+      .replace(/-+$/, '') || kind;
+  let id = base;
+  for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+interface Read {
+  id: string | null;
+  label: string;
+  item: Record<string, unknown>;
+}
+
+/**
+ * A list of finishes or handles, checked as a whole. An option the designer
+ * already offers is named by its id, which it keeps whatever it is now called.
+ * An option without an id is new. No other id can be named.
+ */
+function readList(kind: Kind, input: unknown, offered: readonly { id: string }[]): Read[] {
+  const { one, One, many, code } = WORDS[kind];
+  if (!Array.isArray(input)) throw new RequestError(400, code, `The ${many} must be a list.`);
+  if (input.length === 0) throw new RequestError(400, code, `Offer at least one ${one}, so your customers have one to choose.`);
+  if (input.length > LIMITS.options) throw new RequestError(400, code, `A designer can offer up to ${LIMITS.options} ${many}.`);
+  const known = new Set(offered.map((o) => o.id));
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  return input.map((raw: unknown, i) => {
+    const n = i + 1;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new RequestError(400, code, `${One} ${n} is not a ${one}.`);
+    const item = raw as Record<string, unknown>;
+    const label = typeof item.label === 'string' ? oneLine(item.label) : '';
+    if (!label || label.length > LIMITS.label) {
+      throw new RequestError(400, code, `Give ${one} ${n} a name of up to ${LIMITS.label} characters.`);
+    }
+    const folded = label.toLocaleLowerCase('en-GB');
+    if (names.has(folded)) throw new RequestError(400, code, `Two ${many} are called “${label}”. Give each its own name.`);
+    names.add(folded);
+    if (item.id === undefined || item.id === null) return { id: null, label, item };
+    if (typeof item.id !== 'string' || !known.has(item.id)) {
+      throw new RequestError(400, code, `${One} ${n} is not one this designer offers. Open the settings again to see the latest.`);
+    }
+    if (ids.has(item.id)) throw new RequestError(400, code, `“${label}” is in the list twice.`);
+    ids.add(item.id);
+    return { id: item.id, label, item };
+  });
+}
+
+/** New options get their ids last, so none can take an id an existing one keeps. */
+function withIds<T extends { id: string | null }>(kind: Kind, options: (T & { label: string })[]): (T & { id: string; label: string })[] {
+  const taken = new Set(options.flatMap((o) => (o.id ? [o.id] : [])));
+  return options.map((o) => {
+    if (o.id) return o as T & { id: string; label: string };
+    const id = optionId(o.label, taken, kind);
+    taken.add(id);
+    return { ...o, id };
+  });
+}
+
+export function readFinishes(input: unknown, offered: readonly Finish[]): Finish[] {
+  const read = readList('finish', input, offered).map(({ id, label, item }) => {
+    const swatch = typeof item.swatch === 'string' ? item.swatch.trim().toLowerCase() : '';
+    if (!COLOUR.test(swatch)) throw new RequestError(400, 'invalid_finishes', `The colour of “${label}” must be written like #d4d8db.`);
+    return { id, label, swatch };
+  });
+  return withIds('finish', read).map(({ id, label, swatch }) => ({ id, label, swatch }));
+}
+
+export function readHandles(input: unknown, offered: readonly Handle[]): Handle[] {
+  const read = readList('handle', input, offered).map(({ id, label, item }) => {
+    if (item.description !== undefined && item.description !== null && typeof item.description !== 'string') {
+      throw new RequestError(400, 'invalid_handles', `The description of “${label}” must be words.`);
+    }
+    const description = typeof item.description === 'string' ? oneLine(item.description) : '';
+    if (description.length > LIMITS.description) {
+      throw new RequestError(400, 'invalid_handles', `Keep the description of “${label}” to ${LIMITS.description} characters.`);
+    }
+    return { id, label, description };
+  });
+  return withIds('handle', read).map(({ id, label, description }) => ({ id, label, description }));
+}
+
+// ---------------------------------------------------------------------------
+// What changed, for the audit log
+// ---------------------------------------------------------------------------
+
+/** One thing an owner changed. Kept in the audit log, so it never holds a secret. */
+export type SettingsChange =
+  | { field: 'name'; from: string; to: string }
+  | { field: 'primary' | 'primaryForeground'; from: string; to: string }
+  | { field: 'logoUrl'; from: string | null; to: string | null }
+  | { field: 'vatRateBp' | 'quoteValidDays'; from: number; to: number }
+  | {
+      field: Kind;
+      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described';
+      id: string;
+      label: string;
+      from?: string;
+      to?: string;
+    }
+  | { field: Kind; change: 'reordered' }
+  | { field: 'notifyEmails'; added: string[]; removed: string[] };
+
+type Option = { id: string; label: string; swatch?: string; description?: string };
+
+export function optionChanges(kind: Kind, before: readonly Option[], after: readonly Option[]): SettingsChange[] {
+  const changes: SettingsChange[] = [];
+  const was = new Map(before.map((o) => [o.id, o]));
+  const now = new Map(after.map((o) => [o.id, o]));
+  for (const option of after) {
+    const old = was.get(option.id);
+    if (!old) {
+      changes.push({ field: kind, change: 'added', id: option.id, label: option.label });
+      continue;
+    }
+    if (old.label !== option.label) changes.push({ field: kind, change: 'renamed', id: option.id, label: option.label, from: old.label, to: option.label });
+    if (kind === 'finish' && old.swatch !== option.swatch) {
+      changes.push({ field: kind, change: 'recoloured', id: option.id, label: option.label, from: old.swatch, to: option.swatch });
+    }
+    if (kind === 'handle' && (old.description ?? '') !== (option.description ?? '')) {
+      changes.push({ field: kind, change: 'described', id: option.id, label: option.label, from: old.description, to: option.description });
+    }
+  }
+  for (const option of before) {
+    if (!now.has(option.id)) changes.push({ field: kind, change: 'removed', id: option.id, label: option.label });
+  }
+  const order = (options: readonly Option[], kept: Map<string, Option>) => options.filter((o) => kept.has(o.id)).map((o) => o.id).join('\n');
+  if (order(before, now) !== order(after, was)) changes.push({ field: kind, change: 'reordered' });
+  return changes;
+}
+
+export function emailChanges(before: readonly string[], after: readonly string[]): SettingsChange[] {
+  const added = after.filter((e) => !before.includes(e));
+  const removed = before.filter((e) => !after.includes(e));
+  return added.length || removed.length ? [{ field: 'notifyEmails', added, removed }] : [];
+}
+
+export function companyChanges(before: CompanyView, after: CompanyView): SettingsChange[] {
+  const changes: SettingsChange[] = [];
+  if (before.name !== after.name) changes.push({ field: 'name', from: before.name, to: after.name });
+  for (const field of ['primary', 'primaryForeground'] as const) {
+    if (before.branding[field] !== after.branding[field]) changes.push({ field, from: before.branding[field], to: after.branding[field] });
+  }
+  if (before.branding.logoUrl !== after.branding.logoUrl) changes.push({ field: 'logoUrl', from: before.branding.logoUrl, to: after.branding.logoUrl });
+  if (before.quotes.vatRateBp !== after.quotes.vatRateBp) changes.push({ field: 'vatRateBp', from: before.quotes.vatRateBp, to: after.quotes.vatRateBp });
+  if (before.quotes.validDays !== after.quotes.validDays) changes.push({ field: 'quoteValidDays', from: before.quotes.validDays, to: after.quotes.validDays });
+  return changes;
+}
+
+// ---------------------------------------------------------------------------
+// As they are stored
+// ---------------------------------------------------------------------------
+
+/**
+ * The branding column with only what changed written into it. Anything else
+ * it holds is kept, and a colour still at SetOut's default stays unwritten.
+ */
+export function storedBranding(text: string, before: Branding, after: Branding): string {
+  const stored = parsed(text);
+  if (before.primary !== after.primary) stored.primary = after.primary;
+  if (before.primaryForeground !== after.primaryForeground) stored.primaryForeground = after.primaryForeground;
+  if (before.logoUrl !== after.logoUrl) {
+    if (after.logoUrl) stored.logoUrl = after.logoUrl;
+    else delete stored.logoUrl;
+  }
+  return JSON.stringify(stored);
+}
+
+/** The settings column with how a new quote starts written into it, and anything else it holds kept. */
+export function storedSettings(text: string, before: QuoteSettings, after: QuoteSettings): string {
+  const stored = parsed(text);
+  if (before.vatRateBp !== after.vatRateBp) stored.vatRateBp = after.vatRateBp;
+  if (before.validDays !== after.validDays) stored.quoteValidDays = after.validDays;
+  return JSON.stringify(stored);
+}
+
+/** The designer's config with new lists of finishes or handles, and everything else it holds kept. */
+export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[] }): string {
+  const stored = parsed(text);
+  if (changes.finishes) stored.finishes = changes.finishes;
+  if (changes.handles) stored.handles = changes.handles;
+  return JSON.stringify(stored);
+}

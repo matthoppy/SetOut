@@ -30,6 +30,20 @@ export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnst
     'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
 };
 
+/** The colours a company's pages use until it chooses its own. */
+export const BRANDING_DEFAULTS = { primary: '#1e293b', primaryForeground: '#ffffff' } as const;
+
+type Finish = NonNullable<DesignerSettings['finishes']>[number];
+type Handle = NonNullable<DesignerSettings['handles']>[number];
+
+/** The finishes and handles a designer offers: its own, or SetOut's where it has none. */
+export function offeredOptions(settings: DesignerSettings): { finishes: Finish[]; handles: Handle[] } {
+  return {
+    finishes: settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes,
+    handles: settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles,
+  };
+}
+
 const text = (v: unknown, fallback: string): string => (typeof v === 'string' && v.length > 0 ? v : fallback);
 
 /** The config for one of a company's designers, or null if there is no such designer. */
@@ -46,11 +60,10 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     brand: {
       name: company.name,
       ...(typeof branding.logoUrl === 'string' ? { logoUrl: branding.logoUrl } : {}),
-      primary: text(branding.primary, '#1e293b'),
-      primaryForeground: text(branding.primaryForeground, '#ffffff'),
+      primary: text(branding.primary, BRANDING_DEFAULTS.primary),
+      primaryForeground: text(branding.primaryForeground, BRANDING_DEFAULTS.primaryForeground),
     },
-    finishes: settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes,
-    handles: settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles,
+    ...offeredOptions(settings),
     glassThicknessMm: settings.glassThicknessMm ?? DEFAULT_SETTINGS.glassThicknessMm,
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
@@ -67,10 +80,7 @@ export interface OptionLabels {
 
 export async function optionLabelsFor(db: CompanyDb, job: Row<'jobs'>): Promise<OptionLabels> {
   const designer = job.designer_id ? await db.get('designers', job.designer_id) : (await db.find('designers', { limit: 1 }))[0];
-  const settings = (designer?.config ?? {}) as { finishes?: OptionLabels['finishes']; handles?: OptionLabels['handles'] };
+  const { finishes, handles } = offeredOptions((designer?.config ?? {}) as DesignerSettings);
   const pick = (list: { id: string; label: string }[]) => list.map(({ id, label }) => ({ id, label }));
-  return {
-    finishes: pick(settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes),
-    handles: pick(settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles),
-  };
+  return { finishes: pick(finishes), handles: pick(handles) };
 }

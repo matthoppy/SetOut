@@ -21,6 +21,7 @@ import { RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { dayOf, money, quoteEmail } from '../lib/quote-email';
 import { draftLines, lineTotal, readLines, totals } from '../lib/quote-lines';
+import { quoteSettingsOf } from '../lib/settings';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
 
@@ -103,8 +104,8 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
     labels,
     prices
   );
-  const settings = (company?.settings ?? {}) as { vatRateBp?: unknown };
-  const vatRateBp = typeof settings.vatRateBp === 'number' ? settings.vatRateBp : 2000;
+  // VAT and how long it stands start as the company's owners set them.
+  const { vatRateBp, validDays } = quoteSettingsOf(company?.settings ?? {});
   const sum = totals(lines, vatRateBp);
   try {
     const quote = await db.insert('quotes', {
@@ -117,6 +118,7 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
       subtotal_pence: sum.subtotal,
       vat_pence: sum.vat,
       total_pence: sum.total,
+      valid_days: validDays,
       created_by: session.userId,
     });
     return c.json({ ok: true, id: quote.id, number: quote.number }, 201, PRIVATE);

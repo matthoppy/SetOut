@@ -11,7 +11,9 @@
 import { env } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { companyDb } from '../src/db/company-db';
+import { optionsInUse, readSettings, saveSettings, settingsChanges, type SettingsWrite } from '../src/db/settings';
 import { TABLES, type RowChanges, type TableName } from '../src/db/tables';
+import { api, json, signIn } from './helpers';
 import { refusal, seedCompany, type Seeded } from './seed';
 
 const tables = Object.keys(TABLES) as TableName[];
@@ -180,6 +182,87 @@ describe('what belongs to a company besides its rows', () => {
     for (const table of tables) expect(await nobody.find(table), table).toEqual([]);
     expect(await refusal(nobody.allocateJobReference())).toMatch(/does not exist/);
     expect(await refusal(nobody.insert('customers', { name: 'Ghost' }))).toMatch(/FOREIGN KEY/i);
+  });
+});
+
+describe('a company’s settings', () => {
+  test('are read for its own record and designers alone', async () => {
+    const mine = await readSettings(env, ours.company.id);
+    expect(mine?.company.name).toBe('Custom Showers');
+    expect(mine?.designers.map((d) => d.id)).toEqual([ours.rows.designers.id]);
+    expect(await readSettings(env, 'co_DOESNOTEXIST')).toBeNull();
+  });
+
+  test('cannot be written to another company’s designer, and nothing goes on record', async () => {
+    const stored = await readSettings(env, theirs.company.id);
+    const target = stored?.designers[0];
+    if (!target) throw new Error('no designer');
+    const write: SettingsWrite = {
+      table: 'designers',
+      id: target.id,
+      columns: {
+        notify_emails: { was: target.notify_emails, now: '["attacker@evil.example"]' },
+        config: { was: target.config, now: '{"finishes":[]}' },
+      },
+    };
+    expect(await saveSettings(env, ours.company.id, 'usr_attacker', write, { changes: [] })).toBe(false);
+    expect(await theirs.db.get('designers', target.id)).toEqual(theirs.rows.designers);
+    expect(await ours.db.count('audit_log')).toBe(1);
+    expect(await theirs.db.count('audit_log')).toBe(1);
+  });
+
+  test('cannot rename another company', async () => {
+    const stored = await readSettings(env, theirs.company.id);
+    const write: SettingsWrite = { table: 'companies', columns: { name: { was: stored?.company.name ?? '', now: 'Taken over' } } };
+    expect(await saveSettings(env, ours.company.id, 'usr_attacker', write, { changes: [] })).toBe(false);
+    expect((await theirs.db.company())?.name).toBe('Brennan Glass');
+    expect((await ours.db.company())?.name).toBe('Custom Showers');
+  });
+
+  test('never write which websites may show a designer, or anything else beyond the settings', async () => {
+    const attempts = [
+      { table: 'designers', id: ours.rows.designers.id, columns: { allowed_origins: { was: '[]', now: '["https://evil.example"]' } } },
+      { table: 'designers', id: ours.rows.designers.id, columns: { status: { was: 'active', now: 'paused' } } },
+      { table: 'designers', id: ours.rows.designers.id, columns: { company_id: { was: ours.company.id, now: theirs.company.id } } },
+      { table: 'companies', columns: { status: { was: 'active', now: 'paused' } } },
+      { table: 'companies', columns: { plan: { was: 'free', now: 'paid' } } },
+    ];
+    for (const write of attempts) {
+      expect(await refusal(saveSettings(env, ours.company.id, 'usr_x', write as unknown as SettingsWrite, {}))).toMatch(/not a setting/);
+    }
+    expect(await ours.db.get('designers', ours.rows.designers.id)).toEqual(ours.rows.designers);
+  });
+
+  test('count only the company’s own showers against each option', async () => {
+    // Each seeded shower stands at its first revision.
+    await ours.db.update('designs', ours.rows.designs.id, { current_revision: 1 });
+    await theirs.db.update('designs', theirs.rows.designs.id, { current_revision: 1 });
+    expect(await optionsInUse(env, theirs.company.id, theirs.rows.designers.id, true)).toEqual({ finishes: { chrome: 1 }, handles: { pull: 1 } });
+    expect(await optionsInUse(env, ours.company.id, ours.rows.designers.id, true)).toEqual({ finishes: { chrome: 1 }, handles: { pull: 1 } });
+    expect(await optionsInUse(env, ours.company.id, theirs.rows.designers.id, true)).toEqual({ finishes: {}, handles: {} });
+  });
+
+  test('list only the company’s own changes', async () => {
+    await theirs.db.insert('audit_log', { actor_id: null, action: 'settings_changed', target_id: theirs.company.id, data: { changes: [] } });
+    expect(await settingsChanges(env, ours.company.id)).toEqual([]);
+    expect(await settingsChanges(env, theirs.company.id)).toHaveLength(1);
+  });
+
+  test('cannot be seen or changed by another company’s owner in the workspace', async () => {
+    const rival = await signIn('owner@bg.example');
+    const seen = await json<{ company: { name: string }; designers: { id: string; versions: Record<string, string> }[] }>(
+      await api('/settings', { cookie: rival })
+    );
+    expect(seen.company.name).toBe('Brennan Glass');
+    expect(seen.designers.map((d) => d.id)).toEqual([theirs.rows.designers.id]);
+    const response = await api(`/settings/designers/${ours.rows.designers.id}`, {
+      cookie: rival,
+      method: 'PATCH',
+      body: JSON.stringify({ notifyEmails: ['attacker@evil.example'], basedOn: seen.designers[0].versions }),
+    });
+    expect(response.status).toBe(404);
+    expect(await ours.db.get('designers', ours.rows.designers.id)).toEqual(ours.rows.designers);
+    expect(await settingsChanges(env, ours.company.id)).toEqual([]);
   });
 });
 

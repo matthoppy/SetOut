@@ -182,7 +182,7 @@ export interface PriceRow {
   updated_at: string;
 }
 
-export const AUDIT_ACTIONS = ['member_added', 'member_removed', 'role_changed'] as const;
+export const AUDIT_ACTIONS = ['member_added', 'member_removed', 'role_changed', 'settings_changed'] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /** Something done to the company's account: who did it, what, and to what. */
