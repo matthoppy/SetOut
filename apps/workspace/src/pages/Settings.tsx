@@ -506,7 +506,7 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
 }
 
 /** How the glass is made for a handle, which SetOut fixes by its id. */
-const drilling = (id: string) => (id === 'knob' ? 'No holes are drilled for it' : 'Drilled with two holes, 203mm apart');
+const drilling = (id: string) => (id === 'knob' ? 'Drilled with one hole, 950mm up' : 'Drilled with two holes, 203mm apart');
 
 function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.handles.map(rowOf);
@@ -533,7 +533,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
     );
   };
 
-  const about = 'SetOut decides how the glass is drilled for each: two holes 203mm apart for a pull handle, and none for the knob. A handle you add is drilled as a pull handle.';
+  const about = 'SetOut decides how the glass is drilled for each: two holes 203mm apart for a pull handle, and one hole 950mm up for the knob. A handle you add is drilled as a pull handle.';
 
   if (!owner) {
     return (
