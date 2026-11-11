@@ -76,6 +76,16 @@ On a company's page the designer is added with one element and one script:
 
 That script address is permanent. Companies paste it once, so it must keep working and keep meaning the same thing.
 
+## Measuring
+
+Measuring is a deck of cards, one task to a card: a short instruction to read, or one number to type. A card has one heading, one picture, one box and one button, and it never scrolls on a phone.
+
+The deck is dealt by the engine, in `packages/engine/src/cards.ts`, from the shape of the shower and the tool in the customer's hand. The designer only shows what it is dealt. Each number is written into the design document as it is typed, through the same functions the checks read, so a locked phone loses nothing and there is one set of rules.
+
+The last card is the opening drawn from the numbers, with every reading on it under the same circled number it had on its card, and one button to say the numbers are right. It is laid out as a dimensioned drawing: only the door and the laser cross inside the opening, each reading on its own line just outside the surface it was taken from, and the sizes they add up to beyond that. Leans, falls and slopes are drawn eight times bigger than they are, and the drawing says so. Nothing on it is drawn from a guess: with a reading missing there is no drawing.
+
+A single door between two walls, measured with a laser, has its deck. The other layouts and tape measuring still use the older screens until their decks are written.
+
 ## The two addresses
 
 One Worker answers on two addresses, agreed on 11 November 2026.

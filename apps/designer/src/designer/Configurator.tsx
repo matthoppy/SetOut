@@ -19,8 +19,9 @@ import {
   keepSetup,
   syncRuns,
 } from '@setout/engine';
-import { openingContext, runPanelIndices, runWidthsMm } from '@setout/engine';
+import { buildCards, isSingleDoor, openingContext, runPanelIndices, runWidthsMm, toolFor } from '@setout/engine';
 import { MeasureStep } from './steps/MeasureStep';
+import { MeasureDeck } from './measure/MeasureDeck';
 import { buildJourney, canLeaveScreen, measureScreenCount } from '@setout/engine';
 import { SizesStep } from './steps/SizesStep';
 import { HardwareStep } from './steps/HardwareStep';
@@ -115,9 +116,14 @@ interface ConfiguratorProps {
   config: DesignerConfig;
   /** Rendered inside a frame on a company's page: drops the outer page chrome. */
   embedded?: boolean;
+  /**
+   * Whether the designer has the whole screen: opened on its own, or in the
+   * frame that covers the page. False in a frame that grows with its content.
+   */
+  fillsViewport?: boolean;
 }
 
-export function Configurator({ config, embedded = false }: ConfiguratorProps) {
+export function Configurator({ config, embedded = false, fillsViewport = !embedded }: ConfiguratorProps) {
   const saveKey = storageKey(config.id);
   const [saved] = useState(() => loadSaved(saveKey));
   const [stepId, setStepId] = useState<StepId>(saved?.stepId ?? 'shape');
@@ -247,8 +253,13 @@ export function Configurator({ config, embedded = false }: ConfiguratorProps) {
   // The Measure step is a sequence of screens on every device, one task each.
   // The journey decides how many from the shape and the tool in hand; a
   // change of either can shorten it, so the index is clamped to what exists.
-  const cardTotal = measureScreenCount(state);
-  const inMeasureCards = stepId === 'measure';
+  //
+  // A single door measured with a laser has the card deck, one reading to a
+  // card. The other shapes and the tape still have the older screens until
+  // their decks are written.
+  const usesDeck = isSingleDoor(state) && toolFor(state.opening.method) === 'laser';
+  const cardTotal = usesDeck ? buildCards(state).length : measureScreenCount(state);
+  const inMeasureCards = stepId === 'measure' && !usesDeck;
   useEffect(() => {
     if (measureCard > cardTotal - 1) setMeasureCard(cardTotal - 1);
   }, [measureCard, cardTotal]);
@@ -403,6 +414,23 @@ export function Configurator({ config, embedded = false }: ConfiguratorProps) {
     setChallengeState('loading');
     setHoneypot('');
     startedAtRef.current = Date.now();
+  }
+
+  if (stepId === 'measure' && usesDeck && !submitted) {
+    return (
+      <MeasureDeck
+        state={state}
+        setState={setState}
+        index={measureCard}
+        setIndex={setMeasureCard}
+        fillsViewport={fillsViewport}
+        onExit={() => setStepId('shape')}
+        onDone={() => {
+          setState((s) => ({ ...s, opening: { ...s.opening, shapeConfirmed: true } }));
+          setStepId(STEPS[STEPS.findIndex((x) => x.id === 'measure') + 1].id);
+        }}
+      />
+    );
   }
 
   if (submitted) {

@@ -7,7 +7,8 @@
 
 import { Check, Pencil } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { TEMPLATES, type ShowerTemplate } from '@setout/engine';
+import { ceilingChoice, TEMPLATES, type ShowerTemplate } from '@setout/engine';
+import { useEngine } from '../engine';
 import { TemplateThumbnail } from '../views/TemplateThumbnail';
 import type { StepProps } from './types';
 
@@ -88,17 +89,20 @@ export function ShapeStep({
 }
 
 /**
- * Asked before measuring starts, because both change what comes next.
+ * Asked before measuring starts, because each changes what comes next.
  *
  * Whether they have a laser decides which instructions every measuring card
- * shows. The finish is a preference taken early so the hinge offered later can
- * match it where the door's size and weight allow. Both can be changed later.
+ * shows. Whether the glass goes to the ceiling decides which readings are
+ * taken. The finish is a preference taken early so the hinge offered later
+ * can match it where the door's size and weight allow. All can be changed
+ * later.
  */
 function SetupQuestions({
   config,
   state,
   update,
 }: Pick<StepProps, 'config' | 'state' | 'update'>) {
+  const { rules } = useEngine();
   const method = state.opening.method;
   const setMethod = (next: 'laser' | 'packers') =>
     update({ opening: { ...state.opening, method: next, shapeConfirmed: false } });
@@ -123,6 +127,34 @@ function SetupQuestions({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => setMethod(id)}
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  selected ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                }`}
+              >
+                <span className="block text-sm font-medium">{label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{blurb}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm">Where does the glass stop?</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              [false, 'A set height', 'The glass stops short of the ceiling.'],
+              [true, 'Up to the ceiling', 'The glass fills the full height.'],
+            ] as const
+          ).map(([toCeiling, label, blurb]) => {
+            const selected = state.isFloorToCeiling === toCeiling;
+            return (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => update(ceilingChoice(rules, state, toCeiling))}
                 className={`rounded-lg border p-3 text-left transition-colors ${
                   selected ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
                 }`}

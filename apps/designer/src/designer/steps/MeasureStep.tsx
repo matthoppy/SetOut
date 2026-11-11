@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { AlertTriangle, Check, ChevronRight, Info, Pencil } from 'lucide-react';
 import { PhotoCapture } from '../PhotoCapture';
 import type { Photo, PhotoSlot } from '../photos';
-import { hasTransom, isSingleDoor, openingContext, runPanelIndices } from '@setout/engine';
+import { ceilingChoice, hasTransom, isSingleDoor, openingContext, runPanelIndices } from '@setout/engine';
 import {
   buildJourney,
   journeySummary,
@@ -439,7 +439,8 @@ function OverviewScreen({ api, title }: { api: Api; title: string }) {
 }
 
 function HeightScreen({ api, title }: { api: Api; title: string }) {
-  const { heights, review } = useEngine().rules.making;
+  const { rules } = useEngine();
+  const { heights, review } = rules.making;
   const { state, update, m, singleDoor, templateId } = api;
   const presets = templateId === 'over-bath' ? [1400, 1500, 1600] : [1850, 2000, 2100];
   const topGap = state.topGapMm ?? heights.singleDoorTopGapMm;
@@ -447,18 +448,7 @@ function HeightScreen({ api, title }: { api: Api; title: string }) {
   const ends = endKinds(api, 0);
   const lastEnds = endKinds(api, api.runIndices.length - 1);
 
-  const setToCeiling = (to: boolean) => {
-    if (to) {
-      update({
-        isFloorToCeiling: true,
-        ...(singleDoor && m.ceilingHeightMm ? { heightMm: m.ceilingHeightMm - topGap } : {}),
-        ...(!singleDoor && ceilingGlassHeightMm(m) ? { heightMm: ceilingGlassHeightMm(m)! } : {}),
-        opening: { ...m, shapeConfirmed: false },
-      });
-    } else {
-      update({ isFloorToCeiling: false, opening: { ...m, shapeConfirmed: false } });
-    }
-  };
+  const setToCeiling = (to: boolean) => update(ceilingChoice(rules, state, to));
 
   return (
     <Frame

@@ -19,6 +19,9 @@ import { applyBrand } from './lib/brand';
 const params = new URLSearchParams(window.location.search);
 const siteKey = params.get('key');
 const embedded = window.self !== window.top;
+// In the frame that covers the page, the designer has the whole screen. In a
+// frame that grows with its content there is no screen height to fill.
+const fillsViewport = !embedded || params.get('mode') === 'full';
 
 if (params.get('theme') === 'dark') document.documentElement.classList.add('dark');
 
@@ -91,7 +94,7 @@ function App() {
       )}
       {loaded.state === 'ready' && engine && (
         <EngineProvider value={engine}>
-          <Configurator config={loaded.config} embedded={embedded} />
+          <Configurator config={loaded.config} embedded={embedded} fillsViewport={fillsViewport} />
         </EngineProvider>
       )}
     </div>

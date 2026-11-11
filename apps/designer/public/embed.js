@@ -60,7 +60,14 @@
   function makeFrame(el, key, grows) {
     var theme = el.getAttribute('data-theme') || '';
     var frame = document.createElement('iframe');
-    frame.src = base + '?key=' + encodeURIComponent(key) + (theme ? '&theme=' + encodeURIComponent(theme) : '');
+    frame.src =
+      base +
+      '?key=' +
+      encodeURIComponent(key) +
+      (theme ? '&theme=' + encodeURIComponent(theme) : '') +
+      // Over the page the designer has the whole screen, and says so, so a
+      // measuring card can fill it without scrolling.
+      (grows ? '' : '&mode=full');
     frame.title = 'Shower designer';
     frame.style.width = '100%';
     frame.style.border = '0';

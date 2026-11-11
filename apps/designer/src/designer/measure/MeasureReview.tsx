@@ -4,7 +4,7 @@
  * they are right. This screen may scroll; the cards before it never do.
  */
 
-import { Check, Pencil } from 'lucide-react';
+import { Check, Pencil, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ConfiguratorState } from '@setout/engine';
 import { readField, readingCards, type MeasureCardDef } from '@setout/engine';
@@ -38,12 +38,12 @@ export function MeasureReview({
         <h2 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">Your measurements</h2>
         <p className="mt-1 text-sm text-muted-foreground">Drawn from your numbers. Check it looks like your shower.</p>
 
-        <OpeningDrawing opening={m} heightMm={state.heightMm} toCeiling={toCeiling} topGapMm={topGap} panels={state.panels} className="mx-auto mt-3 w-full max-w-[440px]" />
+        <OpeningDrawing opening={m} heightMm={state.heightMm} toCeiling={toCeiling} topGapMm={topGap} panels={state.panels} className="mx-auto mt-3 w-full max-w-[400px]" />
 
         <ul className="mt-2 space-y-1 text-sm">
           {openingFindings(m, toCeiling, topGap, state.heightMm).map((f) => (
             <li key={f} className="flex gap-2">
-              <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+              <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--measure-accent))]" aria-hidden="true" />
               {f}
             </li>
           ))}
@@ -66,10 +66,16 @@ export function MeasureReview({
           )}
           {readings.map((card) => {
             const v = card.field ? readField(state, card.field) : null;
+            // The same circled number the reading has on its card and on the drawing.
+            const point = card.visual?.kind === 'cross-reading' ? card.visual.point : null;
             return (
               <div key={card.id} className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="min-w-0">
-                  <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold tabular-nums">{card.readingIndex}</span>
+                  {point === null ? (
+                    <Ruler className="mr-2 inline h-5 w-5 p-0.5 align-[-5px] text-[hsl(var(--measure-accent))]" aria-hidden="true" />
+                  ) : (
+                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[hsl(var(--measure-accent))] text-[11px] font-bold tabular-nums text-[hsl(var(--measure-accent))]">{point}</span>
+                  )}
                   <span className="text-muted-foreground">{card.title}</span>
                 </dt>
                 <dd className="flex shrink-0 items-center gap-2 tabular-nums">
