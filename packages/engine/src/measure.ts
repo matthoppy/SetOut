@@ -210,6 +210,12 @@ export interface OpeningContext {
    * be listed in.
    */
   labels?: string[];
+  /**
+   * The narrowest each run could plausibly be. A run of fixed glass alone can
+   * be a short return panel; a run with a door in it cannot be that short.
+   * Left out, every run is held to MIN_PLAUSIBLE_MM.
+   */
+  minWidthsMm?: number[];
 }
 
 function createRun(widthMm: number): RunMeasurement {
@@ -516,8 +522,15 @@ export interface MeasureCheck {
 }
 
 /** Anything outside this is a typo or the wrong units, not a bathroom. */
-const MIN_PLAUSIBLE_MM = 400;
+export const MIN_PLAUSIBLE_MM = 400;
 const MAX_PLAUSIBLE_MM = 3000;
+
+/**
+ * A run with no door in it can be a short return panel, which is commonly
+ * 200 to 400mm. Holding it to the floor for an opening refused a 300mm return
+ * as "300 looks like centimetres", which stopped a real shower being sent.
+ */
+export const MIN_PLAUSIBLE_RETURN_MM = 100;
 
 /** Ceilings run taller than openings run wide; a Victorian room clears 3000. */
 const MIN_CEILING_MM = 1500;
@@ -630,13 +643,14 @@ export function checkMeasurements(
       return;
     }
 
-    const slip = unitSlip(value, name);
+    const min = ctx.minWidthsMm?.[i] ?? MIN_PLAUSIBLE_MM;
+    const slip = unitSlip(value, name, min);
     if (slip) {
       checks.push({ ...slip, code: `run${i}-widthAtFloor-${slip.code}`, runIndex: i });
       return;
     }
 
-    if (value < MIN_PLAUSIBLE_MM || value > MAX_PLAUSIBLE_MM) {
+    if (value < min || value > MAX_PLAUSIBLE_MM) {
       checks.push({
         code: `run${i}-widthAtFloor-implausible`,
         level: 'blocking',

@@ -13,7 +13,7 @@
  */
 
 import type { ConfiguratorJunction, ConfiguratorPanel } from './types';
-import type { OpeningContext } from './measure';
+import { MIN_PLAUSIBLE_MM, MIN_PLAUSIBLE_RETURN_MM, type OpeningContext } from './measure';
 
 export interface Segment {
   id: string;
@@ -240,6 +240,11 @@ export function openingContext(state: {
     hasEndWall: state.rightWall,
     glassHeightMm: state.heightMm,
     labels: runLabelsFor(state.panels, state.junctions),
+    // A run with a door in it is an opening; a run of fixed glass alone can
+    // be a short return.
+    minWidthsMm: runPanelIndices(state.panels, state.junctions).map((indices) =>
+      indices.some((i) => state.panels[i].kind === 'door') ? MIN_PLAUSIBLE_MM : MIN_PLAUSIBLE_RETURN_MM
+    ),
   };
 }
 
