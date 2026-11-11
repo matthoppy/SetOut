@@ -5,7 +5,9 @@
  * does is recognise a picture, not construct a geometry.
  */
 
+import { useState } from 'react';
 import { Check, Pencil } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ceilingChoice, hasTransom, TEMPLATES, type ShowerTemplate } from '@setout/engine';
 import { useEngine } from '../engine';
@@ -84,6 +86,48 @@ export function ShapeStep({
       </p>
 
       <SetupQuestions config={config} state={state} update={update} />
+    </div>
+  );
+}
+
+/** The shortest and tallest a door under a transom is taken to be. Outside this it is a slip of the finger. */
+const DOOR_HEIGHT_MM = { min: 1500, max: 2600 };
+
+/**
+ * A box for the door's height. What is typed is only written into the design
+ * once it is a height a door could be, so a half-typed number is never sent.
+ */
+function DoorHeightBox({ heightMm, usualMm, onChange }: { heightMm: number; usualMm: number; onChange: (heightMm: number) => void }) {
+  const [text, setText] = useState(String(heightMm));
+  const typed = text === '' ? usualMm : Number(text);
+  const ok = typed >= DOOR_HEIGHT_MM.min && typed <= DOOR_HEIGHT_MM.max;
+  return (
+    <div className="w-28">
+      <div className="relative">
+        <Input
+          id="door-height"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          aria-invalid={!ok}
+          className={`h-10 pr-10 text-right tabular-nums ${ok ? '' : 'border-red-500'}`}
+          value={text}
+          placeholder={String(usualMm)}
+          onChange={(e) => {
+            const next = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+            setText(next);
+            // An empty box goes back to the usual height.
+            const value = next === '' ? usualMm : Number(next);
+            if (value >= DOOR_HEIGHT_MM.min && value <= DOOR_HEIGHT_MM.max) onChange(value);
+          }}
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+      </div>
+      {!ok && (
+        <p role="alert" className="mt-1 text-xs text-red-700 dark:text-red-300">
+          {DOOR_HEIGHT_MM.min} to {DOOR_HEIGHT_MM.max}
+        </p>
+      )}
     </div>
   );
 }
@@ -196,9 +240,19 @@ function SetupQuestions({
               );
             })}
           </div>
-          <p className="text-xs text-muted-foreground">
-            The door is {state.doorHeightMm ?? rules.making.heights.transomDoorHeightMm}mm tall unless you ask for another height in your notes.
-          </p>
+          <div className="flex items-center gap-3 pt-1">
+            <Label htmlFor="door-height" className="flex-1 text-sm">
+              How tall should the door be?
+              <span className="block text-xs font-normal text-muted-foreground">
+                {rules.making.heights.transomDoorHeightMm}mm is usual. A shorter door leaves more above it.
+              </span>
+            </Label>
+            <DoorHeightBox
+              heightMm={state.doorHeightMm ?? rules.making.heights.transomDoorHeightMm}
+              usualMm={rules.making.heights.transomDoorHeightMm}
+              onChange={(doorHeightMm) => update({ doorHeightMm })}
+            />
+          </div>
         </div>
       )}
 
