@@ -122,7 +122,7 @@ export function MeasureCard({ card, step, stepCount, readingCount, value, onChan
           <ArrowLeft className="h-5 w-5" />
           <span className="hidden sm:inline">Back</span>
         </Button>
-        <Button type="button" className="h-12 flex-1 text-base" onClick={onNext} disabled={!canNext}>
+        <Button type="button" className="h-12 min-w-0 flex-1 px-3 text-base" onClick={onNext} disabled={!canNext}>
           {skipping ? 'Skip' : (nextLabel ?? 'Next')}
           <ArrowRight className="h-5 w-5" />
         </Button>
