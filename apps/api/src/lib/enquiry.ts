@@ -45,7 +45,8 @@ export interface Enquiry {
   elapsedMs: number | null;
 }
 
-const MAX_FILES = 12;
+/** Two drawings of the design, one of what was measured, and up to ten photos, with room to spare. */
+const MAX_FILES = 16;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
 /** Base64 is a third larger than what it carries, plus the rest of the request. */

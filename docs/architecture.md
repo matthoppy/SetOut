@@ -97,6 +97,8 @@ There are two kinds of deck. A single door between two walls is measured to a la
 
 For those layouts the last card draws each run face on from outside the shower, under a plan from above when the glass turns a corner.
 
+What the customer agreed on that card is sent with the design as one picture, `measurements.png`, beside the plan and elevation of the finished shower. The company sees every reading that was taken, and not only the sizes worked out from them.
+
 Every layout has its deck when it is measured with a laser. Measuring with a tape and a level still uses the older screens until its decks are written.
 
 ## The two addresses

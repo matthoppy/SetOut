@@ -7,15 +7,11 @@
 import { Check, Pencil, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ConfiguratorState } from '@setout/engine';
-import { readField, readingCards, runNames, runViews, unreadCards, type DeckOptions, type MeasureCardDef } from '@setout/engine';
+import { readField, readingCards, unreadCards, type DeckOptions, type MeasureCardDef } from '@setout/engine';
 import { useEngine } from '../engine';
-import { OpeningDrawing, openingFindings } from './OpeningDrawing';
+import { MeasuredDrawings } from './MeasuredDrawings';
+import { openingFindings } from './OpeningDrawing';
 import { enclosureFindings } from './drawing/findings';
-import { ExaggerationNote } from './drawing/parts';
-import { PlanDrawing } from './drawing/PlanDrawing';
-import { RunDrawing } from './drawing/RunDrawing';
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function MeasureReview({
   state,
@@ -42,8 +38,6 @@ export function MeasureReview({
   // layout is drawn a run at a time, under a plan when the glass turns a corner.
   const toCross = cards.some((c) => c.field?.kind === 'cross');
   const complete = unreadCards(state, cards).length === 0;
-  const views = runViews(state, options);
-  const names = runNames(state);
   const findings = toCross ? openingFindings(m, toCeiling, topGap, state.heightMm) : complete ? enclosureFindings(state, options) : [];
   return (
     <section className="flex h-full flex-col bg-background">
@@ -52,22 +46,7 @@ export function MeasureReview({
         <h2 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">Your measurements</h2>
         <p className="mt-1 text-sm text-muted-foreground">Drawn from your numbers. Check it looks like your shower.</p>
 
-        {toCross ? (
-          <OpeningDrawing opening={m} heightMm={state.heightMm} toCeiling={toCeiling} topGapMm={topGap} panels={state.panels} className="mx-auto mt-3 w-full max-w-[400px]" />
-        ) : (
-          complete && (
-            <figure className="mx-auto mt-3 w-full max-w-[400px]">
-              {views.length > 1 && <PlanDrawing state={state} options={options} className="block w-full" />}
-              {views.map((view) => (
-                <div key={view.run} className={views.length > 1 ? 'mt-3 border-t pt-2' : undefined}>
-                  {views.length > 1 && <div className="text-sm font-semibold">{cap(names[view.run] ?? '')}, from outside</div>}
-                  <RunDrawing state={state} cards={cards} view={view} className="block w-full" />
-                </div>
-              ))}
-              <ExaggerationNote />
-            </figure>
-          )
-        )}
+        <MeasuredDrawings state={state} cards={cards} options={options} className="mx-auto mt-3 w-full max-w-[400px]" />
 
         <ul className="mt-2 space-y-1 text-sm">
           {findings.map((f) => (

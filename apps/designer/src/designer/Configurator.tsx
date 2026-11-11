@@ -6,7 +6,7 @@
  * serves every company's embedded designer.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ensureTurnstile } from '@/lib/turnstile';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, X } from 'lucide-react';
@@ -33,7 +33,8 @@ import { createInitialState, type ConfiguratorState, type CustomerDetails } from
 import type { DesignerConfig } from './config';
 import { applyTemplate, createDocument, TEMPLATES } from '@setout/engine';
 import { slotSortKey, type Photo } from './photos';
-import { sendDesign, svgToPngBase64, type EnquiryAttachment } from './submit';
+import { drawingsToPngBase64, sendDesign, svgToPngBase64, type EnquiryAttachment } from './submit';
+import { MeasuredDrawings } from './measure/MeasuredDrawings';
 import { canSendReview } from './canSendReview';
 
 const EMPTY_CUSTOMER: CustomerDetails = {
@@ -44,6 +45,18 @@ const EMPTY_CUSTOMER: CustomerDetails = {
   notes: '',
   measurementsAcknowledged: false,
 };
+
+/** Where the measuring drawings wait to be sent: off screen, at the width they are drawn for, in the light colours. */
+const MEASURED_SHEET = {
+  position: 'fixed',
+  left: -10000,
+  top: 0,
+  width: 400,
+  '--background': '0 0% 100%',
+  '--foreground': '0 0% 20%',
+  '--muted-foreground': '0 0% 40%',
+  '--measure-accent': '210 50% 23%',
+} as CSSProperties;
 
 /**
  * Progress, saved in the browser.
@@ -188,6 +201,8 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
   const startedAtRef = useRef<number>(Date.now());
 
   const drawingRef = useRef<HTMLDivElement>(null);
+  /** The measuring drawings, kept off screen so they can be sent with the design. */
+  const measuredRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -473,6 +488,11 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
       if (png) attachments.push({ filename: names[i] ?? `drawing-${i + 1}.png`, content: png, kind: 'drawing' });
       i++;
     }
+    // What was measured, as the customer agreed it: every reading on one sheet.
+    if (measuredRef.current) {
+      const png = await drawingsToPngBase64(measuredRef.current);
+      if (png) attachments.push({ filename: 'measurements.png', content: png, kind: 'drawing' });
+    }
 
     // Measurement photos first and in the order they were asked for, so the
     // workshop reads each one alongside the number it backs up, with loose
@@ -640,6 +660,15 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
+        </div>
+      )}
+
+      {usesDeck && (
+        // Off screen and out of reach, but laid out, so it can be drawn. It is
+        // given the light colours whatever the page's theme, because the
+        // picture made from it goes onto white.
+        <div ref={measuredRef} aria-hidden="true" inert style={MEASURED_SHEET}>
+          <MeasuredDrawings state={state} cards={buildCards(state, deckOptions)} options={deckOptions} />
         </div>
       )}
 

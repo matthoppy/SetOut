@@ -91,6 +91,116 @@ export async function svgToPngBase64(svg: SVGSVGElement, scale = 2): Promise<str
   }
 }
 
+/** A copy of a drawing that carries its own colours, for use as a picture away from the page. */
+function withOwnColours(svg: SVGSVGElement): SVGSVGElement {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  const originals = [svg, ...Array.from(svg.querySelectorAll('*'))];
+  const copies = [clone, ...Array.from(clone.querySelectorAll('*'))];
+  originals.forEach((original, i) => {
+    for (const attribute of ['fill', 'stroke']) {
+      // A colour taken from the page's styles means nothing in a picture on its own.
+      if (copies[i]?.getAttribute(attribute)?.includes('var(')) {
+        copies[i].setAttribute(attribute, getComputedStyle(original).getPropertyValue(attribute));
+      }
+    }
+  });
+  return clone;
+}
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.decoding = 'sync';
+  return new Promise((resolve, reject) => {
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('picture load failed'));
+    img.src = url;
+  });
+}
+
+/**
+ * One PNG of every drawing inside an element, top to bottom, with the
+ * headings and notes between them. Used for the measuring drawings, which
+ * are several small drawings that belong on one sheet.
+ *
+ * Resolves to null rather than throwing, like svgToPngBase64: a missing
+ * drawing must never stop a design being sent.
+ */
+export async function drawingsToPngBase64(container: HTMLElement, scale = 2): Promise<string | null> {
+  try {
+    const parts = Array.from(container.querySelectorAll<HTMLElement | SVGSVGElement>('svg, [data-drawing-title], figcaption'));
+    const width = Math.max(...parts.map((p) => p.clientWidth), 0);
+    if (!width) return null;
+
+    const pad = 12;
+    const sheet = document.createElement('canvas');
+    const measure = sheet.getContext('2d');
+    if (!measure) return null;
+
+    // Lay it out first: a picture or some lines of words, each with its height.
+    const rows: ({ image: HTMLImageElement; w: number; h: number } | { lines: string[]; font: string; lineHeight: number })[] = [];
+    for (const part of parts) {
+      if (part instanceof SVGSVGElement) {
+        const w = part.clientWidth;
+        const h = part.clientHeight;
+        if (!w || !h) continue;
+        const clone = withOwnColours(part);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('width', String(w));
+        clone.setAttribute('height', String(h));
+        const source = new XMLSerializer().serializeToString(clone);
+        rows.push({ image: await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`), w, h });
+      } else {
+        const title = part.hasAttribute('data-drawing-title');
+        const font = title ? '600 14px system-ui, sans-serif' : '12px system-ui, sans-serif';
+        measure.font = font;
+        const lines: string[] = [];
+        let line = '';
+        for (const word of (part.textContent ?? '').trim().split(/\s+/)) {
+          const next = line ? `${line} ${word}` : word;
+          if (line && measure.measureText(next).width > width - pad * 2) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = next;
+          }
+        }
+        if (line) lines.push(line);
+        rows.push({ lines, font, lineHeight: title ? 22 : 17 });
+      }
+    }
+    if (!rows.some((r) => 'image' in r)) return null;
+
+    const height = rows.reduce((sum, r) => sum + ('image' in r ? r.h : r.lines.length * r.lineHeight + 8), pad * 2);
+    sheet.width = (width + pad * 2) * scale;
+    sheet.height = height * scale;
+    const ctx = sheet.getContext('2d');
+    if (!ctx) return null;
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width + pad * 2, height);
+    let y = pad;
+    for (const row of rows) {
+      if ('image' in row) {
+        ctx.drawImage(row.image, pad, y, row.w, row.h);
+        y += row.h;
+      } else {
+        ctx.font = row.font;
+        ctx.fillStyle = '#334155';
+        ctx.textBaseline = 'top';
+        y += 4;
+        for (const text of row.lines) {
+          ctx.fillText(text, pad, y);
+          y += row.lineHeight;
+        }
+        y += 4;
+      }
+    }
+    return sheet.toDataURL('image/png').split(',')[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface SubmitResult {
   ok: boolean;
   /** The company's reference for the new job, such as CS-1042. */
