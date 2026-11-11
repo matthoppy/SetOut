@@ -54,8 +54,9 @@ export interface MeasureCardDef {
 export function buildCards(state: ConfiguratorState): MeasureCardDef[] {
   const tool = toolFor(state.opening.method);
   if (isSingleDoor(state) && tool === 'laser') return singleDoorLaser(state);
-  // The other shapes and the tape sequences follow once this structure is
-  // agreed; until then every shape gets the single-door deck.
+  // The single-door laser deck is signed off (10 Nov 2026) and is the pattern
+  // for the other shapes and the tape sequences; until they are written,
+  // every shape gets the single-door deck.
   return singleDoorLaser(state);
 }
 
@@ -69,6 +70,10 @@ export function readingCards(cards: MeasureCardDef[]): MeasureCardDef[] {
 
 function singleDoorLaser(state: ConfiguratorState): MeasureCardDef[] {
   const toCeiling = state.isFloorToCeiling;
+  // Readings 2 and 4 are taken at the ceiling when the door goes to the
+  // ceiling, even though the glass stops an air gap short of it. The corner of
+  // wall and ceiling is a firm place to hook the tape, the plumb barely changes
+  // over the gap, and the customer is already at the ceiling for 7 and 8.
   const top = toCeiling ? 'along the ceiling' : 'held level with your mark on the wall';
   const cards: MeasureCardDef[] = [
     {
