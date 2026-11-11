@@ -12,7 +12,7 @@ There are two apps and one engine:
 
 Step 0 of six is done: the foundations. The engine has moved across from the Custom Showers configurator with its rules passed in, the database and its company-scoped data layer exist, and one Worker serves the API and both apps.
 
-Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. The designer and the workspace are served on two addresses by the one Worker, and each designer can be framed only by its own company's websites. Still to come in step 1: the email a company receives, the card decks for every layout, and the final dimensioned drawing.
+Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. The designer and the workspace are served on two addresses by the one Worker, and each designer can be framed only by its own company's websites. When a design arrives the company is emailed the whole job and the customer a copy, once a sending address is set. Still to come in step 1: the card decks for every layout and the final dimensioned drawing.
 
 The plan, the data model and the decisions behind them are in [docs/architecture.md](docs/architecture.md).
 

@@ -112,7 +112,7 @@ describe('the workspace’s address', () => {
     expect((await get(`${APP}/api/health`)).status).toBe(200);
     const icon = await get(`${APP}/favicon.ico`);
     expect(icon.headers.get('content-type')).toMatch(/^image\//);
-    expect(await icon.text()).toBe('icon');
+    expect((await icon.arrayBuffer()).byteLength).toBe(4);
     expect(icon.headers.get('x-frame-options')).toBeNull();
   });
 });

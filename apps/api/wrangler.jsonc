@@ -30,7 +30,9 @@
     "COMMIT": "local",
     // One address locally, so both apps are served from it by path.
     "DESIGNER_HOST": "",
-    "APP_HOST": ""
+    "APP_HOST": "",
+    // The address emails are sent from. Empty means nothing is emailed.
+    "EMAIL_FROM": ""
   },
   "d1_databases": [
     {
@@ -57,7 +59,8 @@
         "ENVIRONMENT": "staging",
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer-staging.setoutglass.com",
-        "APP_HOST": "app-staging.setoutglass.com"
+        "APP_HOST": "app-staging.setoutglass.com",
+        "EMAIL_FROM": ""
       },
       "d1_databases": [
         {
@@ -85,7 +88,8 @@
         "ENVIRONMENT": "production",
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer.setoutglass.com",
-        "APP_HOST": "app.setoutglass.com"
+        "APP_HOST": "app.setoutglass.com",
+        "EMAIL_FROM": ""
       },
       "d1_databases": [
         {

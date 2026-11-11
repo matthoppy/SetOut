@@ -18,6 +18,7 @@ import { Hono } from 'hono';
 import { companyDb } from '../db/company-db';
 import { resolveDesigner, type DesignerSettings } from '../db/platform';
 import { checkBot, MAX_BODY_BYTES, readEnquiry, RequestError, type BotCheck } from '../lib/enquiry';
+import { mailIsSetUp, notifyEnquiry, type MailSettings } from '../lib/notify';
 
 export const designer = new Hono<{ Bindings: Env }>();
 
@@ -145,6 +146,8 @@ designer.post('/enquiries', async (c) => {
   const computed = buildSpec(document.design, context);
 
   const { customer } = enquiry;
+  const sentQuickly = enquiry.elapsedMs !== null && enquiry.elapsedMs < SUSPICIOUS_ELAPSED_MS;
+  const mail: MailSettings = { apiKey: c.env.RESEND_API_KEY, from: c.env.EMAIL_FROM };
   const [existing] = await db.find('customers', { where: { email: customer.email }, limit: 1 });
   const reference = await db.allocateJobReference();
 
@@ -187,7 +190,10 @@ designer.post('/enquiries', async (c) => {
         name: customer.name,
         phone: customer.phone,
         botCheck,
-        sentQuickly: enquiry.elapsedMs !== null && enquiry.elapsedMs < SUSPICIOUS_ELAPSED_MS,
+        sentQuickly,
+        // Whether anyone will be emailed. What happened to each email is
+        // added to the timeline as it is sent.
+        email: mailIsSetUp(mail) ? 'sending' : 'not_set_up',
         warnings: computed.warnings.length,
         blockingIssues: computed.blockingIssues.length,
         files: enquiry.files.length,
@@ -236,6 +242,38 @@ designer.post('/enquiries', async (c) => {
         });
       }
     });
+  }
+
+  // The customer has their answer now. The emails follow, and whatever
+  // happens to them is written on the job's timeline.
+  const emails = notifyEnquiry({
+    db,
+    mail,
+    designerId: found.designerId,
+    jobId,
+    companyName: context.companyName,
+    reference,
+    customer,
+    design: document.design,
+    spec: computed,
+    files: stored.map((s) => s.file),
+    botCheck,
+    sentQuicklyMs: sentQuickly ? enquiry.elapsedMs : null,
+    defaultDisclaimer: DEFAULT_SETTINGS.measurementDisclaimer,
+  }).catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        message: 'notification failed',
+        job: jobId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    );
+  });
+  try {
+    c.executionCtx.waitUntil(emails);
+  } catch {
+    // No way to carry on after the response here, so finish before it.
+    await emails;
   }
 
   console.log(

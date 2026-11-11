@@ -30,6 +30,8 @@ export interface EnquiryFile {
   filename: string;
   contentType: 'image/png' | 'image/jpeg' | 'image/webp';
   bytes: Uint8Array;
+  /** As it arrived, kept so an email attachment does not have to be encoded again. */
+  base64: string;
 }
 
 export interface Enquiry {
@@ -165,6 +167,7 @@ export function readEnquiry(body: unknown): Enquiry {
       filename: safeFilename(a.filename, i, contentType),
       contentType,
       bytes,
+      base64: a.content,
     };
   });
 

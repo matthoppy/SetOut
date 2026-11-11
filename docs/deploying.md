@@ -100,12 +100,16 @@ Secrets are set per environment with `wrangler secret put`, or in the Cloudflare
 | Secret | What it is for | Without it |
 | --- | --- | --- |
 | `TURNSTILE_SECRET_KEY` | Checking the bot check's token when a design is sent | Designs are accepted and marked as unchecked |
-| `RESEND_API_KEY` | Sending email | Nothing is emailed |
+| `RESEND_API_KEY` | Sending email | Nothing is emailed, and each job's timeline says mail is not set up |
 
 ```sh
 cd apps/api
 npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
 ```
+
+Email also needs the address it is sent from. That is not a secret: it is `EMAIL_FROM` in `apps/api/wrangler.jsonc`, per environment, and it is empty until the sending domain has been verified with the mail service. With either the key or the address missing, nothing is emailed.
+
+When mail is set up, a design that arrives is emailed to the addresses on its designer, with the whole job and the drawings and photos attached, and a copy goes to the customer. Emails are sent after the customer has had their answer, and what happened to each one is written on the job's timeline: sent, refused with the reason, or held back.
 
 ## Still to set up, with the step that needs it
 
