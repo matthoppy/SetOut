@@ -60,7 +60,9 @@
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer-staging.setoutglass.com",
         "APP_HOST": "app-staging.setoutglass.com",
-        "EMAIL_FROM": ""
+        // setoutglass.com is a verified sending domain in Resend. The mail key
+        // is a secret on the Worker, set in Cloudflare, never here.
+        "EMAIL_FROM": "hello@setoutglass.com"
       },
       "d1_databases": [
         {
@@ -89,7 +91,7 @@
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer.setoutglass.com",
         "APP_HOST": "app.setoutglass.com",
-        "EMAIL_FROM": ""
+        "EMAIL_FROM": "hello@setoutglass.com"
       },
       "d1_databases": [
         {

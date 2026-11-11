@@ -107,12 +107,26 @@ cd apps/api
 npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
 ```
 
-Email also needs the address it is sent from. That is not a secret: it is `EMAIL_FROM` in `apps/api/wrangler.jsonc`, per environment, and it is empty until the sending domain has been verified with the mail service. With either the key or the address missing, nothing is emailed.
+Email also needs the address it is sent from. That is not a secret: it is `EMAIL_FROM` in `apps/api/wrangler.jsonc`, per environment. With either the key or the address missing, nothing is emailed.
 
 When mail is set up, a design that arrives is emailed to the addresses on its designer, with the whole job and the drawings and photos attached, and a copy goes to the customer. Emails are sent after the customer has had their answer, and what happened to each one is written on the job's timeline: sent, refused with the reason, or held back.
+
+## What is set up, as of 10 November 2026
+
+| | Staging | Production |
+| --- | --- | --- |
+| Sending domain | `setoutglass.com` in Resend, region EU, with its DNS records in Cloudflare | The same |
+| Sent from | `hello@setoutglass.com`, under the company's name | The same |
+| `RESEND_API_KEY` | Set. A key that can only send, and only from `setoutglass.com` | Set right after the first production deploy, with a key of its own |
+| Bot check widget | "SetOut designer" in Turnstile, for `setoutglass.com` and its addresses, and staging's workers.dev name | The same widget |
+| `TURNSTILE_SECRET_KEY` | Set | Set right after the first production deploy |
+| Custom Showers' designer | Its bot check site key is in its settings. Its enquiries go to `delivered@resend.dev`, Resend's test inbox, so trying the designer never lands in a real one. Sent emails can be read in Resend under Emails | Added by the seed script, with its notify address on the command line |
+
+The secrets were put straight into the Worker through Cloudflare's API and never written down anywhere. If one is lost or leaked, make a new key, set it, and delete the old one. Nothing needs copying.
+
+A secret can only be set on a Worker that exists, and production's does not exist until its first deploy. So the order for going live is: deploy production, then set its two secrets and seed its first company, then check a design end to end.
 
 ## Still to set up, with the step that needs it
 
 - **The paid Workers plan**, before real traffic. The free plan's limits are enough for staging.
-- **A bot check widget for SetOut's addresses.** Turnstile keys are tied to the addresses they run on, so the designer needs its own widget, with its site key in the designer's settings and its secret set as above.
 - **Production itself.** It has not been deployed yet. No company should be given the embed code until it has, because the script's address is permanent.
