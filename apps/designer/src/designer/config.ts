@@ -9,7 +9,7 @@
  * who the staff are never reach the browser.
  */
 
-import type { GlassThickness, RulesetOverrides } from '@setout/engine';
+import type { ConfiguratorState, GlassThickness, RulesetOverrides } from '@setout/engine';
 
 export interface HardwareFinish {
   id: string;
@@ -104,6 +104,18 @@ export async function loadConfig(siteKey: string | null): Promise<DesignerConfig
     throw new ConfigError('The designer could not start. Please try again in a moment.');
   }
   return (await response.json()) as DesignerConfig;
+}
+
+/**
+ * A new design starts with the first finish and the first handle the company
+ * offers, so one it has stopped offering is never chosen for the customer.
+ */
+export function withOfferedHardware(state: ConfiguratorState, config: Pick<DesignerConfig, 'finishes' | 'handles'>): ConfiguratorState {
+  return {
+    ...state,
+    finishId: config.finishes[0]?.id ?? state.finishId,
+    handleId: config.handles[0]?.id ?? state.handleId,
+  };
 }
 
 export function finishLabel(config: DesignerConfig, id: string): string {

@@ -29,7 +29,7 @@ import { HardwareStep } from './steps/HardwareStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { STEPS, type StepId, type StepProps } from './steps/types';
 import { createInitialState, type ConfiguratorState, type CustomerDetails } from '@setout/engine';
-import type { DesignerConfig } from './config';
+import { withOfferedHardware, type DesignerConfig } from './config';
 import { applyTemplate, createDocument, TEMPLATES } from '@setout/engine';
 import { slotSortKey, type Photo } from './photos';
 import { drawingsToPngBase64, sendDesign, svgToPngBase64, type EnquiryAttachment } from './submit';
@@ -104,6 +104,10 @@ function worthResuming(saved: SavedDesign): boolean {
 
 const hydrate = (saved: SavedDesign, config: DesignerConfig) => hydrateState(saved.state, config);
 
+/** A new design: the first layout, in a finish and with a handle the company offers. */
+const freshDesign = (config: DesignerConfig) =>
+  withOfferedHardware(applyTemplate(createInitialState(config.glassThicknessMm), TEMPLATES[0]), config);
+
 function describeSavedAt(savedAt: number): string {
   const minutes = Math.round((Date.now() - savedAt) / 60000);
   if (minutes < 2) return 'a moment ago';
@@ -154,7 +158,7 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
   const [stepId, setStepId] = useState<StepId>(saved?.stepId ?? 'shape');
   const [templateId, setTemplateId] = useState<string | null>(saved ? saved.templateId : TEMPLATES[0].id);
   const [state, setState] = useState<ConfiguratorState>(() =>
-    saved ? hydrate(saved, config) : applyTemplate(createInitialState(config.glassThicknessMm), TEMPLATES[0])
+    saved ? hydrate(saved, config) : freshDesign(config)
   );
   const [customer, setCustomerState] = useState<CustomerDetails>(saved?.customer ?? EMPTY_CUSTOMER);
   const [activePanelId, setActivePanelId] = useState<string | null>(state.panels[0]?.id ?? null);
@@ -516,7 +520,7 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
     } catch {
       // Nothing to clear.
     }
-    const fresh = applyTemplate(createInitialState(config.glassThicknessMm), TEMPLATES[0]);
+    const fresh = freshDesign(config);
     setTemplateId(TEMPLATES[0].id);
     setState(fresh);
     setCustomerState(EMPTY_CUSTOMER);
