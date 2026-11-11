@@ -25,6 +25,7 @@ export * from './panelModel';
 export * from './fabrication';
 export * from './spec';
 export * from './panes';
+export * from './shapes';
 export * from './measure';
 export * from './geometry';
 export * from './layout';

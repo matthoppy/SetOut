@@ -160,12 +160,13 @@ function Sheet({
             <tr key={panel.id} className="border-b border-black/20 align-top">
               <td className="py-1.5 pr-2 font-semibold">{panel.label}</td>
               <td className="whitespace-nowrap py-1.5 pr-2 text-right text-base font-bold tabular-nums">
-                {panel.cutWidthMm} × {panel.cutHeightMm}
+                {drawn[i].widthMm} × {drawn[i].heightMm}
+                {drawn[i].shaped && <span className="block text-[10px] font-semibold">cut to shape</span>}
               </td>
               <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">
                 {panel.tightWidthMm} × {panel.tightHeightMm}
               </td>
-              <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{Math.round(panel.weightKg * 10) / 10}kg</td>
+              <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{Math.round(drawn[i].weightKg * 10) / 10}kg</td>
               <td className="py-1.5 text-xs">
                 <Workings pane={drawn[i]} />
               </td>

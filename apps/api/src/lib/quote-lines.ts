@@ -9,7 +9,7 @@
  * worked out here, never taken from a browser.
  */
 
-import type { ConfiguratorSpec, ConfiguratorState } from '@setout/engine';
+import { DEFAULT_RULESET, panesOf, type ConfiguratorSpec, type ConfiguratorState } from '@setout/engine';
 import { QUOTE_UNITS, type QuoteLine, type QuoteUnit } from '../db/tables';
 import { RequestError } from './enquiry';
 
@@ -55,11 +55,12 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
     const finish = named(labels.finishes, design.finishId);
     const coating = design.glassCoating === 'easy-clean' ? ', easy-clean coated' : '';
     const glassKey = `glass:${spec.glassThicknessMm}:${design.glassType}${design.glassCoating === 'easy-clean' ? ':easy-clean' : ''}`;
-    for (const panel of spec.panels) {
+    // Priced by the rectangle each pane is cut from, as a toughener prices it.
+    for (const pane of panesOf(design, spec, DEFAULT_RULESET.fixed)) {
       line(
         glassKey,
-        `${prefix}${panel.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${panel.cutWidthMm} × ${panel.cutHeightMm}mm`,
-        squareMetres(panel.cutWidthMm, panel.cutHeightMm),
+        `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
+        squareMetres(pane.widthMm, pane.heightMm),
         'm2'
       );
     }

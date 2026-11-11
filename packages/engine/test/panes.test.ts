@@ -4,7 +4,7 @@
  * for every known design, and the edges to the door each one serves.
  */
 import { describe, expect, test } from 'vitest';
-import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, panesOf, TEMPLATES, type ConfiguratorState, type Pane } from '../src';
+import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, panesOf, shapesOf, TEMPLATES, type ConfiguratorState, type Pane } from '../src';
 import { GOLDEN_COMPANY, GOLDENS } from './goldens';
 
 const context = { rules: DEFAULT_RULESET, companyName: GOLDEN_COMPANY };
@@ -12,19 +12,20 @@ const fixed = DEFAULT_RULESET.fixed;
 
 /** The edges a pane's notches or holes are on. */
 const sides = (pane: Pane, kind: 'notch' | 'hole') => pane.features.flatMap((f) => (f.kind === kind ? [f.side] : []));
-/** The heights of a pane's notches and holes. */
-const centres = (pane: Pane) => pane.features.flatMap((f) => (f.kind === 'corner' ? [] : [f.centreMm]));
 
 describe.each(GOLDENS)('$name', (golden) => {
-  test('every cut-out the spec has, at the spec’s own height, and nothing else', () => {
+  test('every cut-out the spec has, at the spec’s own place on the glass, and nothing else', () => {
     const spec = buildSpec(structuredClone(golden.document.design), context);
     const panes = panesOf(golden.document.design, spec, fixed);
-    expect(panes.map((p) => [p.id, p.widthMm, p.heightMm])).toEqual(spec.panels.map((p) => [p.id, p.cutWidthMm, p.cutHeightMm]));
+    const shapes = shapesOf(golden.document.design, spec);
+    expect(panes.map((p) => [p.id, p.widthMm, p.heightMm])).toEqual(shapes.map((s) => [s.id, s.widthMm, s.heightMm]));
     spec.panels.forEach((panel, i) => {
-      const heights = (list: number[]) => [...list].sort((a, b) => a - b);
-      expect(heights(centres(panes[i]))).toEqual(
-        heights(panel.cutouts.map((c) => c.heightMm))
+      const heights = (list: number[]) => [...list].map((h) => Math.round(h * 10) / 10).sort((a, b) => a - b);
+      // Back from the corner of its edge to the spec's own bottom edge.
+      const asSpec = panes[i].features.flatMap((f) =>
+        f.kind === 'corner' ? [] : [f.centreMm + (f.side === 'left' ? shapes[i].corners.bottomLeft.y : shapes[i].corners.bottomRight.y) - shapes[i].specBottomMm]
       );
+      expect(heights(asSpec)).toEqual(heights(panel.cutouts.map((c) => c.heightMm)));
       expect(panes[i].features.filter((f) => f.kind === 'corner')).toHaveLength(panel.notches.length);
     });
   });

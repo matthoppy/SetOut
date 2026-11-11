@@ -21,6 +21,7 @@ import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 import type { FixedRules } from './ruleset';
 import { mateNotchHeightMm } from './rules';
+import { shapesOf, type PaneShape } from './shapes';
 
 export type PaneSide = 'left' | 'right';
 export type PaneCorner = 'bottom-left' | 'bottom-right';
@@ -62,10 +63,16 @@ export type PaneFeature = PaneNotch | PaneHole | PaneCornerNotch;
 export interface Pane {
   id: string;
   label: string;
-  /** The cut size: the rectangle the pane is cut from. */
+  /** The rectangle the pane is cut from, around its shape. */
   widthMm: number;
   heightMm: number;
+  /** By the rectangle, which is what the toughener starts from and the fitter carries. */
   weightKg: number;
+  /** Its corners, from the rectangle's bottom-left, y up. See shapes.ts. */
+  outline: PaneShape['corners'];
+  /** True when the pane is cut to a shape, not square. */
+  shaped: boolean;
+  /** Each cut-out's centre is up from the bottom corner of the edge it is on. */
   features: PaneFeature[];
   /** Where the toughening stamp goes: a bottom corner, away from the hinges. */
   stamp: PaneCorner;
@@ -77,13 +84,21 @@ const other = (side: PaneSide): PaneSide => (side === 'left' ? 'right' : 'left')
  * The panes of a worked-out shower, in order from left to right as seen from
  * outside. `fixed` is SetOut's own fixed rules, which no company changes.
  */
-export function panesOf(design: Pick<ConfiguratorState, 'handleId'>, spec: ConfiguratorSpec, fixed: Pick<FixedRules, 'cutouts' | 'handle'>): Pane[] {
-  const panes: Pane[] = spec.panels.map((panel) => ({
+export function panesOf(
+  design: ConfiguratorState,
+  spec: ConfiguratorSpec,
+  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'glassDensityKgPerM2PerMm'>
+): Pane[] {
+  const shapes = shapesOf(design, spec);
+  const panes: Pane[] = spec.panels.map((panel, i) => ({
     id: panel.id,
     label: panel.label,
-    widthMm: panel.cutWidthMm,
-    heightMm: panel.cutHeightMm,
-    weightKg: panel.weightKg,
+    widthMm: shapes[i].widthMm,
+    heightMm: shapes[i].heightMm,
+    weightKg:
+      Math.round((shapes[i].widthMm / 1000) * (shapes[i].heightMm / 1000) * spec.glassThicknessMm * fixed.glassDensityKgPerM2PerMm * 100) / 100,
+    outline: shapes[i].corners,
+    shaped: shapes[i].shaped,
     features: panel.notches.map((n) => ({
       kind: 'corner' as const,
       corner: n.corner.toLowerCase().includes('left') ? ('bottom-left' as const) : ('bottom-right' as const),
@@ -141,6 +156,19 @@ export function panesOf(design: Pick<ConfiguratorState, 'handleId'>, spec: Confi
         heightMm: fixed.cutouts.fixedHingeNotch.heightMm,
         radiusMm: fixed.cutouts.fixedHingeNotch.radiusMm,
       });
+    }
+  });
+
+  // The spec measures each cut-out up from its own square bottom edge. On a
+  // pane cut to shape, that edge is somewhere above the bottom corner of the
+  // edge the cut-out is on, so the same point on the glass is that much
+  // further up from the corner. Nothing moves; it is measured from the glass.
+  panes.forEach((pane, i) => {
+    const shape = shapes[i];
+    for (const f of pane.features) {
+      if (f.kind === 'corner') continue;
+      const corner = f.side === 'left' ? shape.corners.bottomLeft.y : shape.corners.bottomRight.y;
+      f.centreMm = Math.round((f.centreMm + shape.specBottomMm - corner) * 10) / 10;
     }
   });
 

@@ -33,40 +33,74 @@ export function PaneDrawing({ pane, edgework = 'FP' }: { pane: Pane; edgework?: 
   const h = pane.heightMm * scale;
   const x0 = MARGIN.left + (availW - w) / 2;
   const y0 = MARGIN.top + (availH - h) / 2;
-  const xOf = (side: 'left' | 'right', inset: number) => (side === 'left' ? x0 + inset * scale : x0 + w - inset * scale);
-  /** A height up from the bottom edge, on the drawing. */
-  const yOf = (up: number) => y0 + h - up * scale;
+  /** A point on the pane, in mm from its rectangle's bottom-left, on the drawing. */
+  const at = (p: { x: number; y: number }) => ({ X: x0 + p.x * scale, Y: y0 + h - p.y * scale });
+  const { bottomLeft: bl, bottomRight: br, topRight: tr, topLeft: tl } = pane.outline;
+  const corners = [bl, br, tr, tl].map(at);
+  const polygon = corners.map((c) => `${c.X},${c.Y}`).join(' ');
+  const edge = (side: 'left' | 'right') => (side === 'left' ? { bottom: bl, top: tl } : { bottom: br, top: tr });
 
   return (
-    <svg viewBox={`0 0 ${BOX.width} ${BOX.height}`} className="mx-auto block h-auto w-full max-w-[640px]" role="img" aria-label={`${pane.label}, ${pane.widthMm} by ${pane.heightMm}mm`}>
+    <svg viewBox={`0 0 ${BOX.width} ${BOX.height}`} className="mx-auto block h-auto w-full max-w-[640px]" role="img" aria-label={`${pane.label}, ${pane.widthMm} by ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`}>
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0 1 L9 5 L0 9" fill="none" stroke={DIM} strokeWidth="1.2" />
         </marker>
       </defs>
 
+      {/* The rectangle it is cut from, when it is cut to a shape inside it. */}
+      {pane.shaped && <rect x={x0} y={y0} width={w} height={h} fill="none" stroke={DIM} strokeWidth="1" strokeDasharray="6 5" />}
       {/* The pane. */}
-      <rect x={x0} y={y0} width={w} height={h} fill="#fff" stroke={INK} strokeWidth="1.6" />
+      <polygon points={polygon} fill="#fff" stroke={INK} strokeWidth="1.6" />
 
-      {/* Overall sizes: across the top and bottom, up each side. */}
-      <Dimension x1={x0} y1={y0 - 34} x2={x0 + w} y2={y0 - 34} label={pane.widthMm} />
-      <Dimension x1={x0} y1={y0 + h + 44} x2={x0 + w} y2={y0 + h + 44} label={pane.widthMm} />
-      <Dimension x1={x0 - 54} y1={y0 + h} x2={x0 - 54} y2={y0} label={pane.heightMm} vertical />
-      <Dimension x1={x0 + w + 54} y1={y0 + h} x2={x0 + w + 54} y2={y0} label={pane.heightMm} vertical />
+      {/* Each edge's length: across the top and bottom, up each side. */}
+      <Dimension x1={at(tl).X} y1={y0 - 34} x2={at(tr).X} y2={y0 - 34} label={tr.x - tl.x} />
+      <Dimension x1={at(bl).X} y1={y0 + h + 44} x2={at(br).X} y2={y0 + h + 44} label={br.x - bl.x} />
+      <Dimension x1={x0 - 54} y1={at(bl).Y} x2={x0 - 54} y2={at(tl).Y} label={tl.y - bl.y} vertical />
+      <Dimension x1={x0 + w + 54} y1={at(br).Y} x2={x0 + w + 54} y2={at(tr).Y} label={tr.y - br.y} vertical />
+
+      {/* How far each corner is off its rectangle. */}
+      {pane.shaped && <Offsets pane={pane} at={at} />}
 
       {/* Edgework, on every edge. */}
-      <EdgeLabel x={x0 + w / 2} y={y0 + 16} text={edgework} />
-      <EdgeLabel x={x0 + w / 2} y={y0 + h - 8} text={edgework} />
-      <EdgeLabel x={x0 + 18} y={y0 + h / 2} text={edgework} />
-      <EdgeLabel x={x0 + w - 18} y={y0 + h / 2} text={edgework} />
+      <EdgeLabel x={(at(tl).X + at(tr).X) / 2} y={(at(tl).Y + at(tr).Y) / 2 + 16} text={edgework} />
+      <EdgeLabel x={(at(bl).X + at(br).X) / 2} y={(at(bl).Y + at(br).Y) / 2 - 8} text={edgework} />
+      <EdgeLabel x={(at(bl).X + at(tl).X) / 2 + 18} y={(at(bl).Y + at(tl).Y) / 2} text={edgework} />
+      <EdgeLabel x={(at(br).X + at(tr).X) / 2 - 18} y={(at(br).Y + at(tr).Y) / 2} text={edgework} />
 
       {pane.features.map((f, i) => (
-        <Feature key={i} feature={f} pane={pane} scale={scale} xOf={xOf} yOf={yOf} x0={x0} y0={y0} w={w} h={h} />
+        <Feature key={i} feature={f} scale={scale} at={at} edge={edge} x0={x0} w={w} />
       ))}
 
       {/* The toughening stamp. */}
-      <Stamp corner={pane.stamp} x0={x0} y0={y0} w={w} h={h} scale={scale} />
+      <Stamp corner={pane.stamp} at={at(pane.stamp === 'bottom-left' ? bl : br)} scale={scale} y0={y0} h={h} />
     </svg>
+  );
+}
+
+/** Small numbers at each corner that is off the rectangle: how far in, and how far down or up. */
+function Offsets({ pane, at }: { pane: Pane; at: (p: { x: number; y: number }) => { X: number; Y: number } }) {
+  const { bottomLeft: bl, bottomRight: br, topRight: tr, topLeft: tl } = pane.outline;
+  const W = pane.widthMm;
+  const H = pane.heightMm;
+  const labels: { X: number; Y: number; text: number; anchor: 'start' | 'end' | 'middle' }[] = [];
+  const add = (p: { x: number; y: number }, dx: number, dy: number, right: boolean, top: boolean) => {
+    const c = at(p);
+    if (dx) labels.push({ X: c.X + (right ? 6 : -6), Y: c.Y + (top ? -6 : 14), text: dx, anchor: right ? 'start' : 'end' });
+    if (dy) labels.push({ X: c.X + (right ? -8 : 8), Y: c.Y + (top ? 14 : -6), text: dy, anchor: right ? 'end' : 'start' });
+  };
+  add(tl, tl.x, H - tl.y, false, true);
+  add(tr, W - tr.x, H - tr.y, true, true);
+  add(bl, bl.x, bl.y, false, false);
+  add(br, W - br.x, br.y, true, false);
+  return (
+    <g>
+      {labels.map((l, i) => (
+        <text key={i} x={l.X} y={l.Y} fontSize="11" textAnchor={l.anchor} fill={INK}>
+          {l.text}
+        </text>
+      ))}
+    </g>
   );
 }
 
@@ -97,13 +131,24 @@ function EdgeLabel({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-/** A short dimension from the nearer end of the pane to a cut-out's centre, beside the edge it is on. */
-function FromEnd({ side, centre, pane, x0, y0, w, h, scale }: { side: 'left' | 'right'; centre: number; pane: Pane; x0: number; y0: number; w: number; h: number; scale: number }) {
-  const fromTop = pane.heightMm - centre < centre;
-  const distance = Math.round((fromTop ? pane.heightMm - centre : centre) * 10) / 10;
+type At = (p: { x: number; y: number }) => { X: number; Y: number };
+type Edge = (side: 'left' | 'right') => { bottom: { x: number; y: number }; top: { x: number; y: number } };
+
+/** Where an edge is at a height up from its bottom corner, in mm on the pane. */
+function onEdge(e: { bottom: { x: number; y: number }; top: { x: number; y: number } }, up: number) {
+  const rise = e.top.y - e.bottom.y || 1;
+  return { x: e.bottom.x + ((e.top.x - e.bottom.x) * up) / rise, y: e.bottom.y + up };
+}
+
+/** A short dimension from the nearer end of its edge to a cut-out's centre, beside that edge. */
+function FromEnd({ side, centre, edge, at, x0, w }: { side: 'left' | 'right'; centre: number; edge: Edge; at: At; x0: number; w: number }) {
+  const e = edge(side);
+  const length = e.top.y - e.bottom.y;
+  const fromTop = length - centre < centre;
+  const distance = Math.round((fromTop ? length - centre : centre) * 10) / 10;
   const x = side === 'left' ? x0 - 22 : x0 + w + 22;
-  const yEnd = fromTop ? y0 : y0 + h;
-  const yCentre = y0 + h - centre * scale;
+  const yEnd = at(fromTop ? e.top : e.bottom).Y;
+  const yCentre = at(onEdge(e, centre)).Y;
   return (
     <g>
       <line x1={x} y1={yEnd} x2={x} y2={yCentre} stroke={DIM} strokeWidth="0.9" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
@@ -114,87 +159,69 @@ function FromEnd({ side, centre, pane, x0, y0, w, h, scale }: { side: 'left' | '
   );
 }
 
-function Feature({
-  feature: f,
-  pane,
-  scale,
-  xOf,
-  yOf,
-  x0,
-  y0,
-  w,
-  h,
-}: {
-  feature: PaneFeature;
-  pane: Pane;
-  scale: number;
-  xOf: (side: 'left' | 'right', inset: number) => number;
-  yOf: (up: number) => number;
-  x0: number;
-  y0: number;
-  w: number;
-  h: number;
-}) {
+function Feature({ feature: f, scale, at, edge, x0, w }: { feature: PaneFeature; scale: number; at: At; edge: Edge; x0: number; w: number }) {
   if (f.kind === 'corner') {
+    const e = edge(f.corner === 'bottom-left' ? 'left' : 'right');
+    const c = at(e.bottom);
     const cw = Math.max(f.widthMm * scale, 6);
     const ch = Math.max(f.heightMm * scale, 6);
-    const x = f.corner === 'bottom-left' ? x0 : x0 + w - cw;
+    const x = f.corner === 'bottom-left' ? c.X : c.X - cw;
     return (
       <g>
-        <rect x={x} y={y0 + h - ch} width={cw} height={ch} fill="#fff" stroke={INK} strokeWidth="1.4" />
-        <text x={f.corner === 'bottom-left' ? x + cw + 4 : x - 4} y={y0 + h - ch - 4} fontSize="11" textAnchor={f.corner === 'bottom-left' ? 'start' : 'end'} fill={INK}>
+        <rect x={x} y={c.Y - ch} width={cw} height={ch} fill="#fff" stroke={INK} strokeWidth="1.4" />
+        <text x={f.corner === 'bottom-left' ? x + cw + 4 : x - 4} y={c.Y - ch - 4} fontSize="11" textAnchor={f.corner === 'bottom-left' ? 'start' : 'end'} fill={INK}>
           Notch {f.widthMm} × {f.heightMm}
         </text>
       </g>
     );
   }
   const template = TEMPLATES[f.template];
+  const e = edge(f.side);
+  const point = at(onEdge(e, f.centreMm));
   if (f.kind === 'notch') {
     const depth = Math.max(f.depthMm * scale, 6);
     const tall = Math.max(f.heightMm * scale, 6);
     const r = Math.min(f.radiusMm * scale, depth / 2, tall / 2);
-    const cy = yOf(f.centreMm);
-    const x = f.side === 'left' ? x0 - 1 : x0 + w - depth + 1;
+    const x = f.side === 'left' ? point.X - 1 : point.X - depth + 1;
     return (
       <g>
-        <rect x={x} y={cy - tall / 2} width={depth} height={tall} rx={r} fill="#fff" stroke={INK} strokeWidth="1.4" />
-        <text x={f.side === 'left' ? x0 + depth + 6 : x0 + w - depth - 6} y={cy + 4} fontSize="13" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
+        <rect x={x} y={point.Y - tall / 2} width={depth} height={tall} rx={r} fill="#fff" stroke={INK} strokeWidth="1.4" />
+        <text x={f.side === 'left' ? point.X + depth + 6 : point.X - depth - 6} y={point.Y + 4} fontSize="13" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
           {template.letter}
         </text>
-        <FromEnd side={f.side} centre={f.centreMm} pane={pane} x0={x0} y0={y0} w={w} h={h} scale={scale} />
+        <FromEnd side={f.side} centre={f.centreMm} edge={edge} at={at} x0={x0} w={w} />
       </g>
     );
   }
-  const cx = xOf(f.side, f.insetMm);
-  const cy = yOf(f.centreMm);
+  const cx = point.X + (f.side === 'left' ? 1 : -1) * f.insetMm * scale;
+  const cy = point.Y;
   const r = Math.max((f.diameterMm / 2) * scale, 2.5);
-  const edgeX = f.side === 'left' ? x0 : x0 + w;
   return (
     <g>
       {/* How far in from its edge, to the hole's centre. */}
-      <line x1={edgeX} y1={cy - r - 9} x2={cx} y2={cy - r - 9} stroke={DIM} strokeWidth="0.8" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
-      <text x={(edgeX + cx) / 2} y={cy - r - 13} fontSize="10" textAnchor="middle" fill={INK}>
+      <line x1={point.X} y1={cy - r - 9} x2={cx} y2={cy - r - 9} stroke={DIM} strokeWidth="0.8" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
+      <text x={(point.X + cx) / 2} y={cy - r - 13} fontSize="10" textAnchor="middle" fill={INK}>
         {f.insetMm}
       </text>
       <circle cx={cx} cy={cy} r={r} fill="#fff" stroke={INK} strokeWidth="1.2" />
       <text x={f.side === 'left' ? cx + r + 5 : cx - r - 5} y={cy + 4} fontSize="12" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
         {template.letter}
       </text>
-      <FromEnd side={f.side} centre={f.centreMm} pane={pane} x0={x0} y0={y0} w={w} h={h} scale={scale} />
+      <FromEnd side={f.side} centre={f.centreMm} edge={edge} at={at} x0={x0} w={w} />
     </g>
   );
 }
 
-function Stamp({ corner, x0, y0, w, h, scale }: { corner: 'bottom-left' | 'bottom-right'; x0: number; y0: number; w: number; h: number; scale: number }) {
+function Stamp({ corner, at, scale, y0, h }: { corner: 'bottom-left' | 'bottom-right'; at: { X: number; Y: number }; scale: number; y0: number; h: number }) {
   const inX = Math.max(STAMP.fromSideMm * scale, 14);
-  const x = corner === 'bottom-left' ? x0 + inX : x0 + w - inX;
-  const y = y0 + h - Math.max(STAMP.fromBottomMm * scale, 6);
+  const x = corner === 'bottom-left' ? at.X + inX : at.X - inX;
+  const y = at.Y - Math.max(STAMP.fromBottomMm * scale, 6);
   return (
     <g>
       <text x={x} y={y - 4} fontSize="12" fontStyle="italic" fontWeight="700" textAnchor={corner === 'bottom-left' ? 'start' : 'end'} fill={INK}>
         TGS
       </text>
-      <text x={corner === 'bottom-left' ? x0 + 4 : x0 + w - 4} y={y0 + h + 16} fontSize="10" textAnchor={corner === 'bottom-left' ? 'start' : 'end'} fill={DIM}>
+      <text x={at.X} y={y0 + h + 16} fontSize="10" textAnchor={corner === 'bottom-left' ? 'start' : 'end'} fill={DIM}>
         stamp {STAMP.fromSideMm} in, {STAMP.fromBottomMm} up
       </text>
     </g>
