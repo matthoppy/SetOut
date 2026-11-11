@@ -443,6 +443,9 @@ function SignOff({
           <Link to={`/jobs/${jobId}/making`} className="text-sm font-semibold text-accent underline underline-offset-2">
             Making sheet
           </Link>
+          <Link to={`/glass?jobs=${encodeURIComponent(jobId)}`} className="text-sm font-semibold text-accent underline underline-offset-2">
+            Glass order
+          </Link>
           <button
             type="button"
             disabled={state.busy}

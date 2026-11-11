@@ -22,6 +22,7 @@ import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
+import { GlassOrder } from './pages/GlassOrder';
 import { MakingSheet } from './pages/MakingSheet';
 import { QuotePage } from './pages/QuotePage';
 import { Team } from './pages/Team';
@@ -72,6 +73,8 @@ function App() {
   const page =
     path === '/team' ? (
       <Team me={me.data} />
+    ) : path === '/glass' ? (
+      <GlassOrder query={query} />
     ) : makingMatch ? (
       <MakingSheet id={makingMatch[1]} />
     ) : quoteMatch ? (
@@ -169,7 +172,10 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
             {menu && (
               <div className="absolute right-0 mt-2 w-64 rounded-lg border border-rule bg-surface p-2 text-sm shadow-lg">
                 <p className="truncate px-2 py-1 text-quiet">{me.user.email}</p>
-                <Link to="/team" onClick={() => setMenu(false)} className="mt-1 block rounded border-t border-rule px-2 py-2 hover:bg-ground">
+                <Link to="/glass" onClick={() => setMenu(false)} className="mt-1 block rounded border-t border-rule px-2 py-2 hover:bg-ground">
+                  Glass order
+                </Link>
+                <Link to="/team" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
                   Team
                 </Link>
                 {me.companies.length > 1 && (
