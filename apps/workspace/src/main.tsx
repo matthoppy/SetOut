@@ -26,6 +26,7 @@ import { GlassOrder } from './pages/GlassOrder';
 import { InstallationSheet } from './pages/InstallationSheet';
 import { MakingSheet } from './pages/MakingSheet';
 import { QuotePage } from './pages/QuotePage';
+import { Settings } from './pages/Settings';
 import { Team } from './pages/Team';
 import { Problem } from './pages/parts';
 
@@ -75,6 +76,8 @@ function App() {
   const page =
     path === '/team' ? (
       <Team me={me.data} />
+    ) : path === '/settings' ? (
+      <Settings me={me.data} onRenamed={me.reload} />
     ) : path === '/glass' ? (
       <GlassOrder query={query} companyName={me.data.company?.name ?? ''} />
     ) : makingMatch ? (
@@ -181,6 +184,9 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
                 </Link>
                 <Link to="/team" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
                   Team
+                </Link>
+                <Link to="/settings" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
+                  Settings
                 </Link>
                 {me.companies.length > 1 && (
                   <div className="mt-1 border-t border-rule pt-1">

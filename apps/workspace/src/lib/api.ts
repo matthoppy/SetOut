@@ -223,6 +223,100 @@ export interface Team {
   changes?: TeamChange[];
 }
 
+export interface Finish {
+  id: string;
+  label: string;
+  /** The colour shown beside it in the designer, as #rrggbb. */
+  swatch: string;
+}
+
+export interface Handle {
+  id: string;
+  label: string;
+  description: string;
+}
+
+/** A finish or handle as it is sent to be saved: one without an id is new. */
+export type NewOption<T extends { id: string }> = Omit<T, 'id'> & { id?: string };
+
+export interface Branding {
+  primary: string;
+  primaryForeground: string;
+  logoUrl: string | null;
+}
+
+export interface QuoteSettings {
+  /** Hundredths of a percent: 2000 is 20%. */
+  vatRateBp: number;
+  validDays: number;
+}
+
+export interface CompanySettings {
+  name: string;
+  branding: Branding;
+  quotes: QuoteSettings;
+  /** Which version of each part a change is made from. */
+  versions: { name: string; branding: string; quotes: string };
+}
+
+export interface DesignerSettings {
+  id: string;
+  name: string;
+  active: boolean;
+  finishes: Finish[];
+  handles: Handle[];
+  notifyEmails: string[];
+  /** How many showers on the company's jobs use each option, by id. */
+  inUse: { finishes: Record<string, number>; handles: Record<string, number> };
+  versions: { finishes: string; handles: string; notifyEmails: string };
+}
+
+export type SettingsChangeItem =
+  | { field: 'name'; from: string; to: string }
+  | { field: 'primary' | 'primaryForeground'; from: string; to: string }
+  | { field: 'logoUrl'; from: string | null; to: string | null }
+  | { field: 'vatRateBp' | 'quoteValidDays'; from: number; to: number }
+  | {
+      field: 'finish' | 'handle';
+      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described' | 'reordered';
+      id?: string;
+      label?: string;
+      from?: string;
+      to?: string;
+    }
+  | { field: 'notifyEmails'; added: string[]; removed: string[] };
+
+export interface SettingsChange {
+  id: string;
+  by: { email: string; name: string | null } | null;
+  data: { designer?: { id: string; name: string }; changes?: SettingsChangeItem[] };
+  at: string;
+}
+
+export interface Settings {
+  /** Only owners can change anything. */
+  canChange: boolean;
+  company: CompanySettings;
+  designers: DesignerSettings[];
+  limits: { options: number; label: number; description: number; notifyEmails: number; companyName: number; logoUrl: number };
+  /** Owners only. */
+  changes?: SettingsChange[];
+}
+
+export interface CompanyChanges {
+  name?: string;
+  branding?: Partial<Branding>;
+  quotes?: Partial<QuoteSettings>;
+  basedOn: Partial<CompanySettings['versions']>;
+}
+
+export interface DesignerChanges {
+  finishes?: NewOption<Finish>[];
+  handles?: NewOption<Handle>[];
+  notifyEmails?: string[];
+  basedOn: Partial<DesignerSettings['versions']>;
+}
+
 export const api = {
   me: () => call<Me>('/me'),
   askForLink: (email: string) => send<{ ok: true; link?: string }>('POST', '/sign-in', { email }),
@@ -269,6 +363,12 @@ export const api = {
     send<{ ok: true; member: TeamMember; emailed: boolean }>('POST', '/team', person),
   setRole: (id: string, role: Role) => send<{ ok: true }>('PATCH', `/team/${encodeURIComponent(id)}`, { role }),
   removeFromTeam: (id: string) => call<{ ok: true }>(`/team/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  settings: (signal?: AbortSignal) => call<Settings>('/settings', { signal }),
+  /** A part left out stays as it is. */
+  saveCompanySettings: (changes: CompanyChanges) => send<{ ok: true; changed: boolean }>('PATCH', '/settings/company', changes),
+  /** A list is sent whole, in order. A part left out stays as it is. */
+  saveDesignerSettings: (id: string, changes: DesignerChanges) =>
+    send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),
 };
 
 /**
