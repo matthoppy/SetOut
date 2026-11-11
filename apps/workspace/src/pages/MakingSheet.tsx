@@ -15,6 +15,7 @@ import { humanise, layoutName, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { describeFeature, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
+import { lettersFor } from './PaneDrawing';
 import { Problem } from './parts';
 
 const GLASS: Record<string, string> = { clear: 'clear', 'low-iron': 'low-iron', satin: 'satin', bronze: 'bronze tinted', grey: 'grey tinted' };
@@ -101,6 +102,7 @@ function Sheet({
 }) {
   const doors = spec.panels.filter((p) => p.door);
   const drawn = panesFor(design, spec);
+  const letters = lettersFor(drawn);
   const checker = revision.checkedBy ? (revision.checkedBy.name ?? revision.checkedBy.email) : 'a former member of the team';
   const glass = `${spec.glassThicknessMm}mm toughened ${GLASS[design.glassType] ?? design.glassType}${design.glassCoating === 'easy-clean' ? ', easy-clean coated' : ''}`;
   const finish = humanise(design.finishId);
@@ -168,7 +170,7 @@ function Sheet({
               </td>
               <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{Math.round(drawn[i].weightKg * 10) / 10}kg</td>
               <td className="py-1.5 text-xs">
-                <Workings pane={drawn[i]} />
+                <Workings pane={drawn[i]} letters={letters} />
               </td>
             </tr>
           ))}
@@ -275,12 +277,12 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function Workings({ pane }: { pane: Pane }) {
+function Workings({ pane, letters }: { pane: Pane; letters: Map<string, string> }) {
   if (pane.features.length === 0) return <span className="text-black/50">None</span>;
   return (
     <ul className="space-y-0.5">
       {pane.features.map((f, i) => (
-        <li key={i}>{describeFeature(f, pane)}</li>
+        <li key={i}>{describeFeature(f, pane, letters)}</li>
       ))}
     </ul>
   );

@@ -106,6 +106,38 @@ export interface NotchCutout {
   radiusMm: number;
 }
 
+/**
+ * The shape of a hinge's cut-out, in mm, as its maker's glass fabrication
+ * template draws it. Heights are along the glass edge, depths into the glass.
+ *
+ *   notch       a notch with rounded inner corners
+ *   notch-ears  a square-cornered notch with a round relief hole ("mouse
+ *               ear") at each inner corner, as CRL's Geneva and Vienna
+ *               templates have it: the ears' centres so far in from the glass
+ *               edge and so far apart along it
+ *   holes       a pair of holes, so far in from the glass edge and so far
+ *               apart along it, centred on the hinge
+ */
+export type CutoutShape =
+  | { kind: 'notch'; heightMm: number; depthMm: number; radiusMm: number }
+  | { kind: 'notch-ears'; heightMm: number; depthMm: number; earDiameterMm: number; earInMm: number; earApartMm: number }
+  | { kind: 'holes'; diameterMm: number; inMm: number; apartMm: number };
+
+export interface CutoutTemplate {
+  /** What it is, on the templates page. */
+  name: string;
+  /** Whose template its sizes are from. */
+  source: string;
+  shape: CutoutShape;
+}
+
+/** A hinge kit's cut-outs: in the door, and in the panel it hangs from, in line or round a corner. */
+export interface HingeCutouts {
+  door?: CutoutTemplate;
+  panelInLine?: CutoutTemplate;
+  panelAtCorner?: CutoutTemplate;
+}
+
 export interface FixedRules {
   /** [CONFIRMED] Toughened glass density. 10mm glass weighs 25 kg/m². */
   glassDensityKgPerM2PerMm: number;
@@ -134,6 +166,13 @@ export interface FixedRules {
      * deduction stays at the latch.
      */
     glassToGlassGapMm: number;
+    /**
+     * [MANUFACTURER] Each kit's own cut-outs, by kit id, from its maker's
+     * glass fabrication template. A cut-out not given here is SetOut's own
+     * notch (cutouts.doorHingeNotch and cutouts.fixedHingeNotch), to be
+     * checked against the template that comes with the hinge.
+     */
+    cutouts: Record<string, HingeCutouts>;
   };
   handle: {
     /** [CONFIRMED] Handle holes are 203mm apart: an 8 inch pull. */
@@ -264,6 +303,39 @@ export const FIXED_RULES: FixedRules = {
     cutoutHeightMm: 47,
     minClearGapMm: 400,
     glassToGlassGapMm: 3,
+    cutouts: {
+      geneva: {
+        // CRL's Geneva door cut-out is the same in its wall mount (GEN037)
+        // and glass-to-glass (GEN180) templates, in CRL's own mm. Custom
+        // Showers' Geneva 90° orders show it too, ears and all.
+        door: {
+          name: 'Geneva hinge notch',
+          source: 'CRL GEN037 and GEN180 glass fabrication templates',
+          shape: { kind: 'notch-ears', heightMm: 63, depthMm: 44, earDiameterMm: 16, earInMm: 38, earApartMm: 57 },
+        },
+        // The panel takes two holes. CRL's GEN180 template has them 1-7/16"
+        // in; Custom Showers' Geneva 90° orders give 37mm and 16mm holes.
+        panelInLine: {
+          name: 'Geneva hinge holes',
+          source: 'CRL GEN180 glass fabrication template; 37mm in as on Custom Showers’ orders',
+          shape: { kind: 'holes', diameterMm: 16, inMm: 37, apartMm: 57 },
+        },
+        panelAtCorner: {
+          name: 'Geneva hinge holes',
+          source: 'CRL GEN180 glass fabrication template; 37mm in as on Custom Showers’ orders',
+          shape: { kind: 'holes', diameterMm: 16, inMm: 37, apartMm: 57 },
+        },
+      },
+      vienna: {
+        // CRL's V1E037 template, in inches: 3" overall, ears 2-3/4" apart
+        // and 1-9/16" in, 1-13/16" deep, 5/8" ears. To the nearest mm.
+        door: {
+          name: 'Vienna hinge notch',
+          source: 'CRL V1E037 glass fabrication template',
+          shape: { kind: 'notch-ears', heightMm: 76, depthMm: 46, earDiameterMm: 16, earInMm: 40, earApartMm: 70 },
+        },
+      },
+    },
   },
   handle: {
     holeSpacingMm: 203,

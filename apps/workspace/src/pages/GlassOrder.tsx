@@ -20,7 +20,7 @@ import { useLoad } from '../lib/load';
 import { describeFeature, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { Problem, PrintedPage as Page } from './parts';
-import { PaneDrawing, TEMPLATES, TemplateDrawing } from './PaneDrawing';
+import { lettersFor, PaneDrawing, TemplateDrawing } from './PaneDrawing';
 
 const GLASS: Record<string, string> = { clear: 'Clear', 'low-iron': 'Low-iron', satin: 'Satin', bronze: 'Bronze tint', grey: 'Grey tint' };
 const EDGEWORK = 'FP';
@@ -100,8 +100,10 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
   const unchecked = chosen.flatMap((j) => j.unchecked);
   const area = sheets.reduce((sum, s) => sum + (s.pane.widthMm * s.pane.heightMm) / 1_000_000, 0);
   const weight = sheets.reduce((sum, s) => sum + s.pane.weightKg, 0);
-  // One example of each template used, for the last page.
-  const templates = new Map<string, PaneFeature>();
+  // A letter for each template, in the order they first appear, and one
+  // example of each for the last page.
+  const letters = lettersFor(sheets.map((s) => s.pane));
+  const templates = new Map<string, Exclude<PaneFeature, { kind: 'corner' }>>();
   for (const s of sheets) for (const f of s.pane.features) if (f.kind !== 'corner' && !templates.has(f.template)) templates.set(f.template, f);
   const pages = 1 + sheets.length + (templates.size > 0 ? 1 : 0);
 
@@ -193,7 +195,7 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
                   {s.pane.features.length ? (
                     <ul>
                       {s.pane.features.map((f, j) => (
-                        <li key={j}>{describeFeature(f, s.pane)}</li>
+                        <li key={j}>{describeFeature(f, s.pane, letters)}</li>
                       ))}
                     </ul>
                   ) : (
@@ -236,10 +238,10 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
               </span>
             </div>
             <div className="mt-2">
-              <PaneDrawing pane={s.pane} edgework={EDGEWORK} />
+              <PaneDrawing pane={s.pane} letters={letters} edgework={EDGEWORK} />
             </div>
             <div className="mt-1 space-y-0.5 text-center text-xs">
-              {holes.length > 0 && <p>All holes have {holes[0].diameterMm}mm diameter.</p>}
+              {holes.length > 0 && holes.every((h) => h.diameterMm === holes[0].diameterMm) && <p>All holes have {holes[0].diameterMm}mm diameter.</p>}
               <p>
                 Drawn as seen from outside the shower. {EDGEWORK} on every edge.
                 {s.coated ? ' Easy-clean coating on the inside face.' : ''}
@@ -254,11 +256,9 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
         <Page companyName={companyName} number={pages} of={pages}>
           <h2 className="text-base font-bold">Templates for glass cut-outs</h2>
           <div className="mt-3 grid gap-6 sm:grid-cols-2 print:grid-cols-2">
-            {[...templates.entries()]
-              .sort(([a], [b]) => TEMPLATES[a].letter.localeCompare(TEMPLATES[b].letter))
-              .map(([template, feature]) => (
-                <TemplateDrawing key={template} template={template} feature={feature} />
-              ))}
+            {[...templates.entries()].map(([template, feature]) => (
+              <TemplateDrawing key={template} letter={letters.get(template) ?? '?'} feature={feature} />
+            ))}
           </div>
         </Page>
       )}

@@ -18,7 +18,7 @@ import {
   type PaneFeature,
   type SetOut,
 } from '@setout/engine';
-import { placing, TEMPLATES } from '../pages/PaneDrawing';
+import { lettersFor, partner, placing } from '../pages/PaneDrawing';
 
 export function panes(design: ConfiguratorState, spec: ConfiguratorSpec): Pane[] {
   return panesOf(design, spec, DEFAULT_RULESET.fixed);
@@ -41,14 +41,21 @@ const CORNER = { 'bottom-left': 'bottom left corner', 'bottom-right': 'bottom ri
  * as the toughener's orders place it: a notch by its near edge from the nearer
  * end, a hole by its centre from the bottom.
  */
-export function describeFeature(f: PaneFeature, pane: Pane): string {
+export function describeFeature(f: PaneFeature, pane: Pane, letters: Map<string, string> = lettersFor([pane])): string {
   if (f.kind === 'corner') return `Notch, ${CORNER[f.corner]}: ${f.widthMm} wide × ${f.heightMm} high`;
-  const t = TEMPLATES[f.template];
+  const letter = letters.get(f.template) ?? '?';
+  const what = f.hinge ? `${f.name} (${f.hinge})` : f.name;
   const { bottomLeft, bottomRight, topLeft, topRight } = pane.outline;
   const length = f.side === 'left' ? topLeft.y - bottomLeft.y : topRight.y - bottomRight.y;
   const p = placing(length, f);
   if (f.kind === 'notch') {
-    return `${t.letter}: ${t.name}, ${f.depthMm} deep × ${f.heightMm} high, r${f.radiusMm}, ${f.side} edge, ${p.distanceMm}mm from the ${p.from} to its ${p.from === 'top' ? 'upper' : 'lower'} edge`;
+    const shape = f.ears ? `with Ø${f.ears.diameterMm} ears` : `r${f.radiusMm}`;
+    return `${letter}: ${what}, ${f.depthMm} deep × ${f.heightMm} high, ${shape}, ${f.side} edge, ${p.distanceMm}mm from the ${p.from} to its ${p.from === 'top' ? 'upper' : 'lower'} edge`;
   }
-  return `${t.letter}: Ø${f.diameterMm} hole, ${f.insetMm}mm in from the ${f.side} edge, centre ${p.distanceMm}mm up`;
+  const first = partner(pane, f);
+  const where =
+    first !== null
+      ? `${Math.round(Math.abs(f.centreMm - first) * 10) / 10}mm from the other`
+      : `centre ${p.distanceMm}mm ${p.from === 'top' ? 'down from the top' : 'up'}`;
+  return `${letter}: Ø${f.diameterMm} hole, ${what}, ${f.insetMm}mm in from the ${f.side} edge, ${where}`;
 }

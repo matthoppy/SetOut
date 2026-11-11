@@ -232,10 +232,10 @@ function RunElevation({
                 })}
                 {(() => {
                   const latch = door.hingeSide === 'left' ? c.bottomRight.x : c.bottomLeft.x;
-                  const hole = panes[i].features.find((f) => f.kind === 'hole');
+                  const hole = panes[i].features.find((f) => f.kind === 'hole' && (f.role === 'handle' || f.role === 'knob'));
                   const inset = (door.hingeSide === 'left' ? -1 : 1) * Math.max((hole?.kind === 'hole' ? hole.insetMm : 0) * s, 5);
                   const hx = X(r, latch) + inset;
-                  const isKnob = !hole || (hole.kind === 'hole' && hole.template === 'knob');
+                  const isKnob = !hole || (hole.kind === 'hole' && hole.role === 'knob');
                   if (isKnob) return <circle cx={hx} cy={Y(panel.deductions.vertical.bottom + door.handlePlacement.handleHeight)} r="3" fill={INK} />;
                   return (
                     <line
@@ -442,7 +442,7 @@ export function SetOutBand({ setOut, panes, glass }: { setOut: SetOut; panes: Pa
           const tr = P(i, o.topRight);
           const tl = P(i, o.topLeft);
           const at = setOut.panes[i];
-          const hinge = pane.features.find((f) => f.kind === 'notch' && f.template === 'door-hinge');
+          const hinge = pane.features.find((f) => f.kind === 'notch' && f.role === 'door-hinge');
           return (
             <g key={pane.id}>
               <text x={(tl.X + tr.X) / 2} y={top - 26} fontSize="11" textAnchor="middle" fill={DIM}>

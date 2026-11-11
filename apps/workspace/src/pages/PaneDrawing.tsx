@@ -13,22 +13,69 @@
  * every size and position comes from the engine's panes.
  */
 
-import type { Pane, PaneFeature } from '@setout/engine';
+import type { Pane, PaneFeature, PaneNotch } from '@setout/engine';
 
-/** Each kind of cut-out's letter on the drawings, and its name on the templates page. */
-export const TEMPLATES: Record<string, { letter: string; name: string }> = {
-  'door-hinge': { letter: 'A', name: 'Door hinge notch' },
-  'fixed-hinge': { letter: 'B', name: 'Mating hinge notch' },
-  handle: { letter: 'C', name: 'Handle holes' },
-  knob: { letter: 'D', name: 'Knob hole' },
-};
+type Cut = Exclude<PaneFeature, { kind: 'corner' }>;
+
+/**
+ * A letter for each template, in the order they first appear on the panes
+ * given: A, B, C. The same letter on every pane drawn and on the templates
+ * page, as on the orders.
+ */
+export function lettersFor(panes: Pane[]): Map<string, string> {
+  const letters = new Map<string, string>();
+  for (const pane of panes) {
+    for (const f of pane.features) {
+      if (f.kind !== 'corner' && !letters.has(f.template)) letters.set(f.template, String.fromCharCode(65 + (letters.size % 26)));
+    }
+  }
+  return letters;
+}
+
+/**
+ * A notch's outline in mm, as its template draws it: x into the glass from
+ * its edge, y along the edge from the notch's centre, from the top of its
+ * mouth round to the bottom. A notch with ears follows each relief hole
+ * round the outside, where it stands proud of the square.
+ */
+export function notchOutline(f: Pick<PaneNotch, 'depthMm' | 'heightMm' | 'radiusMm' | 'ears'>): { x: number; y: number }[] {
+  const D = f.depthMm;
+  const top = f.heightMm / 2;
+  const arc = (cx: number, cy: number, r: number, from: number, to: number) =>
+    Array.from({ length: 13 }, (_, k) => {
+      const a = from + ((to - from) * k) / 12;
+      return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    });
+  if (f.ears) {
+    const r = f.ears.diameterMm / 2;
+    const I = f.ears.inMm;
+    const cy = f.ears.apartMm / 2;
+    const reachesTop = Math.abs(top - cy) < r;
+    const reachesBack = Math.abs(D - I) < r;
+    if (reachesTop && reachesBack) {
+      // Where each ear meets the notch's top edge and its back edge.
+      const a1 = Math.atan2(top - cy, -Math.sqrt(r * r - (top - cy) ** 2));
+      const a2 = Math.atan2(-Math.sqrt(r * r - (D - I) ** 2), D - I);
+      const upper = arc(I, cy, r, a1, a2 < a1 ? a2 : a2 - 2 * Math.PI);
+      const lower = upper.map((p) => ({ x: p.x, y: -p.y })).reverse();
+      return [{ x: 0, y: top }, ...upper, ...lower, { x: 0, y: -top }];
+    }
+  }
+  const r = Math.min(f.radiusMm, D, top);
+  return [
+    { x: 0, y: top },
+    ...arc(D - r, top - r, r, Math.PI / 2, 0),
+    ...arc(D - r, -top + r, r, 0, -Math.PI / 2),
+    { x: 0, y: -top },
+  ];
+}
 
 const BOX = { width: 640, height: 820 };
 const MARGIN = { left: 90, right: 90, top: 70, bottom: 90 };
 const INK = '#111';
 const DIM = '#333';
 
-export function PaneDrawing({ pane, edgework = 'FP' }: { pane: Pane; edgework?: string }) {
+export function PaneDrawing({ pane, letters = lettersFor([pane]), edgework = 'FP' }: { pane: Pane; letters?: Map<string, string>; edgework?: string }) {
   const availW = BOX.width - MARGIN.left - MARGIN.right;
   const availH = BOX.height - MARGIN.top - MARGIN.bottom;
   const scale = Math.min(availW / pane.widthMm, availH / pane.heightMm);
@@ -76,7 +123,7 @@ export function PaneDrawing({ pane, edgework = 'FP' }: { pane: Pane; edgework?: 
       {pane.shaped && <SquareCorners pane={pane} at={at} />}
 
       {pane.features.map((f, i) => (
-        <Feature key={i} feature={f} below={below(pane, f)} scale={scale} at={at} edge={edge} x0={x0} w={w} />
+        <Feature key={i} feature={f} letter={f.kind === 'corner' ? '' : (letters.get(f.template) ?? '?')} from={partner(pane, f)} scale={scale} at={at} edge={edge} x0={x0} w={w} />
       ))}
 
       {/* The toughening stamp. */}
@@ -85,13 +132,23 @@ export function PaneDrawing({ pane, edgework = 'FP' }: { pane: Pane; edgework?: 
   );
 }
 
-/** A pull handle's hole above another is measured from it, as the orders do: the pair's spacing. */
-function below(pane: Pane, f: PaneFeature): number | null {
-  if (f.kind !== 'hole' || f.template !== 'handle') return null;
-  const lower = pane.features
-    .filter((g): g is Extract<PaneFeature, { kind: 'hole' }> => g.kind === 'hole' && g.template === 'handle' && g.side === f.side && g.centreMm < f.centreMm)
-    .sort((a, b) => b.centreMm - a.centreMm)[0];
-  return lower ? lower.centreMm : null;
+/**
+ * The second hole of a pair is measured from the first, as the orders do: a
+ * pull handle's upper hole from its lower one, and a hinge's farther hole
+ * from the one nearer its end. Answers the first hole's centre, or null.
+ */
+export function partner(pane: Pane, f: PaneFeature): number | null {
+  if (f.kind !== 'hole' || f.apartMm === null) return null;
+  const apart = f.apartMm;
+  const other = pane.features.find(
+    (g) => g !== f && g.kind === 'hole' && g.template === f.template && g.side === f.side && Math.abs(Math.abs(g.centreMm - f.centreMm) - apart) < 0.5
+  );
+  if (!other || other.kind !== 'hole') return null;
+  if (f.role === 'handle') return other.centreMm < f.centreMm ? other.centreMm : null;
+  const { bottomLeft, bottomRight, topLeft, topRight } = pane.outline;
+  const length = f.side === 'left' ? topLeft.y - bottomLeft.y : topRight.y - bottomRight.y;
+  const fromEnd = (c: number) => Math.min(c, length - c);
+  return fromEnd(other.centreMm) < fromEnd(f.centreMm) ? other.centreMm : null;
 }
 
 /** The corners of a shape whose two edges meet square, each marked with a small square. */
@@ -185,20 +242,20 @@ function onEdge(e: { bottom: { x: number; y: number }; top: { x: number; y: numb
   return { x: e.bottom.x + ((e.top.x - e.bottom.x) * up) / rise, y: e.bottom.y + up };
 }
 
-/** Where a cut-out is measured to, as the orders measure it, and from where. */
-export function placing(
-  edgeLengthMm: number,
-  f: Exclude<PaneFeature, { kind: 'corner' }>
-): { from: 'top' | 'bottom'; to: 'edge' | 'centre'; distanceMm: number; atMm: number } {
+/**
+ * Where a cut-out is measured to, as the orders measure it, and from where: a
+ * notch from the nearer end of its edge to its near edge, a hinge's hole from
+ * the nearer end to its centre, a handle's or knob's hole from the bottom.
+ */
+export function placing(edgeLengthMm: number, f: Cut): { from: 'top' | 'bottom'; to: 'edge' | 'centre'; distanceMm: number; atMm: number } {
   const round = (v: number) => Math.round(v * 10) / 10;
+  const fromTop = edgeLengthMm - f.centreMm < f.centreMm;
   if (f.kind === 'notch') {
-    // From the nearer end of the edge to the notch's near edge.
     const half = f.heightMm / 2;
-    const fromTop = edgeLengthMm - f.centreMm < f.centreMm;
     const atMm = fromTop ? f.centreMm + half : f.centreMm - half;
     return { from: fromTop ? 'top' : 'bottom', to: 'edge', distanceMm: round(fromTop ? edgeLengthMm - atMm : atMm), atMm };
   }
-  // A hole from the bottom to its centre.
+  if (f.role === 'panel-hinge' && fromTop) return { from: 'top', to: 'centre', distanceMm: round(edgeLengthMm - f.centreMm), atMm: f.centreMm };
   return { from: 'bottom', to: 'centre', distanceMm: round(f.centreMm), atMm: f.centreMm };
 }
 
@@ -218,15 +275,15 @@ function Along({ side, fromMm, toMm, label, edge, at, x0, w, offset = 22 }: { si
   );
 }
 
-/** A cut-out's place: from the nearer end to a notch's near edge, or from the bottom to a hole. */
-function FromEnd({ feature, edge, at, x0, w }: { feature: Exclude<PaneFeature, { kind: 'corner' }>; edge: Edge; at: At; x0: number; w: number }) {
+/** A cut-out's place, measured as `placing` says. */
+function FromEnd({ feature, edge, at, x0, w }: { feature: Cut; edge: Edge; at: At; x0: number; w: number }) {
   const e = edge(feature.side);
   const length = e.top.y - e.bottom.y;
   const p = placing(length, feature);
   return <Along side={feature.side} fromMm={p.from === 'top' ? length : 0} toMm={p.atMm} label={p.distanceMm} edge={edge} at={at} x0={x0} w={w} />;
 }
 
-function Feature({ feature: f, below, scale, at, edge, x0, w }: { feature: PaneFeature; below: number | null; scale: number; at: At; edge: Edge; x0: number; w: number }) {
+function Feature({ feature: f, letter, from, scale, at, edge, x0, w }: { feature: PaneFeature; letter: string; from: number | null; scale: number; at: At; edge: Edge; x0: number; w: number }) {
   if (f.kind === 'corner') {
     const e = edge(f.corner === 'bottom-left' ? 'left' : 'right');
     const c = at(e.bottom);
@@ -242,42 +299,53 @@ function Feature({ feature: f, below, scale, at, edge, x0, w }: { feature: PaneF
       </g>
     );
   }
-  const template = TEMPLATES[f.template];
   const e = edge(f.side);
   const point = at(onEdge(e, f.centreMm));
+  const into = f.side === 'left' ? 1 : -1;
+  const label = (x: number, y: number) => (
+    <text x={x} y={y + 4} fontSize="11" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
+      <tspan fontSize="13" fontWeight="700">
+        {letter}
+      </tspan>
+      {f.hinge ? <tspan dx="5">{f.hinge}</tspan> : null}
+    </text>
+  );
   if (f.kind === 'notch') {
-    const depth = Math.max(f.depthMm * scale, 6);
-    const tall = Math.max(f.heightMm * scale, 6);
-    const r = Math.min(f.radiusMm * scale, depth / 2, tall / 2);
-    const x = f.side === 'left' ? point.X - 1 : point.X - depth + 1;
+    // At least big enough to see; true to its template's shape.
+    const k = Math.max(scale, 6 / Math.max(f.heightMm, 1));
+    const outline = notchOutline(f).map((p) => ({ X: point.X + into * p.x * k, Y: point.Y - p.y * k }));
+    const mouth = outline.map((p) => `${p.X},${p.Y}`).join(' ');
+    const deepest = Math.max(...notchOutline(f).map((p) => p.x)) * k;
     return (
       <g>
-        <rect x={x} y={point.Y - tall / 2} width={depth} height={tall} rx={r} fill="#fff" stroke={INK} strokeWidth="1.4" />
-        <text x={f.side === 'left' ? point.X + depth + 6 : point.X - depth - 6} y={point.Y + 4} fontSize="13" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
-          {template.letter}
-        </text>
+        {/* The glass taken away, and the pane's edge with it. */}
+        <polygon points={`${point.X - into},${outline[0].Y} ${mouth} ${point.X - into},${outline[outline.length - 1].Y}`} fill="#fff" stroke="none" />
+        <polyline points={mouth} fill="none" stroke={INK} strokeWidth="1.4" />
+        {label(point.X + into * (deepest + 6), point.Y)}
         <FromEnd feature={f} edge={edge} at={at} x0={x0} w={w} />
       </g>
     );
   }
-  const cx = point.X + (f.side === 'left' ? 1 : -1) * f.insetMm * scale;
+  const cx = point.X + into * f.insetMm * scale;
   const cy = point.Y;
   const r = Math.max((f.diameterMm / 2) * scale, 2.5);
   return (
     <g>
-      {/* How far in from its edge, to the hole's centre. */}
-      <line x1={point.X} y1={cy - r - 9} x2={cx} y2={cy - r - 9} stroke={DIM} strokeWidth="0.8" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
-      <text x={(point.X + cx) / 2} y={cy - r - 13} fontSize="10" textAnchor="middle" fill={INK}>
-        {f.insetMm}
-      </text>
+      {/* How far in from its edge, to the hole's centre: once for a pair, on its first hole. */}
+      {from === null && (
+        <>
+          <line x1={point.X} y1={cy - r - 9} x2={cx} y2={cy - r - 9} stroke={DIM} strokeWidth="0.8" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
+          <text x={(point.X + cx) / 2} y={cy - r - 13} fontSize="10" textAnchor="middle" fill={INK}>
+            {f.insetMm}
+          </text>
+        </>
+      )}
       <circle cx={cx} cy={cy} r={r} fill="#fff" stroke={INK} strokeWidth="1.2" />
-      <text x={f.side === 'left' ? cx + r + 5 : cx - r - 5} y={cy + 4} fontSize="12" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
-        {template.letter}
-      </text>
-      {below === null ? (
+      {from === null && label(cx + into * (r + 5), cy)}
+      {from === null ? (
         <FromEnd feature={f} edge={edge} at={at} x0={x0} w={w} />
       ) : (
-        <Along side={f.side} fromMm={below} toMm={f.centreMm} label={Math.round((f.centreMm - below) * 10) / 10} edge={edge} at={at} x0={x0} w={w} />
+        <Along side={f.side} fromMm={from} toMm={f.centreMm} label={Math.round(Math.abs(f.centreMm - from) * 10) / 10} edge={edge} at={at} x0={x0} w={w} />
       )}
     </g>
   );
@@ -300,57 +368,118 @@ function Stamp({ stamp, at, scale, y0, h }: { stamp: Pane['stamp']; at: { X: num
   );
 }
 
-/** A template's drawing and sizes, for the templates page. */
-export function TemplateDrawing({ template, feature }: { template: string; feature: PaneFeature }) {
-  const t = TEMPLATES[template];
+/** A template drawn large with every size, for the templates page, as the CRL sheets on the orders are. */
+export function TemplateDrawing({ letter, feature }: { letter: string; feature: Cut }) {
+  const id = `t-${letter}`;
+  const caption = (
+    <figcaption>
+      <span className="text-sm font-bold">
+        Template {letter}: {feature.hinge ?? feature.name}
+      </span>
+      <span className="block text-[11px]">
+        {feature.name}.{' '}
+        {feature.source === null
+          ? 'SetOut’s own notch: check it against the template that comes with the hinge before cutting.'
+          : feature.source === 'SetOut'
+            ? 'SetOut’s handle rule.'
+            : `From ${feature.source}.`}
+      </span>
+    </figcaption>
+  );
+  const s = 3;
+  const E = 60;
+  const marker = (
+    <defs>
+      <marker id={id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 1 L9 5 L0 9" fill="none" stroke={DIM} strokeWidth="1.2" />
+      </marker>
+    </defs>
+  );
+  const dim = (x1: number, y1: number, x2: number, y2: number, text: string, vertical = false) => (
+    <g>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={DIM} strokeWidth="0.9" markerStart={`url(#${id})`} markerEnd={`url(#${id})`} />
+      {vertical ? (
+        <text x={x1 - 6} y={(y1 + y2) / 2} fontSize="12" textAnchor="middle" transform={`rotate(-90 ${x1 - 6} ${(y1 + y2) / 2})`} fill={INK}>
+          {text}
+        </text>
+      ) : (
+        <text x={(x1 + x2) / 2} y={y1 - 5} fontSize="12" textAnchor="middle" fill={INK}>
+          {text}
+        </text>
+      )}
+    </g>
+  );
   if (feature.kind === 'notch') {
-    const s = 3;
-    const d = feature.depthMm * s;
-    const hh = feature.heightMm * s;
+    const outline = notchOutline(feature);
+    const xs = outline.map((p) => p.x);
+    const ys = outline.map((p) => p.y);
+    const reach = Math.max(...xs);
+    const tall = Math.max(...ys);
+    const W = E + reach * s + 110;
+    const H = tall * 2 * s + 110;
+    const cy = H / 2;
+    const P = (p: { x: number; y: number }) => ({ X: E + p.x * s, Y: cy - p.y * s });
+    const top = cy - (feature.heightMm / 2) * s;
+    const bottom = cy + (feature.heightMm / 2) * s;
     return (
       <figure className="break-inside-avoid">
-        <figcaption className="text-sm font-bold">
-          Template {t.letter}: {t.name}
-        </figcaption>
-        <svg viewBox={`0 0 ${d + 160} ${hh + 80}`} className="mt-1 h-auto w-full max-w-[360px]" role="img" aria-label={`${t.name}: ${feature.depthMm}mm deep, ${feature.heightMm}mm high, ${feature.radiusMm}mm radius`}>
-          <defs>
-            <marker id={`a-${template}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0 1 L9 5 L0 9" fill="none" stroke={DIM} strokeWidth="1.2" />
-            </marker>
-          </defs>
-          <line x1="40" y1="20" x2="40" y2={hh + 60} stroke={INK} strokeWidth="2" />
-          <text x="34" y={hh / 2 + 40} fontSize="12" textAnchor="end" fill={INK}>
+        {caption}
+        <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 h-auto w-full max-w-[380px]" role="img" aria-label={`${feature.name}: ${feature.heightMm}mm high, ${feature.depthMm}mm deep`}>
+          {marker}
+          <line x1={E} y1={10} x2={E} y2={top} stroke={INK} strokeWidth="2" />
+          <line x1={E} y1={bottom} x2={E} y2={H - 10} stroke={INK} strokeWidth="2" />
+          <text x={E - 8} y={18} fontSize="11" textAnchor="end" fill={INK}>
             edge
           </text>
-          <rect x="40" y="40" width={d} height={hh} rx={feature.radiusMm * s} fill="#f4f4f4" stroke={INK} strokeWidth="1.6" />
-          <line x1="40" y1="30" x2={40 + d} y2="30" stroke={DIM} markerStart={`url(#a-${template})`} markerEnd={`url(#a-${template})`} />
-          <text x={40 + d / 2} y="25" fontSize="13" textAnchor="middle" fill={INK}>
-            {feature.depthMm} deep
-          </text>
-          <line x1={50 + d} y1="40" x2={50 + d} y2={40 + hh} stroke={DIM} markerStart={`url(#a-${template})`} markerEnd={`url(#a-${template})`} />
-          <text x={58 + d} y={44 + hh / 2} fontSize="13" fill={INK}>
-            {feature.heightMm} high
-          </text>
-          <text x={40 + d / 2} y={hh + 64} fontSize="12" textAnchor="middle" fill={INK}>
-            corners r{feature.radiusMm}; placed by its near edge
-          </text>
+          <polyline points={outline.map(P).map((p) => `${p.X},${p.Y}`).join(' ')} fill="#f4f4f4" stroke={INK} strokeWidth="1.6" />
+          {dim(E - 22, top, E - 22, bottom, `${feature.heightMm}`, true)}
+          {dim(E, top - 22, E + feature.depthMm * s, top - 22, `${feature.depthMm}`)}
+          {feature.ears ? (
+            <>
+              {dim(E + reach * s + 26, cy - (feature.ears.apartMm / 2) * s, E + reach * s + 26, cy + (feature.ears.apartMm / 2) * s, `${feature.ears.apartMm}`, true)}
+              {dim(E, bottom + 26, E + feature.ears.inMm * s, bottom + 26, `${feature.ears.inMm}`)}
+              <text x={E + reach * s + 8} y={cy - (feature.ears.apartMm / 2) * s - (feature.ears.diameterMm / 2) * s - 4} fontSize="12" fill={INK}>
+                Ø{feature.ears.diameterMm} ears
+              </text>
+            </>
+          ) : (
+            <text x={E + feature.depthMm * s + 10} y={cy + 4} fontSize="12" fill={INK}>
+              r{feature.radiusMm}
+            </text>
+          )}
         </svg>
+        <p className="text-[11px]">In mm. Placed by its near edge, at the distance given on the pane.</p>
       </figure>
     );
   }
-  if (feature.kind === 'hole') {
-    return (
-      <figure className="break-inside-avoid">
-        <figcaption className="text-sm font-bold">
-          Template {t.letter}: {t.name}
-        </figcaption>
-        <p className="mt-1 text-sm">
-          {feature.template === 'knob'
-            ? `One Ø${feature.diameterMm}mm hole through the glass, centred ${feature.insetMm}mm in from the edge, at the height given on the pane.`
-            : `Ø${feature.diameterMm}mm holes through the glass, each centred ${feature.insetMm}mm in from the edge, at the heights given on the pane.`}
-        </p>
-      </figure>
-    );
-  }
-  return null;
+  // Holes: a hinge's or a handle's pair, or a knob's one.
+  const pair = feature.apartMm !== null;
+  const apart = feature.apartMm ?? 0;
+  const k = pair ? Math.min(s, 180 / Math.max(apart, 1)) : s;
+  const W = E + feature.insetMm * k + 120;
+  const H = (pair ? apart * k : 0) + 110;
+  const cx = E + feature.insetMm * k;
+  const y1 = 55;
+  const y2 = y1 + apart * k;
+  const r = Math.max((feature.diameterMm / 2) * k, 3);
+  return (
+    <figure className="break-inside-avoid">
+      {caption}
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 h-auto w-full max-w-[300px]" role="img" aria-label={`${feature.name}: ${feature.diameterMm}mm, ${feature.insetMm}mm in${pair ? `, ${apart}mm apart` : ''}`}>
+        {marker}
+        <line x1={E} y1={10} x2={E} y2={H - 10} stroke={INK} strokeWidth="2" />
+        <text x={E - 8} y={18} fontSize="11" textAnchor="end" fill={INK}>
+          edge
+        </text>
+        <circle cx={cx} cy={y1} r={r} fill="#f4f4f4" stroke={INK} strokeWidth="1.6" />
+        {pair && <circle cx={cx} cy={y2} r={r} fill="#f4f4f4" stroke={INK} strokeWidth="1.6" />}
+        {dim(E, y1 - r - 14, cx, y1 - r - 14, `${feature.insetMm}`)}
+        {pair && dim(cx + r + 26, y1, cx + r + 26, y2, `${apart}`, true)}
+        <text x={cx + r + 8} y={(pair ? y2 : y1) + r + 18} fontSize="12" fill={INK}>
+          Ø{feature.diameterMm}
+        </text>
+      </svg>
+      <p className="text-[11px]">In mm. Centres at the heights given on the pane.</p>
+    </figure>
+  );
 }

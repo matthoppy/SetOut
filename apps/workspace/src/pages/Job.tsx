@@ -14,6 +14,7 @@ import { bytes, humanise, layoutName, money, STAGE_NAMES, when, whenExactly } fr
 import { useLoad } from '../lib/load';
 import { describeFeature, panes as panesFor } from '../lib/panes';
 import { go, Link } from '../lib/router';
+import { lettersFor } from './PaneDrawing';
 import { QuoteStatusPill } from './QuotePage';
 import { Problem, Section, StagePill } from './parts';
 
@@ -317,6 +318,7 @@ function Shower({
 }) {
   const readings = journeySummary(design).filter((row) => row.status !== 'optional' || row.value);
   const drawn = panesFor(design, spec);
+  const letters = lettersFor(drawn);
   return (
     <>
       <Section title={title ?? 'The shower'} aside={revision > 1 ? <span className="text-xs text-quiet">Revision {revision}</span> : undefined}>
@@ -365,7 +367,7 @@ function Shower({
       <Section title="Cut sizes" aside={<span className="text-xs text-quiet">mm, width × height</span>}>
         <ul className="divide-y divide-rule rounded-lg border border-rule bg-surface">
           {spec.panels.map((panel, i) => (
-            <PanelRow key={panel.id} panel={panel} pane={drawn[i]} />
+            <PanelRow key={panel.id} panel={panel} pane={drawn[i]} letters={letters} />
           ))}
         </ul>
       </Section>
@@ -534,7 +536,7 @@ function Checks({ spec }: { spec: ConfiguratorSpec }) {
   );
 }
 
-function PanelRow({ panel, pane }: { panel: PanelSpec; pane: Pane }) {
+function PanelRow({ panel, pane, letters }: { panel: PanelSpec; pane: Pane; letters: Map<string, string> }) {
   return (
     <li className="flex gap-4 px-3 py-3">
       <div className="min-w-0 flex-1">
@@ -542,7 +544,7 @@ function PanelRow({ panel, pane }: { panel: PanelSpec; pane: Pane }) {
         {pane.shaped && <p className="mt-0.5 text-xs font-semibold text-warn">Cut to shape: see the glass order for its corners</p>}
         {pane.features.map((f, i) => (
           <p key={i} className="mt-0.5 text-xs text-quiet">
-            {describeFeature(f, pane)}
+            {describeFeature(f, pane, letters)}
           </p>
         ))}
       </div>
