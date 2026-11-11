@@ -25,6 +25,10 @@ export type ActorKind = (typeof ACTOR_KINDS)[number];
 export const FILE_KINDS = ['photo', 'measuring_photo', 'drawing', 'pdf', 'other'] as const;
 export type FileKind = (typeof FILE_KINDS)[number];
 
+/** An owner can manage the team and the company's settings. Staff work the jobs. */
+export const ROLES = ['owner', 'staff'] as const;
+export type Role = (typeof ROLES)[number];
+
 type JsonObject = Record<string, unknown>;
 
 export interface DesignerRow {
@@ -116,6 +120,14 @@ export interface FileRow {
   created_at: string;
 }
 
+export interface MembershipRow {
+  id: string;
+  user_id: string;
+  role: Role;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface JobEventRow {
   id: string;
   job_id: string;
@@ -150,6 +162,7 @@ export interface Tables {
   };
   files: { row: FileRow; required: 'kind' | 'storage_key' | 'content_type' | 'size_bytes' };
   job_events: { row: JobEventRow; required: 'job_id' | 'type' | 'actor_kind' };
+  memberships: { row: MembershipRow; required: 'user_id' | 'role' };
 }
 
 export type TableName = keyof Tables;
@@ -225,6 +238,12 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: ['data'],
     tracksUpdates: false,
   },
+  memberships: {
+    id: 'member',
+    columns: ['id', 'user_id', 'role', 'created_at', 'updated_at'],
+    json: [],
+    tracksUpdates: true,
+  },
 };
 
 /**
@@ -236,4 +255,5 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   design_revisions: { author_kind: ACTOR_KINDS },
   files: { kind: FILE_KINDS },
   job_events: { actor_kind: ACTOR_KINDS },
+  memberships: { role: ROLES },
 };

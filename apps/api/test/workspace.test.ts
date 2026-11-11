@@ -1,0 +1,512 @@
+/**
+ * The workspace: signing in by emailed link, the inbox, a job, and its files.
+ *
+ * Designs reach these tests the way they reach a company: sent by a customer
+ * through the designer. Every test that can be tried from another company's
+ * side is.
+ */
+import { createDocument, designFromTemplate } from '@setout/engine';
+import { env, exports } from 'cloudflare:workers';
+import { beforeAll, describe, expect, test } from 'vitest';
+import { addMember, issueSignInLink, LINKS_PER_HOUR, sha256 } from '../src/db/auth';
+import { companyDb, type CompanyDb } from '../src/db/company-db';
+import { createCompany, newSiteKey } from '../src/db/platform';
+import app from '../src/index';
+import { SESSION_COOKIE } from '../src/routes/workspace';
+
+const APP = 'https://app.test';
+const DESIGNER = 'https://designer.test';
+
+const base64 = (bytes: number[]) => btoa(String.fromCharCode(...bytes));
+const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82, 1, 2, 3];
+const PNG = base64(PNG_BYTES);
+const JPEG = base64([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1]);
+
+interface Company {
+  id: string;
+  name: string;
+  db: CompanyDb;
+  siteKey: string;
+}
+
+async function company(name: string, prefix: string): Promise<Company> {
+  const record = await createCompany(env, { name, referencePrefix: prefix });
+  const db = companyDb(env, record.id);
+  const siteKey = newSiteKey('test');
+  await db.insert('designers', { name: `${name} website`, site_key: siteKey, allowed_origins: [] });
+  return { id: record.id, name, db, siteKey };
+}
+
+/** A customer sends a design through the company's designer. Answers with its reference. */
+async function enquire(c: Company, name: string, email: string, postcode: string, phone = '020 7946 0000'): Promise<string> {
+  const response = await exports.default.fetch(`${DESIGNER}/api/designer/enquiries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      siteKey: c.siteKey,
+      document: createDocument(designFromTemplate('alcove-panel-door')),
+      templateId: 'alcove-panel-door',
+      customer: { name, email, phone, postcode, notes: 'Tray is in.', measurementsAcknowledged: true },
+      attachments: [
+        { filename: 'plan-view.png', content: PNG, kind: 'drawing' },
+        { filename: 'left-wall.jpg', content: JPEG, kind: 'photo' },
+      ],
+      turnstileToken: null,
+      antispam: { honeypot: '', elapsedMs: 240_000 },
+    }),
+  });
+  expect(response.status).toBe(201);
+  return ((await response.json()) as { reference: string }).reference;
+}
+
+interface Call extends RequestInit {
+  cookie?: string;
+  origin?: string | null;
+}
+
+/** A call to the workspace's API, from the workspace's own page unless told otherwise. */
+function api(path: string, init: Call = {}, host = APP): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (init.cookie) headers.set('Cookie', `${SESSION_COOKIE}=${init.cookie}`);
+  const method = init.method ?? 'GET';
+  if (method !== 'GET' && init.origin !== null) headers.set('Origin', init.origin ?? host);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return exports.default.fetch(`${host}/api/workspace${path}`, { ...init, method, headers });
+}
+
+const post = (path: string, body: unknown, init: Call = {}) => api(path, { ...init, method: 'POST', body: JSON.stringify(body) });
+
+/** The session cookie a response set, if it set one. */
+function sessionFrom(response: Response): string | null {
+  const header = response.headers.get('Set-Cookie') ?? '';
+  const match = new RegExp(`${SESSION_COOKIE.replace(/[-]/g, '\\-')}=([^;]*)`).exec(header);
+  return match ? match[1] : null;
+}
+
+/** Sign in as this person, the way a browser does: ask for a link, then use it. */
+async function signIn(email: string): Promise<string> {
+  const asked = await post('/sign-in', { email });
+  const { link } = (await asked.json()) as { link: string };
+  const token = new URL(link).searchParams.get('token');
+  const used = await post('/sign-in/verify', { token });
+  expect(used.status).toBe(200);
+  const session = sessionFrom(used);
+  if (!session) throw new Error('no session cookie');
+  return session;
+}
+
+const json = async <T>(response: Response) => (await response.json()) as T;
+
+let ours: Company;
+let theirs: Company;
+let owner: string;
+let rival: string;
+
+interface InboxBody {
+  jobs: {
+    id: string;
+    reference: string;
+    stage: string;
+    createdAt: string;
+    customer: { name: string; postcode: string | null };
+    layout: string | null;
+    widthMm: number | null;
+    heightMm: number | null;
+    panels: number | null;
+    photos: number;
+    designs: number;
+  }[];
+  counts: Record<string, number>;
+  next: string | null;
+}
+
+interface JobBody {
+  job: { id: string; reference: string; stage: string };
+  customer: { name: string; email: string };
+  designs: { id: string; revision: { number: number; computed: { panels: unknown[] }; document: { design: { panels: unknown[] } } } }[];
+  files: { id: string; kind: string; name: string; contentType: string; sizeBytes: number }[];
+  events: { type: string; actorKind: string; actor: { email: string } | null; data: Record<string, unknown> }[];
+}
+
+beforeAll(async () => {
+  ours = await company('Custom Showers', 'CS');
+  theirs = await company('Brennan Glass', 'BG');
+  await addMember(env, ours.id, 'owner@cs.example', 'owner');
+  await addMember(env, theirs.id, 'owner@bg.example', 'owner');
+  await enquire(ours, 'Asha Patel', 'asha@example.test', 'SW1A 1AA');
+  await enquire(ours, 'Ben Okafor', 'ben@example.test', 'N1 2AB', '07700 900123');
+  await enquire(ours, 'Cara Liu', 'cara@example.test', 'E8 3CD');
+  await enquire(theirs, 'Dan Theirs', 'dan@example.test', 'SW15 1AA');
+  owner = await signIn('owner@cs.example');
+  rival = await signIn('owner@bg.example');
+});
+
+// ---------------------------------------------------------------------------
+
+describe('asking for a sign-in link', () => {
+  test.each(['', 'not-an-email', 'a@b', 'a b@c.d', '<a@b.c>'])('"%s" is refused', async (email) => {
+    const response = await post('/sign-in', { email });
+    expect(response.status).toBe(400);
+    expect(await json(response)).toMatchObject({ error: 'invalid_email' });
+  });
+
+  test('an address with no account gets the same answer and no link', async () => {
+    const response = await post('/sign-in', { email: 'stranger@example.test' });
+    expect(response.status).toBe(202);
+    expect(await json(response)).toEqual({ ok: true });
+    const kept = await env.DB.prepare("SELECT COUNT(*) AS n FROM login_tokens WHERE email = 'stranger@example.test'").first<{ n: number }>();
+    expect(kept?.n).toBe(0);
+  });
+
+  test('a member gets a link, and only its hash is kept', async () => {
+    await addMember(env, ours.id, 'hash@cs.example', 'staff');
+    const response = await post('/sign-in', { email: 'hash@cs.example' });
+    expect(response.status).toBe(202);
+    const { link } = await json<{ link: string }>(response);
+    expect(link).toMatch(/^https:\/\/app\.test\/sign-in\?token=lt_[a-z0-9]{32}$/);
+    const token = new URL(link).searchParams.get('token') as string;
+    const rows = await env.DB.prepare("SELECT * FROM login_tokens WHERE email = 'hash@cs.example'").all();
+    expect(rows.results).toHaveLength(1);
+    expect(rows.results[0].token_hash).toBe(await sha256(token));
+    expect(JSON.stringify(rows.results)).not.toContain(token);
+  });
+
+  test('an address is matched however it is typed', async () => {
+    const response = await post('/sign-in', { email: '  Owner@CS.Example ' });
+    expect(await json(response)).toHaveProperty('link');
+  });
+
+  test(`an address is sent no more than ${LINKS_PER_HOUR} links an hour`, async () => {
+    await addMember(env, ours.id, 'busy@cs.example', 'staff');
+    for (let i = 0; i < LINKS_PER_HOUR; i++) {
+      expect(await json(await post('/sign-in', { email: 'busy@cs.example' }))).toHaveProperty('link');
+    }
+    const refused = await post('/sign-in', { email: 'busy@cs.example' });
+    expect(refused.status).toBe(202);
+    expect(await json(refused)).toEqual({ ok: true });
+  });
+
+  test('a member of a company that has been switched off gets no link', async () => {
+    const gone = await company('Gone Glass', 'GG');
+    await addMember(env, gone.id, 'staff@gg.example', 'staff');
+    await env.DB.prepare("UPDATE companies SET status = 'suspended' WHERE id = ?").bind(gone.id).run();
+    expect(await json(await post('/sign-in', { email: 'staff@gg.example' }))).toEqual({ ok: true });
+  });
+
+  test('the link comes back in the answer only on a developer’s own machine', async () => {
+    const ctx = { waitUntil() {}, passThroughOnException() {}, props: {} } as unknown as ExecutionContext;
+    const request = new Request(`${APP}/api/workspace/sign-in`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: APP },
+      body: JSON.stringify({ email: 'owner@cs.example' }),
+    });
+    const response = await app.fetch(request, { ...env, ENVIRONMENT: 'staging' }, ctx);
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ ok: true });
+  });
+});
+
+describe('using a sign-in link', () => {
+  test('signs the browser in with a cookie no script can read, sent only to this address', async () => {
+    await addMember(env, ours.id, 'cookie@cs.example', 'staff');
+    const { link } = await json<{ link: string }>(await post('/sign-in', { email: 'cookie@cs.example' }));
+    const response = await post('/sign-in/verify', { token: new URL(link).searchParams.get('token') });
+    expect(response.status).toBe(200);
+    const cookie = response.headers.get('Set-Cookie') ?? '';
+    expect(cookie).toMatch(new RegExp(`^${SESSION_COOKIE}=ss_[a-z0-9]{32};`));
+    for (const part of ['HttpOnly', 'Secure', 'SameSite=Lax', 'Path=/', `Max-Age=${30 * 86_400}`]) expect(cookie).toContain(part);
+    expect(cookie).not.toMatch(/Domain=/i);
+    // Only the session's hash is kept.
+    const session = sessionFrom(response) as string;
+    const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM sessions WHERE token_hash = ?').bind(await sha256(session)).first<{ n: number }>();
+    expect(row?.n).toBe(1);
+  });
+
+  test('works once', async () => {
+    await addMember(env, ours.id, 'once@cs.example', 'staff');
+    const { link } = await json<{ link: string }>(await post('/sign-in', { email: 'once@cs.example' }));
+    const token = new URL(link).searchParams.get('token');
+    expect((await post('/sign-in/verify', { token })).status).toBe(200);
+    const again = await post('/sign-in/verify', { token });
+    expect(again.status).toBe(400);
+    expect(await json(again)).toMatchObject({ error: 'link_not_valid' });
+    expect(sessionFrom(again)).toBeNull();
+  });
+
+  test('does not work once its fifteen minutes are up', async () => {
+    await addMember(env, ours.id, 'late@cs.example', 'staff');
+    const token = await issueSignInLink(env, 'late@cs.example', new Date(Date.now() - 16 * 60_000));
+    expect(token).not.toBeNull();
+    expect((await post('/sign-in/verify', { token })).status).toBe(400);
+  });
+
+  test.each([['a link nobody was sent', 'lt_abcdefghijkmnpqrstuvwxyz23456789'], ['something that is not a link', 'hello'], ['nothing', undefined]])(
+    '%s signs nobody in',
+    async (_, token) => {
+      const response = await post('/sign-in/verify', { token });
+      expect(response.status).toBe(400);
+      expect(sessionFrom(response)).toBeNull();
+    }
+  );
+});
+
+describe('signed in', () => {
+  test.each(['/me', '/jobs', '/jobs/job_x', '/files/fil_x'])('%s answers nothing without a session', async (path) => {
+    const response = await api(path);
+    expect(response.status).toBe(401);
+    expect(await json(response)).toMatchObject({ error: 'signed_out' });
+  });
+
+  test('a made-up session is no session', async () => {
+    expect((await api('/me', { cookie: 'ss_abcdefghijkmnpqrstuvwxyz23456789' })).status).toBe(401);
+  });
+
+  test('says who is signed in and which company they are working in', async () => {
+    const me = await json<{ user: { email: string }; role: string; company: { name: string; referencePrefix: string }; companies: { name: string }[] }>(
+      await api('/me', { cookie: owner })
+    );
+    expect(me.user.email).toBe('owner@cs.example');
+    expect(me.role).toBe('owner');
+    expect(me.company).toMatchObject({ name: 'Custom Showers', referencePrefix: 'CS' });
+    expect(me.companies.map((c) => c.name)).toEqual(['Custom Showers']);
+  });
+
+  test('someone on two teams can move between them, and only between them', async () => {
+    await addMember(env, ours.id, 'both@example.test', 'staff');
+    await addMember(env, theirs.id, 'both@example.test', 'staff');
+    const both = await signIn('both@example.test');
+    const me = async () => json<{ company: { name: string }; companies: { name: string }[] }>(await api('/me', { cookie: both }));
+    expect((await me()).company.name).toBe('Custom Showers');
+    expect((await me()).companies.map((c) => c.name)).toEqual(['Custom Showers', 'Brennan Glass']);
+
+    expect((await post('/company', { companyId: theirs.id }, { cookie: both })).status).toBe(200);
+    expect((await me()).company.name).toBe('Brennan Glass');
+    const listed = await json<InboxBody>(await api('/jobs', { cookie: both }));
+    expect(listed.jobs.map((j) => j.customer.name)).toEqual(['Dan Theirs']);
+
+    const stranger = await company('Other Glass', 'OG');
+    const refused = await post('/company', { companyId: stranger.id }, { cookie: both });
+    expect(refused.status).toBe(404);
+    expect((await me()).company.name).toBe('Brennan Glass');
+  });
+
+  test('taken off the team, the session stops working at once', async () => {
+    await addMember(env, ours.id, 'leaver@cs.example', 'staff');
+    const leaver = await signIn('leaver@cs.example');
+    expect((await api('/me', { cookie: leaver })).status).toBe(200);
+    await env.DB.prepare('DELETE FROM memberships WHERE company_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)')
+      .bind(ours.id, 'leaver@cs.example')
+      .run();
+    expect((await api('/me', { cookie: leaver })).status).toBe(401);
+  });
+
+  test('a company that is switched off signs its staff out', async () => {
+    const paused = await company('Paused Glass', 'PG');
+    await addMember(env, paused.id, 'staff@pg.example', 'staff');
+    const staff = await signIn('staff@pg.example');
+    expect((await api('/me', { cookie: staff })).status).toBe(200);
+    await env.DB.prepare("UPDATE companies SET status = 'suspended' WHERE id = ?").bind(paused.id).run();
+    expect((await api('/me', { cookie: staff })).status).toBe(401);
+  });
+
+  test('signing out ends the session', async () => {
+    await addMember(env, ours.id, 'out@cs.example', 'staff');
+    const session = await signIn('out@cs.example');
+    const response = await post('/sign-out', {}, { cookie: session });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Set-Cookie')).toMatch(new RegExp(`^${SESSION_COOKIE}=;`));
+    expect((await api('/me', { cookie: session })).status).toBe(401);
+  });
+});
+
+describe('a change must come from the workspace’s own pages', () => {
+  test.each([['no origin', null], ['another website', 'https://evil.example'], ['the designer', DESIGNER]])(
+    'from %s it is refused',
+    async (_, origin) => {
+      const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+      const response = await post(`/jobs/${jobs[0].id}/notes`, { text: 'Hello' }, { cookie: owner, origin });
+      expect(response.status).toBe(403);
+      expect(await json(response)).toMatchObject({ error: 'wrong_origin' });
+    }
+  );
+
+  test('the workspace’s routes are not on the designer’s address at all', async () => {
+    expect((await api('/me', { cookie: owner }, DESIGNER)).status).toBe(404);
+    expect((await post('/sign-in', { email: 'owner@cs.example' }, {}, )).status).toBe(202);
+    expect((await api('/sign-in', { method: 'POST', body: JSON.stringify({ email: 'owner@cs.example' }) }, DESIGNER)).status).toBe(404);
+  });
+});
+
+describe('the inbox', () => {
+  test('lists the company’s jobs newest first, and nobody else’s', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+    expect(jobs.map((j) => j.customer.name)).toEqual(['Cara Liu', 'Ben Okafor', 'Asha Patel']);
+    expect(jobs.every((j) => j.reference.startsWith('CS-'))).toBe(true);
+    expect(jobs[0]).toMatchObject({
+      stage: 'new',
+      layout: 'alcove-panel-door',
+      heightMm: 2000,
+      panels: 2,
+      photos: 1,
+      designs: 1,
+      customer: { name: 'Cara Liu', postcode: 'E8 3CD' },
+    });
+    expect(jobs[0].widthMm).toBeGreaterThan(0);
+
+    const theirsListed = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    expect(theirsListed.jobs.map((j) => j.customer.name)).toEqual(['Dan Theirs']);
+  });
+
+  test('says how many jobs are at each stage', async () => {
+    const { counts } = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    expect(counts).toEqual({ new: 1, reviewing: 0, quoted: 0, ordered: 0, done: 0, closed: 0 });
+  });
+
+  test('finds a job by its reference, or the customer’s name, email, phone or postcode', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+    const names = async (q: string) =>
+      (await json<InboxBody>(await api(`/jobs?q=${encodeURIComponent(q)}`, { cookie: owner }))).jobs.map((j) => j.customer.name);
+    expect(await names('patel')).toEqual(['Asha Patel']);
+    expect(await names('n1 2ab')).toEqual(['Ben Okafor']);
+    expect(await names('cara@')).toEqual(['Cara Liu']);
+    expect(await names('07700')).toEqual(['Ben Okafor']);
+    expect(await names(jobs[2].reference)).toEqual(['Asha Patel']);
+    // What is typed is matched as typed.
+    expect(await names('%')).toEqual([]);
+    expect(await names('_')).toEqual([]);
+    // Never another company's.
+    expect(await names('Dan')).toEqual([]);
+  });
+
+  test('pages on from where the last page ended', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+    const after = await json<InboxBody>(await api(`/jobs?before=${encodeURIComponent(jobs[0].createdAt)}`, { cookie: owner }));
+    expect(after.jobs.map((j) => j.customer.name)).toEqual(['Ben Okafor', 'Asha Patel']);
+    expect(after.next).toBeNull();
+  });
+
+  test('a stage that is not one is refused', async () => {
+    expect((await api('/jobs?stage=bogus', { cookie: owner })).status).toBe(400);
+  });
+});
+
+describe('a job', () => {
+  test('holds the customer, each shower as it now stands, its files and its timeline', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Asha', { cookie: owner }));
+    const response = await api(`/jobs/${jobs[0].id}`, { cookie: owner });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    const body = await json<JobBody>(response);
+    expect(body.job.reference).toBe(jobs[0].reference);
+    expect(body.customer).toMatchObject({ name: 'Asha Patel', email: 'asha@example.test' });
+    expect(body.designs).toHaveLength(1);
+    expect(body.designs[0].revision.number).toBe(1);
+    expect(body.designs[0].revision.computed.panels).toHaveLength(2);
+    expect(body.designs[0].revision.document.design.panels).toHaveLength(2);
+    expect(body.files.map((f) => [f.kind, f.name, f.contentType])).toEqual([
+      ['drawing', 'plan-view.png', 'image/png'],
+      ['photo', 'left-wall.jpg', 'image/jpeg'],
+    ]);
+    expect(body.events[0]).toMatchObject({ type: 'received', actorKind: 'customer' });
+  });
+
+  test('another company’s job is not there', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    expect((await api(`/jobs/${jobs[0].id}`, { cookie: owner })).status).toBe(404);
+  });
+
+  test('moving it to another stage goes on its timeline, with who moved it', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Ben', { cookie: owner }));
+    const moved = await api(`/jobs/${jobs[0].id}`, { cookie: owner, method: 'PATCH', body: JSON.stringify({ stage: 'reviewing' }) });
+    expect(moved.status).toBe(200);
+    const body = await json<JobBody>(await api(`/jobs/${jobs[0].id}`, { cookie: owner }));
+    expect(body.job.stage).toBe('reviewing');
+    expect(body.events.at(-1)).toMatchObject({
+      type: 'stage_changed',
+      actorKind: 'staff',
+      actor: { email: 'owner@cs.example' },
+      data: { from: 'new', to: 'reviewing' },
+    });
+    const listed = await json<InboxBody>(await api('/jobs?stage=reviewing', { cookie: owner }));
+    expect(listed.jobs.map((j) => j.customer.name)).toEqual(['Ben Okafor']);
+    expect(listed.counts.reviewing).toBe(1);
+
+    // Moving it to where it already is changes nothing.
+    await api(`/jobs/${jobs[0].id}`, { cookie: owner, method: 'PATCH', body: JSON.stringify({ stage: 'reviewing' }) });
+    const again = await json<JobBody>(await api(`/jobs/${jobs[0].id}`, { cookie: owner }));
+    expect(again.events.filter((e) => e.type === 'stage_changed')).toHaveLength(1);
+  });
+
+  test('a stage that is not one is refused', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+    const response = await api(`/jobs/${jobs[0].id}`, { cookie: owner, method: 'PATCH', body: JSON.stringify({ stage: 'cut' }) });
+    expect(response.status).toBe(400);
+  });
+
+  test('another company’s job cannot be moved, or written on', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    const id = jobs[0].id;
+    expect((await api(`/jobs/${id}`, { cookie: owner, method: 'PATCH', body: JSON.stringify({ stage: 'closed' }) })).status).toBe(404);
+    expect((await post(`/jobs/${id}/notes`, { text: 'Taken over' }, { cookie: owner })).status).toBe(404);
+    const theirsNow = await json<JobBody>(await api(`/jobs/${id}`, { cookie: rival }));
+    expect(theirsNow.job.stage).toBe('new');
+    expect(theirsNow.events.map((e) => e.type)).toEqual(['received']);
+  });
+
+  test('a note goes on the timeline with who wrote it', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Cara', { cookie: owner }));
+    const added = await post(`/jobs/${jobs[0].id}/notes`, { text: '  Rang Cara, tray goes in on Friday.  ' }, { cookie: owner });
+    expect(added.status).toBe(201);
+    const body = await json<JobBody>(await api(`/jobs/${jobs[0].id}`, { cookie: owner }));
+    expect(body.events.at(-1)).toMatchObject({
+      type: 'note',
+      actor: { email: 'owner@cs.example' },
+      data: { text: 'Rang Cara, tray goes in on Friday.' },
+    });
+  });
+
+  test.each([['an empty note', '   '], ['a note too long to be one', 'x'.repeat(4001)], ['something that is not text', 42]])(
+    '%s is refused',
+    async (_, text) => {
+      const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+      expect((await post(`/jobs/${jobs[0].id}/notes`, { text }, { cookie: owner })).status).toBe(400);
+    }
+  );
+});
+
+describe('a job’s files', () => {
+  test('come back as they were stored, for its company’s staff alone', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Asha', { cookie: owner }));
+    const { files } = await json<JobBody>(await api(`/jobs/${jobs[0].id}`, { cookie: owner }));
+    const drawing = files.find((f) => f.name === 'plan-view.png');
+    const response = await api(`/files/${drawing?.id}`, { cookie: owner });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('image/png');
+    expect(response.headers.get('Cache-Control')).toBe('private, max-age=3600');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Content-Security-Policy')).toContain('sandbox');
+    expect([...new Uint8Array(await response.arrayBuffer())]).toEqual(PNG_BYTES);
+
+    expect((await api(`/files/${drawing?.id}`, { cookie: rival })).status).toBe(404);
+    expect((await api(`/files/${drawing?.id}`)).status).toBe(401);
+  });
+
+  test('a file that belongs to no job is not served', async () => {
+    const draft = await ours.db.insert('drafts', {
+      designer_id: (await ours.db.find('designers'))[0].id,
+      resume_token_hash: 'hash-of-a-draft',
+      document: createDocument(designFromTemplate('walk-in')),
+      format_version: 1,
+      expires_at: '2099-01-01T00:00:00.000Z',
+    });
+    const file = await ours.db.insert('files', {
+      draft_id: draft.id,
+      kind: 'photo',
+      storage_key: `${ours.id}/drafts/${draft.id}/a.jpg`,
+      content_type: 'image/jpeg',
+      size_bytes: 3,
+    });
+    await env.FILES.put(file.storage_key, new Uint8Array([1, 2, 3]));
+    expect((await api(`/files/${file.id}`, { cookie: owner })).status).toBe(404);
+  });
+});

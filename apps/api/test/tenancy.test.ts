@@ -26,6 +26,7 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   drafts: { expires_at: '2000-01-01T00:00:00.000Z' },
   files: { kind: 'other' },
   job_events: { type: 'tampered' },
+  memberships: { role: 'staff' },
 };
 
 let ours: Seeded;

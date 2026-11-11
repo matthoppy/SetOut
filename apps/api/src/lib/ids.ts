@@ -21,6 +21,8 @@ export const ID_PREFIX = {
   draft: 'drf',
   file: 'fil',
   event: 'evt',
+  user: 'usr',
+  member: 'mem',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

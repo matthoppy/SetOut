@@ -10,14 +10,14 @@ import { expect, test } from 'vitest';
 import { TABLES } from '../src/db/tables';
 
 /** Tables that belong to the platform, not to a company. */
-const PLATFORM_TABLES = ['companies'];
+const PLATFORM_TABLES = ['companies', 'users', 'login_tokens', 'sessions'];
 /** Company tables reached through their own methods, not the general ones. */
 const SPECIAL_TABLES = ['rulesets', 'usage_monthly'];
 /**
  * The only indexes that may start with something other than the company:
  * the keys that say which company a request belongs to.
  */
-const GLOBAL_LOOKUPS = ['designers.site_key', 'drafts.resume_token_hash'];
+const GLOBAL_LOOKUPS = ['designers.site_key', 'drafts.resume_token_hash', 'memberships.user_id'];
 
 const all = async <T>(sql: string) => (await env.DB.prepare(sql).all<T>()).results;
 
@@ -79,6 +79,12 @@ test('every link between company tables carries the company', async () => {
       if (target === 'companies') {
         expect(columns.map((c) => c.from), `${table} to companies`).toEqual(['company_id']);
         pointsAtCompany = true;
+        continue;
+      }
+      // A platform row, such as a user, belongs to no company, so a link to it
+      // is by its id alone.
+      if (PLATFORM_TABLES.includes(target)) {
+        expect(columns.map((c) => c.to), `${table} to ${target}`).toEqual(['id']);
         continue;
       }
       expect(columns.map((c) => c.from), `${table} to ${target}`).toContain('company_id');

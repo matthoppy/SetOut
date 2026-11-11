@@ -7,6 +7,7 @@ import {
 } from '@setout/engine';
 import { env } from 'cloudflare:workers';
 import { companyDb, type CompanyDb, type CompanyRecord } from '../src/db/company-db';
+import { addMember } from '../src/db/auth';
 import { createCompany } from '../src/db/platform';
 import type { Row, TableName } from '../src/db/tables';
 
@@ -19,7 +20,7 @@ export interface Seeded {
 
 /**
  * A company with one of everything: a designer, a customer, a job with a
- * design and a revision, a draft, a file and an event.
+ * design and a revision, a draft, a file, an event and a member of staff.
  */
 export async function seedCompany(name: string, prefix: string): Promise<Seeded> {
   const company = await createCompany(env, { name, referencePrefix: prefix });
@@ -74,6 +75,8 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     actor_kind: 'customer',
     data: { via: 'designer' },
   });
+  const { userId } = await addMember(env, company.id, `owner@${prefix.toLowerCase()}.example`, 'owner');
+  const [membership] = await db.find('memberships', { where: { user_id: userId } });
 
   return {
     company,
@@ -87,6 +90,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       drafts: draft,
       files: file,
       job_events: event,
+      memberships: membership,
     },
   };
 }

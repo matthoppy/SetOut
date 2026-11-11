@@ -5,15 +5,15 @@
  * so all three ship together with the same engine. See site.ts for which
  * address serves which app.
  *
- * Routes arrive with the steps that need them. The designer's routes are
- * here; the workspace's come in step 2. The health check is what a deploy is
- * judged by.
+ * Routes arrive with the steps that need them: the designer's, and the
+ * workspace's. The health check is what a deploy is judged by.
  */
 
 import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
 import { designer } from './routes/designer';
+import { workspace } from './routes/workspace';
 import { serveSite, surfaceFor } from './site';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -45,7 +45,8 @@ app.get('/api/health', async (c) => {
 });
 
 // The designer's routes answer on the designer's address, and nowhere a staff
-// sign-in lives. The workspace's routes, when they arrive, are the reverse.
+// sign-in lives. The workspace's routes are the reverse: nothing running in
+// the public designer can reach them.
 app.use('/api/designer/*', async (c, next) => {
   if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'workspace') {
     return c.json({ error: 'not_found' }, 404);
@@ -53,6 +54,14 @@ app.use('/api/designer/*', async (c, next) => {
   await next();
 });
 app.route('/api/designer', designer);
+
+app.use('/api/workspace/*', async (c, next) => {
+  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'designer') {
+    return c.json({ error: 'not_found' }, 404);
+  }
+  await next();
+});
+app.route('/api/workspace', workspace);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 

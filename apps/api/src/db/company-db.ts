@@ -21,7 +21,9 @@ import {
 import { newId, nowIso } from '../lib/ids';
 import {
   ALLOWED_VALUES,
+  JOB_STAGES,
   TABLES,
+  type JobStage,
   type NewRow,
   type Row,
   type RowChanges,
@@ -61,6 +63,39 @@ export interface CompanyRecord {
 }
 
 export type UsageMetric = 'enquiries' | 'quotes_sent';
+
+export interface InboxOptions {
+  stage?: JobStage;
+  /** Part of a reference, a name, an email address, a phone number or a postcode. */
+  search?: string;
+  /** Only jobs that arrived before this time: the next page after a page that ended there. */
+  before?: string;
+  /** At most this many. 50 unless given, never more than 200. */
+  limit?: number;
+}
+
+/** A job as the inbox lists it: who, what, and anything worth a look. */
+export interface InboxJob {
+  id: string;
+  reference: string;
+  stage: JobStage;
+  createdAt: string;
+  updatedAt: string;
+  customer: { name: string; email: string | null; phone: string | null; postcode: string | null };
+  /** How many showers the job holds. */
+  designs: number;
+  /** The layout the customer started from, as the designer named it. */
+  layout: string | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  panels: number | null;
+  warnings: number;
+  blockingIssues: number;
+  photos: number;
+  /** Sent faster than a person could measure a shower. */
+  sentQuickly: boolean;
+  botCheck: string | null;
+}
 
 /** Statements queued to run together, all or nothing. */
 export interface Batch {
@@ -109,6 +144,13 @@ export interface CompanyDb {
   drafts: {
     /** Remove this company's unfinished designs whose time has run out. Says how many went. */
     clearExpired(now?: string): Promise<number>;
+  };
+
+  jobs: {
+    /** The company's jobs, newest first, as the inbox lists them. */
+    inbox(options?: InboxOptions): Promise<InboxJob[]>;
+    /** How many jobs are at each stage. */
+    stageCounts(): Promise<Record<JobStage, number>>;
   };
 }
 
@@ -401,6 +443,103 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
           .bind(companyId, month)
           .first<{ enquiries: number; quotes_sent: number }>();
         return row ?? { enquiries: 0, quotes_sent: 0 };
+      },
+    },
+
+    jobs: {
+      async inbox(options = {}) {
+        if (options.stage !== undefined && !JOB_STAGES.includes(options.stage)) {
+          throw new DataError(`"${String(options.stage)}" is not a job stage.`);
+        }
+        const params: Value[] = [companyId];
+        let where = 'j.company_id = ?';
+        if (options.stage) {
+          where += ' AND j.stage = ?';
+          params.push(options.stage);
+        }
+        if (options.before) {
+          where += ' AND j.created_at < ?';
+          params.push(options.before);
+        }
+        const search = options.search?.trim().slice(0, 100);
+        if (search) {
+          // What was typed is matched as typed: % and _ mean themselves.
+          const like = `%${search.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+          where += ` AND (${['j.reference', 'c.name', 'c.email', 'c.phone', 'c.postcode', 'j.site_postcode']
+            .map((column) => `${column} LIKE ? ESCAPE '\\'`)
+            .join(' OR ')})`;
+          params.push(like, like, like, like, like, like);
+        }
+        params.push(Math.min(Math.max(options.limit ?? 50, 1), 200));
+        const rows = await d1
+          .prepare(
+            `SELECT j.id, j.reference, j.stage, j.created_at, j.updated_at,
+                    c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone, c.postcode AS customer_postcode,
+                    (SELECT COUNT(*) FROM designs d WHERE d.company_id = j.company_id AND d.job_id = j.id) AS designs,
+                    json_extract(r.computed, '$.totalRunWidthMm') AS width_mm,
+                    json_extract(r.computed, '$.heightMm') AS height_mm,
+                    json_array_length(r.computed, '$.panels') AS panels,
+                    json_array_length(r.computed, '$.warnings') AS warnings,
+                    json_array_length(r.computed, '$.blockingIssues') AS blocking,
+                    (SELECT e.data FROM job_events e
+                      WHERE e.company_id = j.company_id AND e.job_id = j.id AND e.type = 'received'
+                      ORDER BY e.created_at LIMIT 1) AS received,
+                    (SELECT COUNT(*) FROM files f
+                      WHERE f.company_id = j.company_id AND f.job_id = j.id AND f.kind IN ('photo', 'measuring_photo')) AS photos
+               FROM jobs j
+               JOIN customers c ON c.company_id = j.company_id AND c.id = j.customer_id
+               LEFT JOIN designs d0 ON d0.company_id = j.company_id AND d0.id = (
+                 SELECT d.id FROM designs d WHERE d.company_id = j.company_id AND d.job_id = j.id
+                  ORDER BY d.position, d.created_at LIMIT 1)
+               LEFT JOIN design_revisions r ON r.company_id = j.company_id AND r.design_id = d0.id AND r.number = d0.current_revision
+              WHERE ${where}
+              ORDER BY j.created_at DESC, j.id DESC
+              LIMIT ?`
+          )
+          .bind(...params)
+          .all<Record<string, string | number | null>>();
+        return rows.results.map((row) => {
+          let received: Record<string, unknown> = {};
+          try {
+            received = JSON.parse(String(row.received ?? '{}')) as Record<string, unknown>;
+          } catch {
+            // An unreadable timeline entry costs the inbox a detail, not the job.
+          }
+          const num = (v: unknown) => (typeof v === 'number' ? v : null);
+          return {
+            id: String(row.id),
+            reference: String(row.reference),
+            stage: row.stage as JobStage,
+            createdAt: String(row.created_at),
+            updatedAt: String(row.updated_at),
+            customer: {
+              name: String(row.customer_name),
+              email: (row.customer_email as string | null) ?? null,
+              phone: (row.customer_phone as string | null) ?? null,
+              postcode: (row.customer_postcode as string | null) ?? null,
+            },
+            designs: Number(row.designs ?? 0),
+            layout: typeof received.template === 'string' ? received.template : null,
+            widthMm: num(row.width_mm),
+            heightMm: num(row.height_mm),
+            panels: num(row.panels),
+            warnings: Number(row.warnings ?? 0),
+            blockingIssues: Number(row.blocking ?? 0),
+            photos: Number(row.photos ?? 0),
+            sentQuickly: received.sentQuickly === true,
+            botCheck: typeof received.botCheck === 'string' ? received.botCheck : null,
+          };
+        });
+      },
+
+      async stageCounts() {
+        const rows = await d1
+          .prepare('SELECT stage, COUNT(*) AS n FROM jobs WHERE company_id = ? GROUP BY stage')
+          .bind(companyId)
+          .all<{ stage: JobStage; n: number }>();
+        const counts = Object.fromEntries(JOB_STAGES.map((stage) => [stage, 0])) as Record<JobStage, number>;
+        for (const row of rows.results) if (JOB_STAGES.includes(row.stage)) counts[row.stage] = row.n;
+        return counts;
       },
     },
 

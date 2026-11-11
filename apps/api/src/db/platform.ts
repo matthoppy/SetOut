@@ -170,6 +170,31 @@ export async function resolveDraft(env: Pick<Env, 'DB'>, token: unknown): Promis
   return row ?? null;
 }
 
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+/**
+ * The names and addresses of these users, for a company's own timeline. Only
+ * people on that company's team are found, so one company's timeline can
+ * never name another's staff.
+ */
+export async function usersByIds(
+  env: Pick<Env, 'DB'>,
+  companyId: string,
+  ids: string[]
+): Promise<Record<string, { name: string | null; email: string }>> {
+  if (ids.length === 0) return {};
+  const rows = await env.DB.prepare(
+    `SELECT u.id, u.name, u.email FROM users u
+       JOIN memberships m ON m.user_id = u.id AND m.company_id = ?
+      WHERE u.id IN (${ids.map(() => '?').join(', ')})`
+  )
+    .bind(companyId, ...ids)
+    .all<{ id: string; name: string | null; email: string }>();
+  return Object.fromEntries(rows.results.map((u) => [u.id, { name: u.name, email: u.email }]));
+}
+
 /** What a designer row's config column holds. All of it is public. */
 export interface DesignerSettings {
   finishes?: { id: string; label: string; swatch: string }[];

@@ -101,6 +101,29 @@ What the customer agreed on that card is sent with the design as one picture, `m
 
 Every layout has its deck when it is measured with a laser. Measuring with a tape and a level still uses the older screens until its decks are written.
 
+## The workspace
+
+Staff sign in with a link emailed to them. There are no passwords to leak, guess or reset. Nobody signs up: a person is added to a company first, and only then can they ask for a link. A link works once, for fifteen minutes, on any device, and an address is sent no more than five an hour. Asking for one gets the same answer whether or not the address has an account, so the answer never says who has one.
+
+Using the link signs that browser in for thirty days, with a cookie that only the workspace's address is sent, that no script on the page can read, and that another website cannot make the browser send with a change. Every change must also come from the workspace's own pages. Neither the link nor the session is ever stored, only its SHA-256 hash, so a copy of the database signs nobody in.
+
+A person is one user, whatever companies they belong to. A membership says which companies those are, as owner or staff. The session says which of them the person is working in, and that is checked against their memberships on every request, so taking someone off a team, or switching a company off, signs them out of it at once.
+
+| Route | What it does |
+| --- | --- |
+| `POST /api/workspace/sign-in` | Ask for a link by email |
+| `POST /api/workspace/sign-in/verify` | Use a link. The browser that does is signed in |
+| `GET /api/workspace/me` | Who is signed in, the company they are working in, and their others |
+| `POST /api/workspace/company` | Work in another of one's companies |
+| `POST /api/workspace/sign-out` | End the session |
+| `GET /api/workspace/jobs` | The inbox: the company's jobs, newest first, by stage or by search, with how many are at each stage |
+| `GET /api/workspace/jobs/:id` | Everything about a job: the customer, each shower as it now stands, its files and its timeline |
+| `PATCH /api/workspace/jobs/:id` | Move a job to another stage. The timeline says who moved it |
+| `POST /api/workspace/jobs/:id/notes` | Add a note to a job's timeline |
+| `GET /api/workspace/files/:id` | A job's drawing or photo, to its company's signed-in staff alone |
+
+These answer on the workspace's address only. Nothing running in the public designer can reach them.
+
 ## The two addresses
 
 One Worker answers on two addresses, agreed on 11 November 2026.
@@ -144,8 +167,11 @@ Tables in place:
 | `drafts` | Unfinished designs from the designer |
 | `files` | Photos, measuring photos, drawings and PDFs |
 | `job_events` | The job's timeline |
+| `memberships` | Who works for the company, as owner or staff |
 
-Still to come, with the step that uses them: `users`, `memberships`, `sessions`, `login_tokens`, `invites` and `audit_log` in step 2. `catalog_items`, `finishes`, `price_books`, `quotes`, `quote_lines` and `orders` in step 3. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
+Three tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, and `sessions` for signed-in browsers.
+
+Still to come, with the step that uses them: `invites` and `audit_log` in step 2. `catalog_items`, `finishes`, `price_books`, `quotes`, `quote_lines` and `orders` in step 3. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
 
 ## The roadmap
 
