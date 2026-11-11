@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { companyDb, type CompanyDb, type CompanyRecord } from '../src/db/company-db';
 import { createCompany, newSiteKey, resolveDesigner } from '../src/db/platform';
 import { TABLES, type TableName } from '../src/db/tables';
-import { checkBot } from '../src/lib/enquiry';
+import { checkBot, MAX_FILES } from '../src/lib/enquiry';
 
 const ORIGIN = 'https://setout.test';
 
@@ -287,7 +287,7 @@ describe('what is refused, and leaves nothing behind', () => {
     }, 422, 'invalid_design'],
     ['a file that is not a picture', (key) => enquiry(key, { attachments: [{ filename: 'run.exe', content: btoa('MZ this is a program'), kind: 'photo' }] }), 400, 'unsupported_file'],
     ['a file that is not base64', (key) => enquiry(key, { attachments: [{ filename: 'a.png', content: '***', kind: 'photo' }] }), 400, 'invalid_request'],
-    ['thirteen files', (key) => enquiry(key, { attachments: Array.from({ length: 13 }, () => ({ filename: 'a.png', content: PNG, kind: 'photo' })) }), 400, 'invalid_request'],
+    ['one file more than may be sent', (key) => enquiry(key, { attachments: Array.from({ length: MAX_FILES + 1 }, () => ({ filename: 'a.png', content: PNG, kind: 'photo' })) }), 400, 'invalid_request'],
   ];
 
   test.each(refusals)('%s', async (_name, build, status, code) => {
