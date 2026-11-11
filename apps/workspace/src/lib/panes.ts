@@ -1,14 +1,37 @@
 /**
  * A shower's panes for the workshop and the toughener, with every cut-out on
- * a stated edge, from the engine. The fixed cut-out rules are SetOut's own and
- * the same for every company, so they are read from the engine's defaults.
+ * a stated edge, and where each stands for the fitters, from the engine. The
+ * fixed rules (cut-outs, the gap a glass-to-glass hinge leaves) are SetOut's
+ * own and the same for every company, so they are read from the engine's
+ * defaults.
  */
 
-import { DEFAULT_RULESET, panesOf, type ConfiguratorSpec, type ConfiguratorState, type Pane, type PaneFeature } from '@setout/engine';
+import {
+  DEFAULT_RULESET,
+  fittingsOf,
+  panesOf,
+  setOutOf,
+  type ConfiguratorSpec,
+  type ConfiguratorState,
+  type Fitting,
+  type Pane,
+  type PaneFeature,
+  type SetOut,
+} from '@setout/engine';
 import { TEMPLATES } from '../pages/PaneDrawing';
 
 export function panes(design: ConfiguratorState, spec: ConfiguratorSpec): Pane[] {
   return panesOf(design, spec, DEFAULT_RULESET.fixed);
+}
+
+/** Where each pane stands and the gaps all round it, for the installation sheet. */
+export function setOut(design: ConfiguratorState, spec: ConfiguratorSpec): SetOut {
+  return setOutOf(design, spec, DEFAULT_RULESET.fixed);
+}
+
+/** What the fitter takes. */
+export function fittings(design: ConfiguratorState, spec: ConfiguratorSpec): Fitting[] {
+  return fittingsOf(design, spec, DEFAULT_RULESET.fixed);
 }
 
 const CORNER = { 'bottom-left': 'bottom left corner', 'bottom-right': 'bottom right corner' } as const;

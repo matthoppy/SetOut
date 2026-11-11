@@ -127,6 +127,13 @@ export interface FixedRules {
     cutoutHeightMm: number;
     /** Less clear glass than this between two hinges is flagged. */
     minClearGapMm: number;
+    /**
+     * [OURS] Matt, 11 November 2026. The gap a glass-to-glass hinge leaves
+     * between a door and the panel it hangs from, in line. It comes out of the
+     * door's own deduction, so the cut size is the same and the rest of the
+     * deduction stays at the latch.
+     */
+    glassToGlassGapMm: number;
   };
   handle: {
     /** [CONFIRMED] Handle holes are 203mm apart: an 8 inch pull. */
@@ -245,6 +252,7 @@ export const FIXED_RULES: FixedRules = {
     offsetMm: 250,
     cutoutHeightMm: 47,
     minClearGapMm: 400,
+    glassToGlassGapMm: 3,
   },
   handle: {
     holeSpacingMm: 203,

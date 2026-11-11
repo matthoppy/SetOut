@@ -21,7 +21,7 @@ describe('the door hardware', () => {
     const state = applyTemplate(createInitialState(10), template);
     const spec = buildSpec(state, context);
     const door = spec.panels[1];
-    expect(fittingsOf(state, spec)).toEqual([
+    expect(fittingsOf(state, spec, DEFAULT_RULESET.fixed)).toEqual([
       { kind: 'hinges', pane: 1, count: door.door!.hingeCount, brand: door.door!.hingeBrand, mount: 'wall-to-glass' },
       { kind: 'handle', pane: 1, handleId: 'pull' },
       { kind: 'seal', pane: 1, seal: '90° stopper seal', lengthMm: door.cutHeightMm },
@@ -32,7 +32,7 @@ describe('the door hardware', () => {
   test('a door hung from the glass beside it, in line, swinging both ways', () => {
     const state = golden('panel-door-hinged-off-glass-both-ways');
     const spec = buildSpec(state, context);
-    const fittings = fittingsOf(state, spec);
+    const fittings = fittingsOf(state, spec, DEFAULT_RULESET.fixed);
     expect(fittings.find((f) => f.kind === 'hinges')).toMatchObject({ mount: 'glass-to-glass-180' });
     expect(fittings.find((f) => f.kind === 'seal')).toMatchObject({ seal: 'bubble seal' });
   });
@@ -58,7 +58,7 @@ describe('every known design', () => {
   test.each(GOLDENS.map((g) => [g.name, g] as const))('%s', (_name, g) => {
     const state = structuredClone(g.document.design);
     const spec = buildSpec(state, context);
-    const fittings = fittingsOf(state, spec);
+    const fittings = fittingsOf(state, spec, DEFAULT_RULESET.fixed);
     const doors = spec.panels.flatMap((p, i) => (p.door ? [i] : []));
     for (const kind of ['hinges', 'handle', 'seal'] as const) {
       expect(fittings.filter((f) => f.kind === kind).map((f) => (f as { pane: number }).pane)).toEqual(doors);

@@ -17,7 +17,7 @@ describe.each(GOLDENS)('$name', (golden) => {
   test('every cut-out the spec has, at the spec’s own place on the glass, and nothing else', () => {
     const spec = buildSpec(structuredClone(golden.document.design), context);
     const panes = panesOf(golden.document.design, spec, fixed);
-    const shapes = shapesOf(golden.document.design, spec);
+    const shapes = shapesOf(golden.document.design, spec, DEFAULT_RULESET.fixed);
     expect(panes.map((p) => [p.id, p.widthMm, p.heightMm])).toEqual(shapes.map((s) => [s.id, s.widthMm, s.heightMm]));
     spec.panels.forEach((panel, i) => {
       const heights = (list: number[]) => [...list].map((h) => Math.round(h * 10) / 10).sort((a, b) => a - b);

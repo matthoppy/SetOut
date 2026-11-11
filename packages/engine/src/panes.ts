@@ -87,9 +87,9 @@ const other = (side: PaneSide): PaneSide => (side === 'left' ? 'right' : 'left')
 export function panesOf(
   design: ConfiguratorState,
   spec: ConfiguratorSpec,
-  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'glassDensityKgPerM2PerMm'>
+  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'hinges' | 'glassDensityKgPerM2PerMm'>
 ): Pane[] {
-  const shapes = shapesOf(design, spec);
+  const shapes = shapesOf(design, spec, fixed);
   const panes: Pane[] = spec.panels.map((panel, i) => ({
     id: panel.id,
     label: panel.label,

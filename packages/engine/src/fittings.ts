@@ -7,7 +7,7 @@
  * they are given by id and the caller names them.
  */
 
-import { shapesOf } from './shapes';
+import { shapesOf, type ShapeRules } from './shapes';
 import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 
@@ -38,8 +38,8 @@ export function hingeMountOf(state: ConfiguratorState, spec: ConfiguratorSpec, i
   return state.junctions[Math.min(index, n)]?.angle_deg === 90 ? 'glass-to-glass-90' : 'glass-to-glass-180';
 }
 
-export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec): Fitting[] {
-  const shapes = shapesOf(state, spec);
+export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): Fitting[] {
+  const shapes = shapesOf(state, spec, fixed);
   const fittings: Fitting[] = [];
   spec.panels.forEach((panel, i) => {
     const door = panel.door;

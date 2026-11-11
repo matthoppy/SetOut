@@ -14,12 +14,12 @@
  * job's own, and are written here.
  */
 
-import { fittingsOf, setOutOf, type ConfiguratorSpec, type ConfiguratorState, type Fitting, type HingeMount } from '@setout/engine';
+import type { ConfiguratorSpec, ConfiguratorState, Fitting, HingeMount } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, signInAgain, SignedOut, type JobDetail, type OptionLabel, type Revision } from '../lib/api';
 import { humanise, layoutName } from '../lib/format';
 import { useLoad } from '../lib/load';
-import { panes as panesFor } from '../lib/panes';
+import { fittings, panes as panesFor, setOut as setOutFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { Elevation, OutOfSquare, paneName, SetOutBand } from './InstallDrawings';
 import { Problem, PrintedPage } from './parts';
@@ -207,8 +207,8 @@ function Sheet({
   companyName: string;
 }) {
   const panes = panesFor(design, spec);
-  const setOut = setOutOf(design, spec);
-  const rows = fittingRows(fittingsOf(design, spec), spec, design, detail.labels);
+  const setOut = setOutFor(design, spec);
+  const rows = fittingRows(fittings(design, spec), spec, design, detail.labels);
   const glass = `${spec.glassThicknessMm}mm ${GLASS[design.glassType] ?? humanise(design.glassType)}`;
   const customer = detail.customer;
   const address = addressOf(detail);

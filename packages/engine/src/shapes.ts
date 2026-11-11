@@ -18,6 +18,11 @@
  * - Every difference is kept and shown, however small. A glass processor may
  *   treat under 3mm as square; that is theirs to decide.
  *
+ * And where a door stands in its opening: its deduction comes off its latch
+ * side, except that a door hung in line from the panel beside it on
+ * glass-to-glass hinges keeps the hinge's gap on that side (Matt, 11 November
+ * 2026: 3mm). The cut size is the same either way.
+ *
  * Worked in each run's own plane, as seen from outside: x along the run from
  * its start on the left, y up from the highest point of the floor along it.
  * The spec's deductions are taken off each edge here too. With every reading
@@ -30,6 +35,7 @@
 
 import { hasTransom, runLabelsFor, runPanelIndices } from './geometry';
 import { signedLeanMm, type RunMeasurement, type WallMeasurement } from './measure';
+import type { FixedRules } from './ruleset';
 import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 
@@ -107,8 +113,11 @@ interface Placed {
   specBottom: number;
 }
 
+/** What the shapes need from SetOut's fixed rules: the gap a glass-to-glass hinge leaves. */
+export type ShapeRules = Pick<FixedRules, 'hinges'>;
+
 /** Every pane where it stands, run by run, as seen from outside. */
-function place(state: ConfiguratorState, spec: ConfiguratorSpec): { frames: Frame[]; placed: (Placed | undefined)[] } {
+function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): { frames: Frame[]; placed: (Placed | undefined)[] } {
   const frames: Frame[] = [];
   const placed: (Placed | undefined)[] = [];
   const runs = runPanelIndices(state.panels, state.junctions);
@@ -155,16 +164,23 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec): { frames: Fram
       const { left, right } = panel.deductions.horizontal;
       const { top, bottom } = panel.deductions.vertical;
       const door = panel.door;
-      // A door's swing deduction comes off its latch edge.
+      // A door's swing deduction comes off its latch edge, less the gap a
+      // glass-to-glass hinge leaves when it hangs in line from the panel
+      // beside it, which stays on its hinge edge.
       const latchLeft = door ? door.hingeSide === 'right' : false;
       const swing = door?.swingDeductionMm ?? 0;
+      const hungFromGlass = door ? (latchLeft ? k < panels.length - 1 : k > 0) : false;
+      const atHinge = hungFromGlass ? Math.min(Math.max(fixed.hinges.glassToGlassGapMm, 0), swing) : 0;
+      const atLatch = swing - atHinge;
 
       const leftEdge: Side =
-        !door && k === 0 && startWall ? { p: startWall.p + left, q: startWall.q } : { p: from + left + (latchLeft ? swing : 0), q: 0 };
+        !door && k === 0 && startWall
+          ? { p: startWall.p + left, q: startWall.q }
+          : { p: from + left + (door ? (latchLeft ? atLatch : atHinge) : 0), q: 0 };
       const rightEdge: Side =
         !door && k === panels.length - 1 && endWall
           ? { p: endWall.p - right, q: endWall.q }
-          : { p: to - right - (door && !latchLeft ? swing : 0), q: 0 };
+          : { p: to - right - (door ? (latchLeft ? atHinge : atLatch) : 0), q: 0 };
 
       // The spec's own bottom and top, as straight lines across the run.
       const specBottom: Flat = { m: bottom, n: 0 };
@@ -203,8 +219,8 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec): { frames: Fram
   return { frames, placed };
 }
 
-export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): PaneShape[] {
-  const { placed } = place(state, spec);
+export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): PaneShape[] {
+  const { placed } = place(state, spec, fixed);
   return spec.panels.map((p, i) => {
     const at0 = placed[i];
     if (!at0) return { id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 };
@@ -317,8 +333,8 @@ const wallX = (wall: Side, y: number) => wall.p + wall.q * y;
  * glass out. Worked from the same lines the panes are cut to, so a gap here
  * and a size on the glass order can never disagree.
  */
-export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec): SetOut {
-  const { frames, placed } = place(state, spec);
+export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): SetOut {
+  const { frames, placed } = place(state, spec, fixed);
   const labels = runLabelsFor(state.panels, state.junctions);
   const transom = hasTransom(state);
 

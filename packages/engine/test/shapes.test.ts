@@ -38,7 +38,7 @@ const sizes = (shape: PaneShape) => [shape.widthMm, shape.heightMm];
 describe('a square opening', () => {
   test.each(GOLDENS.map((g) => [g.name, g] as const))('%s: every corner on its rectangle, and a square pane is the spec’s own', (_name, golden) => {
     const spec = buildSpec(structuredClone(golden.document.design), context);
-    const shapes = shapesOf(golden.document.design, spec);
+    const shapes = shapesOf(golden.document.design, spec, DEFAULT_RULESET.fixed);
     shapes.forEach((shape, i) => {
       for (const c of Object.values(shape.corners)) {
         expect(c.x).toBeGreaterThanOrEqual(0);
@@ -53,7 +53,7 @@ describe('a square opening', () => {
   test('is the spec’s own rectangles, exactly', () => {
     const state = alcove();
     const spec = buildSpec(state, context);
-    const shapes = shapesOf(state, spec);
+    const shapes = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     expect(shapes.map(sizes)).toEqual(spec.panels.map((p) => [p.cutWidthMm, p.cutHeightMm]));
     expect(shapes.every((s) => !s.shaped)).toBe(true);
   });
@@ -63,7 +63,7 @@ describe('the walls', () => {
   test('a wall leaning in moves the top corner in, and the rectangle stays as it was', () => {
     const state = alcove((s) => ({ ...s, opening: { ...s.opening, startWall: { gapBottomMm: 353, gapMiddleMm: null, gapTopMm: 350 } } }));
     const spec = buildSpec(state, context);
-    const [fixed, door] = shapesOf(state, spec);
+    const [fixed, door] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     expect(fixed.shaped).toBe(true);
     expect(fixed.corners.bottomLeft).toEqual({ x: 0, y: 0 });
     expect(fixed.corners.topLeft.x).toBe(3);
@@ -75,7 +75,7 @@ describe('the walls', () => {
   test('a wall leaning out makes the pane bigger, to follow it', () => {
     const state = alcove((s) => ({ ...s, opening: { ...s.opening, startWall: { gapBottomMm: 350, gapMiddleMm: null, gapTopMm: 353 } } }));
     const spec = buildSpec(state, context);
-    const [fixed] = shapesOf(state, spec);
+    const [fixed] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     expect(fixed.widthMm).toBe(spec.panels[0].cutWidthMm + 3);
     expect(fixed.corners.bottomLeft.x).toBe(3);
     expect(fixed.corners.topLeft.x).toBe(0);
@@ -87,7 +87,7 @@ describe('the floor', () => {
   test('a fixed pane’s bottom follows the floor and its top stays level, so it is taller at the low end', () => {
     const state = alcove((s) => run0(s, { floorFallMm: 6, floorLowEnd: 'end' }));
     const spec = buildSpec(state, context);
-    const [fixed, door] = shapesOf(state, spec);
+    const [fixed, door] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     const runWidth = spec.panels[0].tightWidthMm + spec.panels[1].tightWidthMm;
     const drop = Math.round((6 * spec.panels[0].tightWidthMm) / runWidth);
     expect(fixed.corners.bottomRight.y).toBe(0);
@@ -104,7 +104,7 @@ describe('the floor', () => {
   test('the fall runs the other way too', () => {
     const state = alcove((s) => run0(s, { floorFallMm: 6, floorLowEnd: 'start' }));
     const spec = buildSpec(state, context);
-    const [fixed] = shapesOf(state, spec);
+    const [fixed] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     expect(fixed.corners.bottomLeft.y).toBe(0);
     expect(fixed.corners.bottomRight.y).toBeGreaterThan(0);
     expect(fixed.corners.topLeft.y).toBe(fixed.corners.topRight.y);
@@ -117,7 +117,7 @@ describe('the ceiling', () => {
   test('a fixed pane’s top follows a sloping ceiling', () => {
     const state = alcove(toCeiling);
     const spec = buildSpec(state, context);
-    const [fixed] = shapesOf(state, spec);
+    const [fixed] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     const runWidth = spec.panels[0].tightWidthMm + spec.panels[1].tightWidthMm;
     expect(fixed.corners.topRight.y - fixed.corners.topLeft.y).toBe(Math.round((8 * spec.panels[0].tightWidthMm) / runWidth));
     expect(fixed.corners.bottomLeft.y).toBe(fixed.corners.bottomRight.y);
@@ -126,7 +126,7 @@ describe('the ceiling', () => {
   test('a door to the ceiling rakes top and bottom, and its sides stay plumb', () => {
     const state = alcove((s) => run0(toCeiling(s), { floorFallMm: 4, floorLowEnd: 'end' }));
     const spec = buildSpec(state, context);
-    const [, door] = shapesOf(state, spec);
+    const [, door] = shapesOf(state, spec, DEFAULT_RULESET.fixed);
     expect(door.shaped).toBe(true);
     expect(door.corners.topLeft.x).toBe(door.corners.bottomLeft.x);
     expect(door.corners.topRight.x).toBe(door.corners.bottomRight.x);
@@ -141,7 +141,7 @@ describe('a known design with a sloping ceiling', () => {
     const golden = GOLDENS.find((g) => g.name === 'three-sided-to-sloping-ceiling');
     if (!golden) throw new Error('missing golden');
     const spec = buildSpec(structuredClone(golden.document.design), context);
-    const [left, door, right] = shapesOf(golden.document.design, spec);
+    const [left, door, right] = shapesOf(golden.document.design, spec, DEFAULT_RULESET.fixed);
     // Left return: ceiling 2390 falling to 2382, less 12 at the top and 12 at the bottom.
     expect(left.heightMm).toBe(2390 - 24);
     expect(Math.abs(left.corners.topLeft.y - left.corners.topRight.y)).toBe(8);

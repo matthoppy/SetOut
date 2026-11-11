@@ -35,7 +35,7 @@ describe('a square opening', () => {
   test('every gap is the deduction on that side', () => {
     const state = alcove();
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     const [fixed, door] = panes;
     expect(runs).toHaveLength(1);
     expect(runs[0]).toMatchObject({ label: 'The opening', panes: [0, 1], widthMm: 1100, floor: { startMm: 0, endMm: 0 }, ceiling: null });
@@ -52,11 +52,66 @@ describe('a square opening', () => {
   });
 });
 
+describe('a door hung from glass', () => {
+  const hungFromPanel = (s: ConfiguratorState): ConfiguratorState => ({
+    ...s,
+    panels: s.panels.map((p) => (p.door ? { ...p, door: { ...p.door, hinge_side: 'left' as const } } : p)),
+  });
+
+  test('in line, the hinge keeps its gap and the latch has the rest, and the glass is the same size', () => {
+    const state = alcove(hungFromPanel);
+    const spec = buildSpec(state, context);
+    const [fixed, door] = setOutOf(state, spec, DEFAULT_RULESET.fixed).panes;
+    const hinge = DEFAULT_RULESET.fixed.hinges.glassToGlassGapMm;
+    const swing = spec.panels[1].door!.swingDeductionMm;
+    expect(hinge).toBe(3);
+    expect(fixed.right).toEqual({ meets: 'glass', bottomMm: hinge, topMm: hinge });
+    expect(door.left).toEqual(fixed.right);
+    expect(door.right.bottomMm).toBe(swing - hinge + spec.panels[1].deductions.horizontal.right);
+    expect(door.corners.bottomRight.x - door.corners.bottomLeft.x).toBe(spec.panels[1].cutWidthMm);
+  });
+
+  test('never more than the door’s own deduction', () => {
+    const state = alcove(hungFromPanel);
+    const spec = buildSpec(state, context);
+    const wide = { ...DEFAULT_RULESET.fixed, hinges: { ...DEFAULT_RULESET.fixed.hinges, glassToGlassGapMm: 20 } };
+    const [, door] = setOutOf(state, spec, wide).panes;
+    expect(door.left.bottomMm).toBe(spec.panels[1].door!.swingDeductionMm);
+    expect(door.right.bottomMm).toBe(spec.panels[1].deductions.horizontal.right);
+  });
+
+  test('hung from a wall, or from glass round a corner, the latch has all of it', () => {
+    // The alcove's door hangs from the right-hand wall: its latch is against the fixed panel.
+    const square = alcove();
+    const squareSpec = buildSpec(square, context);
+    const fromWall = setOutOf(square, squareSpec, DEFAULT_RULESET.fixed).panes[1];
+    expect(fromWall.left.bottomMm).toBe(squareSpec.panels[1].door!.swingDeductionMm);
+    expect(fromWall.right.bottomMm).toBe(squareSpec.panels[1].deductions.horizontal.right);
+
+    // A door hung from the return round the corner: its latch is at the wall.
+    const golden = GOLDENS.find((g) => g.name === 'layout-corner-door-return');
+    if (!golden) throw new Error('missing golden');
+    const design = structuredClone(golden.document.design);
+    const doorAt = design.panels.findIndex((p) => p.kind === 'door');
+    const towardsReturn: 'left' | 'right' = doorAt > 0 && design.junctions[doorAt - 1]?.angle_deg === 90 ? 'left' : 'right';
+    const offReturn: ConfiguratorState = {
+      ...design,
+      panels: design.panels.map((p) => (p.door ? { ...p, door: { ...p.door, hinge_side: towardsReturn } } : p)),
+    };
+    const spec = buildSpec(offReturn, context);
+    const door = setOutOf(offReturn, spec, DEFAULT_RULESET.fixed).panes[doorAt];
+    const [hinge, latch] = towardsReturn === 'left' ? [door.left, door.right] : [door.right, door.left];
+    expect(hinge.meets).toBe('corner');
+    const wall = towardsReturn === 'left' ? spec.panels[doorAt].deductions.horizontal.right : spec.panels[doorAt].deductions.horizontal.left;
+    expect(latch).toMatchObject({ meets: 'wall', bottomMm: spec.panels[doorAt].door!.swingDeductionMm + wall });
+  });
+});
+
 describe('the walls', () => {
   test('a pane following a leaning wall keeps its gap all the way up', () => {
     const state = alcove((s) => ({ ...s, opening: { ...s.opening, startWall: { gapBottomMm: 350, gapMiddleMm: null, gapTopMm: 356 } } }));
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].start).toMatchObject({ meets: 'wall', leanMm: -6 });
     expect(panes[0].left).toEqual({ meets: 'wall', bottomMm: 5, topMm: 5 });
     // It leans out, so the top corner is further out than the bottom one.
@@ -66,7 +121,7 @@ describe('the walls', () => {
   test('a plumb door beside a leaning wall has a different gap at the top', () => {
     const state = alcove((s) => ({ ...s, opening: { ...s.opening, endWall: { gapBottomMm: 350, gapMiddleMm: null, gapTopMm: 347 } } }));
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].end).toMatchObject({ meets: 'wall', leanMm: 3 });
     const door = panes[1];
     expect(door.right.bottomMm).toBe(5);
@@ -81,7 +136,7 @@ describe('the floor', () => {
   test('a fixed pane follows the floor and a door stays square, so the door’s gap takes the fall', () => {
     const state = alcove((s) => run0(s, { floorFallMm: 6, floorLowEnd: 'end' }));
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].floor).toEqual({ startMm: 0, endMm: -6 });
     const [fixed, door] = panes;
     expect(fixed.floorGap).toEqual({ left: 10, right: 10 });
@@ -94,7 +149,7 @@ describe('the ceiling', () => {
   test('glass to a sloping ceiling keeps its top gap along it', () => {
     const state = alcove((s) => run0({ ...s, isFloorToCeiling: true }, { ceilingStartMm: 2000, ceilingEndMm: 2008 }));
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].ceiling).toEqual({ startMm: 2000, endMm: 2008 });
     expect(panes[0].ceilingGap).toEqual({ left: spec.panels[0].deductions.vertical.top, right: spec.panels[0].deductions.vertical.top });
   });
@@ -102,7 +157,7 @@ describe('the ceiling', () => {
   test('glass that stops short of the ceiling has no top gap, even where the ceiling was measured', () => {
     const state = alcove((s) => run0(s, { ceilingStartMm: 2300, ceilingEndMm: 2300 }));
     const spec = buildSpec(state, context);
-    const { runs, panes } = setOutOf(state, spec);
+    const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].ceiling).toEqual({ startMm: 2300, endMm: 2300 });
     expect(panes.every((p) => p.ceilingGap === null)).toBe(true);
   });
@@ -111,7 +166,7 @@ describe('the ceiling', () => {
     const golden = GOLDENS.find((g) => g.name === 'panel-door-to-ceiling-transom-glass');
     if (!golden) throw new Error('missing golden');
     const spec = buildSpec(structuredClone(golden.document.design), context);
-    const [fixed, door] = setOutOf(golden.document.design, spec).panes;
+    const [fixed, door] = setOutOf(golden.document.design, spec, DEFAULT_RULESET.fixed).panes;
     expect(fixed.ceilingGap).not.toBeNull();
     expect(door.ceilingGap).toBeNull();
   });
@@ -122,7 +177,7 @@ describe('corners and open ends', () => {
     const golden = GOLDENS.find((g) => g.name === 'layout-walk-in-return');
     if (!golden) throw new Error('missing golden');
     const spec = buildSpec(structuredClone(golden.document.design), context);
-    const { runs, panes } = setOutOf(golden.document.design, spec);
+    const { runs, panes } = setOutOf(golden.document.design, spec, DEFAULT_RULESET.fixed);
     expect(runs.map((r) => [r.start.meets, r.end.meets])).toEqual([
       ['wall', 'corner'],
       ['corner', 'open'],
@@ -137,8 +192,8 @@ describe('every known design', () => {
   test.each(GOLDENS.map((g) => [g.name, g] as const))('%s: stands where its glass is cut, and every gap adds up', (_name, golden) => {
     const design = golden.document.design;
     const spec = buildSpec(structuredClone(design), context);
-    const { runs, panes } = setOutOf(design, spec);
-    const shapes = shapesOf(design, spec);
+    const { runs, panes } = setOutOf(design, spec, DEFAULT_RULESET.fixed);
+    const shapes = shapesOf(design, spec, DEFAULT_RULESET.fixed);
     expect(panes).toHaveLength(spec.panels.length);
     expect(runs.flatMap((r) => r.panes).sort((a, b) => a - b)).toEqual(spec.panels.map((_, i) => i));
 
