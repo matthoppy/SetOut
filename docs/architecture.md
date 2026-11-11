@@ -67,10 +67,27 @@ On a company's page the designer is added with one element and one script:
 
 ```html
 <div data-setout-designer="pk_live_..."></div>
-<script src="https://SETOUT-ADDRESS/designer/embed.js" async></script>
+<script src="https://designer.setoutglass.com/embed.js" async></script>
 ```
 
 `data-mode="button"` shows a button that opens the designer over the page. The page is told when a design is sent, as a `setout:sent` event on the element, and never sees the customer's details.
+
+That script address is permanent. Companies paste it once, so it must keep working and keep meaning the same thing.
+
+## The two addresses
+
+One Worker answers on two addresses, agreed on 11 November 2026.
+
+| Address | Serves | Framing |
+| --- | --- | --- |
+| `designer.setoutglass.com` | The designer, its embed script at `/embed.js`, and the designer's routes | Only by the websites listed for that designer |
+| `app.setoutglass.com` | The workspace and, from step 2, its routes | Never, by anyone |
+
+They are separate so that nothing running in the public designer can reach a signed-in workspace. The workspace's address has no designer, no embed script and no designer routes, and the designer's address never serves the workspace.
+
+Each designer has a list of websites allowed to show it. The designer's page is sent with that list as its framing rule, read from the database on every load, so a change takes effect at once. A browser refuses to show the designer on any other website. A test key may also be framed from a developer's own machine. With no key, or an unknown one, nobody may frame it.
+
+Staging has the same pair, `designer-staging.setoutglass.com` and `app-staging.setoutglass.com`, and keeps its workers.dev name, which serves both apps by path: the designer under `/designer/` and the workspace everywhere else. A developer's machine works the same way.
 
 ## The database
 
@@ -146,7 +163,6 @@ Technical defaults:
 
 ## Decided while building step 0
 
-- **Two addresses, one Worker.** The designer and its routes will be served from one address and the workspace from another, both by the same Worker. A page that is made to be framed on other people's websites should not share an address with a page that holds a staff session. On staging, which has one address, both are served by path: `/designer/` and `/`.
 - **Rule limits are provisional.** `ADJUSTABLE` in `packages/engine/src/ruleset.ts` lists every rule a company may change and how far. The mechanism is settled. The bounds are a cautious first guess, to be agreed with a glazier before the company settings screen ships in step 2. Until then no company has overrides.
 - **Lists that will grow are checked in code, not by the database.** Job stages, file kinds and event types are validated by the data layer, so adding a stage is a code change and not a table rebuild.
 - **Review notes name the company.** The engine's notes to a customer say who will check something by hand. The company's name is passed in with its rules, so Brennan Glass's customers are never told that Custom Showers will check their door.

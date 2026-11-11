@@ -29,9 +29,10 @@ async function ask() {
   return { health, problems };
 }
 
-// A new deploy can take a few seconds to reach every location.
+// A new deploy can take a few seconds to reach every location, and an address
+// attached for the first time a couple of minutes to get its certificate.
 let last = { health: null, problems: ['never answered'] };
-for (let attempt = 1; attempt <= 12; attempt++) {
+for (let attempt = 1; attempt <= 36; attempt++) {
   try {
     last = await ask();
     if (last.problems.length === 0) break;

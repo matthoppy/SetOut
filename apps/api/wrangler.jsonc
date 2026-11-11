@@ -12,20 +12,25 @@
     "logs": { "enabled": true, "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
-  // The built designer and workspace. Only /api goes to the Worker's code;
-  // everything else is served as a file, falling back to the workspace page.
+  // The built designer and workspace. Their fingerprinted scripts and styles
+  // are served straight from storage. Everything else goes through the
+  // Worker's code first: the API, and every page, so that each page gets the
+  // right app for its address and the right rules about who may frame it.
   "assets": {
     "directory": "../../dist/site",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/*", "!/assets/*", "!/designer/assets/*"]
   },
 
   // The top level is local development and tests only. Nothing deploys from
   // it: a deploy must name staging or production.
   "vars": {
     "ENVIRONMENT": "local",
-    "COMMIT": "local"
+    "COMMIT": "local",
+    // One address locally, so both apps are served from it by path.
+    "DESIGNER_HOST": "",
+    "APP_HOST": ""
   },
   "d1_databases": [
     {
@@ -41,9 +46,18 @@
 
   "env": {
     "staging": {
+      // Staging keeps its workers.dev name as well, which serves both apps by
+      // path and is what the deploy's health check asks.
+      "workers_dev": true,
+      "routes": [
+        { "pattern": "designer-staging.setoutglass.com", "custom_domain": true },
+        { "pattern": "app-staging.setoutglass.com", "custom_domain": true }
+      ],
       "vars": {
         "ENVIRONMENT": "staging",
-        "COMMIT": "unknown"
+        "COMMIT": "unknown",
+        "DESIGNER_HOST": "designer-staging.setoutglass.com",
+        "APP_HOST": "app-staging.setoutglass.com"
       },
       "d1_databases": [
         {
@@ -58,9 +72,20 @@
       ]
     },
     "production": {
+      // Production answers on its two addresses and nowhere else. The embed
+      // script's address, https://designer.setoutglass.com/embed.js, is
+      // permanent once a company has pasted it into its website.
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [
+        { "pattern": "designer.setoutglass.com", "custom_domain": true },
+        { "pattern": "app.setoutglass.com", "custom_domain": true }
+      ],
       "vars": {
         "ENVIRONMENT": "production",
-        "COMMIT": "unknown"
+        "COMMIT": "unknown",
+        "DESIGNER_HOST": "designer.setoutglass.com",
+        "APP_HOST": "app.setoutglass.com"
       },
       "d1_databases": [
         {

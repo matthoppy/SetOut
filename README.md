@@ -12,7 +12,7 @@ There are two apps and one engine:
 
 Step 0 of six is done: the foundations. The engine has moved across from the Custom Showers configurator with its rules passed in, the database and its company-scoped data layer exist, and one Worker serves the API and both apps.
 
-Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. Still to come in step 1: the email a company receives, the card decks for every layout, the final dimensioned drawing, and the permanent address for the embed script.
+Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. The designer and the workspace are served on two addresses by the one Worker, and each designer can be framed only by its own company's websites. Still to come in step 1: the email a company receives, the card decks for every layout, and the final dimensioned drawing.
 
 The plan, the data model and the decisions behind them are in [docs/architecture.md](docs/architecture.md).
 
@@ -22,8 +22,8 @@ The plan, the data model and the decisions behind them are in [docs/architecture
 | --- | --- |
 | `packages/engine` | The shared engine and its tests. Pure TypeScript: no screen, no network, no clock. |
 | `packages/ui` | Screens and parts shared by the two apps. |
-| `apps/designer` | The customer's app, served at `/designer/`. |
-| `apps/workspace` | The trade workspace, served at `/`. |
+| `apps/designer` | The customer's app and its embed script, served at `designer.setoutglass.com`. |
+| `apps/workspace` | The trade workspace, served at `app.setoutglass.com`. |
 | `apps/api` | The Cloudflare Worker, the database schema and its migrations. Serves `/api` and both built apps. |
 | `scripts` | Deploying, and checking a deploy is healthy. |
 | `docs` | The architecture and decisions, and how deploys work. |
@@ -67,7 +67,7 @@ runs everything CI runs:
 | `npm run lint` | Code style, and two rules of the house: the engine uses nothing from the platform it runs on, and only `apps/api/src/db` touches the database. |
 | `npm run typecheck` | Every package compiles in strict mode. |
 | `npm run build` | Both apps build. |
-| `npm test` | The engine cuts 33 known designs to their known sizes. No company can read, change, delete or link to another company's rows. A sent design is worked out again on the server and lands only in the company its site key belongs to. |
+| `npm test` | The engine cuts 33 known designs to their known sizes. No company can read, change, delete or link to another company's rows. A sent design is worked out again on the server and lands only in the company its site key belongs to. Each address serves only its own app, and a designer can be framed only by the websites listed for it. |
 
 ## Deploying
 

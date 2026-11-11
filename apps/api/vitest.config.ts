@@ -11,8 +11,22 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: './wrangler.jsonc' },
         miniflare: {
-          // A test-only binding, so a setup file can apply the migrations.
-          bindings: { TEST_MIGRATIONS: migrations },
+          bindings: {
+            // A test-only binding, so a setup file can apply the migrations.
+            TEST_MIGRATIONS: migrations,
+            // Two addresses, as production has. Any other host serves both apps.
+            DESIGNER_HOST: 'designer.test',
+            APP_HOST: 'app.test',
+          },
+          // A small stand-in for the built apps, served by the real file
+          // binding, so these tests need no build and still meet the real
+          // rules: a folder serves its index page, and an unknown path falls
+          // back to the workspace page.
+          assets: {
+            directory: path.join(import.meta.dirname, 'test', 'site'),
+            binding: 'ASSETS',
+            assetConfig: { not_found_handling: 'single-page-application' },
+          },
         },
       }),
     ],

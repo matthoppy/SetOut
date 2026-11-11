@@ -1,8 +1,9 @@
 /**
  * The SetOut API.
  *
- * One Worker. It answers /api, and the built designer and workspace are
- * served beside it as files, so all three ship together with the same engine.
+ * One Worker. It answers /api and serves the built designer and workspace,
+ * so all three ship together with the same engine. See site.ts for which
+ * address serves which app.
  *
  * Routes arrive with the steps that need them. The designer's routes are
  * here; the workspace's come in step 2. The health check is what a deploy is
@@ -13,6 +14,7 @@ import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
 import { designer } from './routes/designer';
+import { serveSite, surfaceFor } from './site';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -42,9 +44,20 @@ app.get('/api/health', async (c) => {
   );
 });
 
+// The designer's routes answer on the designer's address, and nowhere a staff
+// sign-in lives. The workspace's routes, when they arrive, are the reverse.
+app.use('/api/designer/*', async (c, next) => {
+  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'workspace') {
+    return c.json({ error: 'not_found' }, 404);
+  }
+  await next();
+});
 app.route('/api/designer', designer);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
+
+// Everything else is one of the two apps.
+app.all('*', serveSite);
 
 app.onError((error, c) => {
   console.error(

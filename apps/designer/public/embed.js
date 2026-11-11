@@ -4,7 +4,10 @@
  * Put this on any page, with the designer's site key:
  *
  *   <div data-setout-designer="pk_live_..."></div>
- *   <script src="https://SETOUT-ADDRESS/designer/embed.js" async></script>
+ *   <script src="https://designer.setoutglass.com/embed.js" async></script>
+ *
+ * That address is permanent. Companies paste it once, so it must keep working
+ * and keep meaning the same thing for as long as SetOut exists.
  *
  * Optional attributes on the element:
  *   data-mode     "inline" (the default) shows the designer in the page.

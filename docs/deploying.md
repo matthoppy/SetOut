@@ -2,10 +2,12 @@
 
 SetOut is one Cloudflare Worker with two environments. Nobody pastes code into a dashboard.
 
-| Environment | Worker | Database | Deployed |
-| --- | --- | --- | --- |
-| Staging | `setout-staging` | `setout-staging` | Automatically, by every push to `main` that passes the checks |
-| Production | `setout-production` | `setout-production` | By hand, from GitHub |
+| Environment | Worker | Database | Addresses | Deployed |
+| --- | --- | --- | --- | --- |
+| Staging | `setout-staging` | `setout-staging` | `designer-staging.setoutglass.com`, `app-staging.setoutglass.com`, and its workers.dev name | Automatically, by every push to `main` that passes the checks |
+| Production | `setout-production` | `setout-production` | `designer.setoutglass.com`, `app.setoutglass.com` | By hand, from GitHub |
+
+The addresses are attached by the deploy itself, from `apps/api/wrangler.jsonc`. The first deploy that attaches one creates its DNS record and its certificate, which can take a couple of minutes. The deploy's health check waits for that.
 
 Both databases are SetOut's own, separate from Custom Showers', and both were created to store their data in the EU. That cannot be changed afterwards, which is why it was done at the start.
 
@@ -108,6 +110,5 @@ npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
 ## Still to set up, with the step that needs it
 
 - **The paid Workers plan**, before real traffic. The free plan's limits are enough for staging.
-- **The product's own addresses**: one for the designer and one for the workspace, on the registered domain. The embed script's address is permanent once a company pastes it, so no company should be given the embed code until this is done.
 - **A bot check widget for SetOut's addresses.** Turnstile keys are tied to the addresses they run on, so the designer needs its own widget, with its site key in the designer's settings and its secret set as above.
-- **Which websites may show each designer.** The allowed websites are stored per designer. Enforcing them when the frame is served comes with the product's own addresses.
+- **Production itself.** It has not been deployed yet. No company should be given the embed code until it has, because the script's address is permanent.

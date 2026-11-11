@@ -93,12 +93,16 @@ function toUrl(target) {
   return null;
 }
 
-const url = (deployed?.targets ?? []).map(toUrl).find(Boolean);
+// Ask the workers.dev name if there is one: it answers at once, where a newly
+// attached address can take a minute or two to get its certificate.
+const urls = (deployed?.targets ?? []).map(toUrl).filter(Boolean);
+const url = urls.find((u) => u.endsWith('.workers.dev')) ?? urls[0];
 if (!url) {
   console.error('The deploy finished but did not report an address.');
   console.error(JSON.stringify(records, null, 2));
   process.exit(1);
 }
 
-console.log(`\nDeployed ${environment} at ${url} from ${commit.slice(0, 7)}`);
+console.log(`\nDeployed ${environment} from ${commit.slice(0, 7)} at:`);
+for (const u of urls) console.log(`  ${u}`);
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);

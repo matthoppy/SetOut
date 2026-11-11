@@ -101,6 +101,21 @@ export async function resolveDesigner(env: Pick<Env, 'DB'>, siteKey: unknown): P
   return row ?? null;
 }
 
+/**
+ * The websites allowed to show the designer with this site key in a frame.
+ * Null for a key that is not an active designer.
+ */
+export async function designerFrameOrigins(env: Pick<Env, 'DB'>, siteKey: unknown): Promise<string[] | null> {
+  const found = await resolveDesigner(env, siteKey);
+  if (!found) return null;
+  const row = await env.DB.prepare('SELECT allowed_origins FROM designers WHERE company_id = ? AND id = ?')
+    .bind(found.companyId, found.designerId)
+    .first<{ allowed_origins: string }>();
+  if (!row) return null;
+  const origins: unknown = JSON.parse(row.allowed_origins);
+  return Array.isArray(origins) ? origins.filter((o): o is string => typeof o === 'string') : [];
+}
+
 /** What a designer row's config column holds. All of it is public. */
 export interface DesignerSettings {
   finishes?: { id: string; label: string; swatch: string }[];
