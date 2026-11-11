@@ -134,6 +134,13 @@ export interface RunMeasurement {
   halfAMm?: number | null;
   halfBMm?: number | null;
   /**
+   * The same width as read in one pull of the tape. Null until it is typed,
+   * and widthAtFloorMm then follows it. Without this a width the customer
+   * measured cannot be told from the size the layout started with. Optional
+   * so designs saved before this field existed still load.
+   */
+  wholeMm?: number | null;
+  /**
    * Optional. The top width is derived from the floor width and the wall
    * leans, so this is only here for someone who measured it anyway and wants
    * it checked. When it is set, it has to agree.
@@ -223,6 +230,7 @@ function createRun(widthMm: number): RunMeasurement {
     widthAtFloorMm: widthMm,
     halfAMm: null,
     halfBMm: null,
+    wholeMm: null,
     widthAtTopCheckMm: null,
     widthAtMiddleCheckMm: null,
     floorFallMm: 0,

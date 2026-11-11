@@ -258,6 +258,7 @@ function readWall(v: unknown, path: string): WallMeasurement {
 const OPTIONAL_RUN_READINGS = [
   'halfAMm',
   'halfBMm',
+  'wholeMm',
   'floorStartMm',
   'floorEndMm',
   'ceilingStartMm',
