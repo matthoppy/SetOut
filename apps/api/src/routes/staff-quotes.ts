@@ -14,13 +14,13 @@ import { Hono } from 'hono';
 import type { Session } from '../db/auth';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import { hashResumeToken, newQuoteToken } from '../db/platform';
-import type { JobStage, QuoteRow, Row } from '../db/tables';
-import { DEFAULT_SETTINGS } from '../lib/designer-config';
+import type { JobStage, QuoteRow } from '../db/tables';
+import { optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { dayOf, money, quoteEmail } from '../lib/quote-email';
-import { draftLines, lineTotal, readLines, totals, type OptionLabels } from '../lib/quote-lines';
+import { draftLines, lineTotal, readLines, totals } from '../lib/quote-lines';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
 
@@ -37,16 +37,6 @@ async function showersOf(db: CompanyDb, jobId: string) {
     designs.map((d) => db.find('design_revisions', { where: { design_id: d.id, number: d.current_revision }, limit: 1 }))
   );
   return designs.flatMap((design, i) => (revisions[i][0] ? [{ design, revision: revisions[i][0] }] : []));
-}
-
-/** What the company calls its finishes and handles, from the designer the job came from. */
-async function labelsFor(db: CompanyDb, job: Row<'jobs'>): Promise<OptionLabels> {
-  const designer = job.designer_id ? await db.get('designers', job.designer_id) : (await db.find('designers', { limit: 1 }))[0];
-  const settings = (designer?.config ?? {}) as { finishes?: OptionLabels['finishes']; handles?: OptionLabels['handles'] };
-  return {
-    finishes: settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes,
-    handles: settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles,
-  };
 }
 
 const showerName = (label: string, i: number, count: number) =>
@@ -99,7 +89,7 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
     return c.json({ error: 'nothing_to_quote', message: 'This job has no shower to quote for yet.' }, 409, PRIVATE);
   }
   const [labels, prices, company, number] = await Promise.all([
-    labelsFor(db, job),
+    optionLabelsFor(db, job),
     db.prices.all(),
     db.company(),
     db.quotes.nextNumber(job.id),

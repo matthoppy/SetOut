@@ -441,12 +441,15 @@ function SignOff({
         <p>
           <span className="font-semibold text-good">✓ Checked</span> by {who}, {whenExactly(revision.checked_at)}
         </p>
-        <span className="flex items-center gap-4">
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Link to={`/jobs/${jobId}/making`} className="text-sm font-semibold text-accent underline underline-offset-2">
             Making sheet
           </Link>
           <Link to={`/glass?jobs=${encodeURIComponent(jobId)}`} className="text-sm font-semibold text-accent underline underline-offset-2">
             Glass order
+          </Link>
+          <Link to={`/jobs/${jobId}/installation`} className="text-sm font-semibold text-accent underline underline-offset-2">
+            Installation sheet
           </Link>
           <button
             type="button"
@@ -563,6 +566,11 @@ function named(label: unknown): string | null {
   return typeof label === 'string' && label.trim() && label !== 'Shower' ? label : null;
 }
 
+/** "a", "a and b", "a, b and c". */
+function listed(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
 /** A timeline entry in words. */
 function describe(event: JobEvent): string {
   const d = event.data;
@@ -602,6 +610,11 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} checked ${named(d.label) ?? 'the shower'} and is happy for it to be made.`;
     case 'revision_unchecked':
       return `${who ?? 'Someone'} took back the check on ${named(d.label) ?? 'the shower'}.`;
+    case 'installation_changed': {
+      const names: Record<string, string> = { address: 'installation address', postcode: 'site postcode', notes: 'installation comments' };
+      const changed = Array.isArray(d.changed) ? d.changed.map((c) => names[String(c)] ?? String(c)) : [];
+      return `${who ?? 'Someone'} changed the ${changed.length ? listed(changed) : 'installation details'}.`;
+    }
     default:
       return humanise(event.type);
   }

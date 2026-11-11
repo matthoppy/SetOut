@@ -43,3 +43,18 @@ export function Section({ title, children, aside }: { title: string; children: R
     </section>
   );
 }
+
+/** One printed A4 page, with the company's name and the page number at its foot. */
+export function PrintedPage({ companyName, number, of, children }: { companyName: string; number: number; of: number; children: React.ReactNode }) {
+  return (
+    <section className="mt-4 flex min-h-[1020px] flex-col break-after-page rounded-lg border border-rule bg-white p-5 text-[12px] leading-snug text-black print:mt-0 print:min-h-[270mm] print:rounded-none print:border-0 print:p-0">
+      <div className="flex-1">{children}</div>
+      <footer className="mt-4 flex justify-between text-[12px]">
+        <span>{companyName}</span>
+        <span>
+          Page {number} of {of}
+        </span>
+      </footer>
+    </section>
+  );
+}

@@ -28,8 +28,8 @@
  * cut. Every edge is a straight line, so every pane is a four-sided shape.
  */
 
-import { runPanelIndices } from './geometry';
-import { signedLeanMm, type RunMeasurement } from './measure';
+import { hasTransom, runLabelsFor, runPanelIndices } from './geometry';
+import { signedLeanMm, type RunMeasurement, type WallMeasurement } from './measure';
 import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 
@@ -79,8 +79,38 @@ function floorOf(run: RunMeasurement | undefined, widthMm: number): Flat {
   return run.floorLowEnd === 'start' ? { m: -fall, n: fall / widthMm } : { m: 0, n: -fall / widthMm };
 }
 
-export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): PaneShape[] {
-  const shapes: PaneShape[] = [];
+/** A run as its panes stand in it. */
+interface Frame {
+  indices: number[];
+  width: number;
+  floor: Flat;
+  /** The ceiling, wherever both its ends were measured. */
+  measuredCeiling: Flat | null;
+  /** The ceiling the glass is cut to: the measured one, when the glass goes to it. */
+  ceiling: Flat | null;
+  startWall: Side | null;
+  endWall: Side | null;
+}
+
+type Corners = PaneShape['corners'];
+
+/** A pane where it stands in its run, before it is cut out. */
+interface Placed {
+  run: number;
+  /** Its place in the run, from the left. */
+  k: number;
+  from: number;
+  to: number;
+  /** Unrounded, in the run's frame: x from the run's start, y up from the floor's highest point. */
+  corners: Corners;
+  /** The spec's own bottom edge, in the same frame. */
+  specBottom: number;
+}
+
+/** Every pane where it stands, run by run, as seen from outside. */
+function place(state: ConfiguratorState, spec: ConfiguratorSpec): { frames: Frame[]; placed: (Placed | undefined)[] } {
+  const frames: Frame[] = [];
+  const placed: (Placed | undefined)[] = [];
   const runs = runPanelIndices(state.panels, state.junctions);
   const glassHeight = state.heightMm > 0 ? state.heightMm : 1;
 
@@ -91,15 +121,16 @@ export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): Pane
     const floor = floorOf(run, runWidth);
     const floorAt = (x: number) => floor.m + floor.n * x;
 
-    // The ceiling, when the glass goes to it and it was measured at both ends.
-    const ceiling: Flat | null =
-      state.isFloorToCeiling && isNumber(run?.ceilingStartMm) && isNumber(run?.ceilingEndMm) && runWidth > 0
+    // The ceiling, where it was measured at both ends.
+    const measuredCeiling: Flat | null =
+      isNumber(run?.ceilingStartMm) && isNumber(run?.ceilingEndMm) && runWidth > 0
         ? (() => {
             const start = floorAt(0) + (run.ceilingStartMm as number);
             const end = floorAt(runWidth) + (run.ceilingEndMm as number);
             return { m: start, n: (end - start) / runWidth };
           })()
         : null;
+    const ceiling = state.isFloorToCeiling ? measuredCeiling : null;
 
     // The walls, at the two ends of the whole chain only.
     const startWall: Side | null =
@@ -116,6 +147,7 @@ export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): Pane
             return { p: runWidth + (lean * floorAt(runWidth)) / glassHeight, q: -lean / glassHeight };
           })()
         : null;
+    frames.push({ indices, width: runWidth, floor, measuredCeiling, ceiling, startWall, endWall });
 
     let from = 0;
     panels.forEach((panel, k) => {
@@ -152,38 +184,202 @@ export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): Pane
         topEdge = { m: ceiling.m - (lowest - specTop.m), n: ceiling.n };
       }
 
-      const corners = {
-        bottomLeft: meet(leftEdge, bottomEdge),
-        bottomRight: meet(rightEdge, bottomEdge),
-        topRight: meet(rightEdge, topEdge),
-        topLeft: meet(leftEdge, topEdge),
+      placed[indices[k]] = {
+        run: r,
+        k,
+        from,
+        to,
+        corners: {
+          bottomLeft: meet(leftEdge, bottomEdge),
+          bottomRight: meet(rightEdge, bottomEdge),
+          topRight: meet(rightEdge, topEdge),
+          topLeft: meet(leftEdge, topEdge),
+        },
+        specBottom: bottom,
       };
-      const all = Object.values(corners);
-      const minX = Math.min(...all.map((c) => c.x));
-      const minY = Math.min(...all.map((c) => c.y));
-      const at = (c: ShapePoint): ShapePoint => ({ x: Math.round(c.x - minX), y: Math.round(c.y - minY) });
-      const rel = {
-        bottomLeft: at(corners.bottomLeft),
-        bottomRight: at(corners.bottomRight),
-        topRight: at(corners.topRight),
-        topLeft: at(corners.topLeft),
-      };
-      const widthMm = Math.max(rel.bottomRight.x, rel.topRight.x) - Math.min(rel.bottomLeft.x, rel.topLeft.x);
-      const heightMm = Math.max(rel.topLeft.y, rel.topRight.y) - Math.min(rel.bottomLeft.y, rel.bottomRight.y);
-      const shaped =
-        rel.bottomLeft.x !== 0 ||
-        rel.bottomLeft.y !== 0 ||
-        rel.topLeft.x !== 0 ||
-        rel.topLeft.y !== heightMm ||
-        rel.bottomRight.x !== widthMm ||
-        rel.bottomRight.y !== 0 ||
-        rel.topRight.x !== widthMm ||
-        rel.topRight.y !== heightMm;
-      shapes[indices[k]] = { id: panel.id, widthMm, heightMm, corners: rel, shaped, specBottomMm: Math.round(bottom - minY) };
       from = to;
     });
   });
-  return spec.panels.map((p, i) => shapes[i] ?? { id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 });
+  return { frames, placed };
+}
+
+export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec): PaneShape[] {
+  const { placed } = place(state, spec);
+  return spec.panels.map((p, i) => {
+    const at0 = placed[i];
+    if (!at0) return { id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 };
+    const corners = at0.corners;
+    const all = Object.values(corners);
+    const minX = Math.min(...all.map((c) => c.x));
+    const minY = Math.min(...all.map((c) => c.y));
+    const at = (c: ShapePoint): ShapePoint => ({ x: Math.round(c.x - minX), y: Math.round(c.y - minY) });
+    const rel = {
+      bottomLeft: at(corners.bottomLeft),
+      bottomRight: at(corners.bottomRight),
+      topRight: at(corners.topRight),
+      topLeft: at(corners.topLeft),
+    };
+    const widthMm = Math.max(rel.bottomRight.x, rel.topRight.x) - Math.min(rel.bottomLeft.x, rel.topLeft.x);
+    const heightMm = Math.max(rel.topLeft.y, rel.topRight.y) - Math.min(rel.bottomLeft.y, rel.bottomRight.y);
+    const shaped =
+      rel.bottomLeft.x !== 0 ||
+      rel.bottomLeft.y !== 0 ||
+      rel.topLeft.x !== 0 ||
+      rel.topLeft.y !== heightMm ||
+      rel.bottomRight.x !== widthMm ||
+      rel.bottomRight.y !== 0 ||
+      rel.topRight.x !== widthMm ||
+      rel.topRight.y !== heightMm;
+    return { id: p.id, widthMm, heightMm, corners: rel, shaped, specBottomMm: Math.round(at0.specBottom - minY) };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Setting out
+// ---------------------------------------------------------------------------
+
+/** What a side of a pane meets: a wall, the next pane of glass, a corner, or nothing. */
+export type SideMeets = 'wall' | 'glass' | 'corner' | 'open';
+
+export interface SideGap {
+  meets: SideMeets;
+  /**
+   * Straight across from the pane's bottom and top corners on this side to
+   * the wall or the next pane, in whole mm. Null at a corner, where the glass
+   * meets glass round the turn, and at an open end.
+   */
+  bottomMm: number | null;
+  topMm: number | null;
+}
+
+/** A pane as the fitter sets it out: where it stands and the gap all round it. */
+export interface PaneSetOut {
+  id: string;
+  /** The straight run it stands in, in chain order. */
+  run: number;
+  /** The part of the run's width it was given, from the run's start. */
+  fromMm: number;
+  toMm: number;
+  /**
+   * Its corners where it stands, to a tenth of a mm: x along the run from its
+   * start, y up from the highest point of the floor along the run.
+   */
+  corners: Corners;
+  /** Down from each bottom corner to the floor, in whole mm. */
+  floorGap: { left: number; right: number };
+  /** Up from each top corner to the ceiling, where the glass goes to a measured ceiling. */
+  ceilingGap: { left: number; right: number } | null;
+  left: SideGap;
+  right: SideGap;
+}
+
+/** Where a run ends: at a wall, with its line, or at a corner or an open end. */
+export type RunBoundary =
+  | {
+      meets: 'wall';
+      /** The wall's face, in the run's frame: x = xMm + perMm × y. */
+      xMm: number;
+      perMm: number;
+      /** Its lean over the glass height, as measured: plus leans in, minus leans out. */
+      leanMm: number;
+    }
+  | { meets: 'corner' | 'open' };
+
+/** A straight run of the opening, in its own frame, as seen from outside. */
+export interface RunSetOut {
+  /** What the customer calls it: "The opening", "Front", "Left return". */
+  label: string;
+  /** Its panes, by index into the spec's panels, from the left. */
+  panes: number[];
+  widthMm: number;
+  /** The floor at the run's two ends, up from its highest point: 0 or below. */
+  floor: { startMm: number; endMm: number };
+  /** The ceiling at the two ends, in the same frame, where both were measured. */
+  ceiling: { startMm: number; endMm: number } | null;
+  start: RunBoundary;
+  end: RunBoundary;
+}
+
+export interface SetOut {
+  runs: RunSetOut[];
+  /** One per pane, in the spec's order. */
+  panes: PaneSetOut[];
+}
+
+const whole = (v: number) => Math.round(v) || 0;
+const tenthOf = (v: number) => Math.round(v * 10) / 10 || 0;
+const tenth = (p: ShapePoint): ShapePoint => ({ x: tenthOf(p.x), y: tenthOf(p.y) });
+const wallX = (wall: Side, y: number) => wall.p + wall.q * y;
+
+/**
+ * Each pane where it stands, with the gap from each corner to the floor, the
+ * ceiling, the walls and the next pane: what the fitter needs to set the
+ * glass out. Worked from the same lines the panes are cut to, so a gap here
+ * and a size on the glass order can never disagree.
+ */
+export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec): SetOut {
+  const { frames, placed } = place(state, spec);
+  const labels = runLabelsFor(state.panels, state.junctions);
+  const transom = hasTransom(state);
+
+  const runs: RunSetOut[] = frames.map((f, r) => {
+    const end = (wall: Side | null, measured: WallMeasurement, chainEnd: boolean): RunBoundary =>
+      wall ? { meets: 'wall', xMm: wall.p, perMm: wall.q, leanMm: signedLeanMm(measured) } : { meets: chainEnd ? 'open' : 'corner' };
+    return {
+      label: labels[r] ?? `Run ${r + 1}`,
+      panes: f.indices,
+      widthMm: f.width,
+      floor: { startMm: tenthOf(f.floor.m), endMm: tenthOf(f.floor.m + f.floor.n * f.width) },
+      ceiling: f.measuredCeiling
+        ? { startMm: tenthOf(f.measuredCeiling.m), endMm: tenthOf(f.measuredCeiling.m + f.measuredCeiling.n * f.width) }
+        : null,
+      start: end(f.startWall, state.opening.startWall, r === 0),
+      end: end(f.endWall, state.opening.endWall, r === frames.length - 1),
+    };
+  });
+
+  const panes = spec.panels.map((panel, i): PaneSetOut => {
+    const p = placed[i];
+    if (!p) {
+      const none: SideGap = { meets: 'open', bottomMm: null, topMm: null };
+      return { id: panel.id, run: 0, fromMm: 0, toMm: panel.tightWidthMm, corners: square(panel.cutWidthMm, panel.cutHeightMm), floorGap: { left: 0, right: 0 }, ceilingGap: null, left: none, right: none };
+    }
+    const f = frames[p.run];
+    const c = p.corners;
+    const floorAt = (x: number) => f.floor.m + f.floor.n * x;
+    const ceilingAt = (x: number) => (f.ceiling ? f.ceiling.m + f.ceiling.n * x : 0);
+    const before = p.k > 0 ? placed[f.indices[p.k - 1]] : undefined;
+    const after = p.k < f.indices.length - 1 ? placed[f.indices[p.k + 1]] : undefined;
+    const firstRun = p.run === 0;
+    const lastRun = p.run === frames.length - 1;
+
+    const left: SideGap = before
+      ? { meets: 'glass', bottomMm: whole(c.bottomLeft.x - before.corners.bottomRight.x), topMm: whole(c.topLeft.x - before.corners.topRight.x) }
+      : f.startWall
+        ? { meets: 'wall', bottomMm: whole(c.bottomLeft.x - wallX(f.startWall, c.bottomLeft.y)), topMm: whole(c.topLeft.x - wallX(f.startWall, c.topLeft.y)) }
+        : { meets: firstRun ? 'open' : 'corner', bottomMm: null, topMm: null };
+    const right: SideGap = after
+      ? { meets: 'glass', bottomMm: whole(after.corners.bottomLeft.x - c.bottomRight.x), topMm: whole(after.corners.topLeft.x - c.topRight.x) }
+      : f.endWall
+        ? { meets: 'wall', bottomMm: whole(wallX(f.endWall, c.bottomRight.y) - c.bottomRight.x), topMm: whole(wallX(f.endWall, c.topRight.y) - c.topRight.x) }
+        : { meets: lastRun ? 'open' : 'corner', bottomMm: null, topMm: null };
+
+    // A door under a transom stops at its own height, not at the ceiling.
+    const toCeiling = f.ceiling && !(panel.door && transom);
+    return {
+      id: panel.id,
+      run: p.run,
+      fromMm: p.from,
+      toMm: p.to,
+      corners: { bottomLeft: tenth(c.bottomLeft), bottomRight: tenth(c.bottomRight), topRight: tenth(c.topRight), topLeft: tenth(c.topLeft) },
+      floorGap: { left: whole(c.bottomLeft.y - floorAt(c.bottomLeft.x)), right: whole(c.bottomRight.y - floorAt(c.bottomRight.x)) },
+      ceilingGap: toCeiling ? { left: whole(ceilingAt(c.topLeft.x) - c.topLeft.y), right: whole(ceilingAt(c.topRight.x) - c.topRight.y) } : null,
+      left,
+      right,
+    };
+  });
+
+  return { runs, panes };
 }
 
 function square(w: number, h: number): PaneShape['corners'] {

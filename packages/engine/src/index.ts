@@ -8,6 +8,9 @@
  *   document     the design document, its format and its upgrades
  *   ruleset      the making rules as data, and a company's overrides
  *   spec         the cut list for a design, made to one company's rules
+ *   panes        each pane as the toughener draws it, cut to its shape
+ *   shapes       the shape each pane is cut to, and where it stands in the opening
+ *   fittings     what the fitter takes: hinges, handle, seal, channel or clamps
  *   measure      what the customer measured, and the checks on it
  *   geometry     the shape of the enclosure, worked out from its panels
  *   layout       keeping panel widths in step with a measured run
@@ -26,6 +29,7 @@ export * from './fabrication';
 export * from './spec';
 export * from './panes';
 export * from './shapes';
+export * from './fittings';
 export * from './measure';
 export * from './geometry';
 export * from './layout';

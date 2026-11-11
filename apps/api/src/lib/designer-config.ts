@@ -10,8 +10,9 @@
  * staff or prices, stays on the server.
  */
 
-import { companyDb } from '../db/company-db';
+import { companyDb, type CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
+import type { Row } from '../db/tables';
 
 export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey'>> = {
   finishes: [
@@ -55,5 +56,21 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     ...(settings.intro ? { intro: settings.intro } : {}),
     ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),
     rules: ruleset,
+  };
+}
+
+/** What a company calls its finishes and handles, from the designer a job came from. */
+export interface OptionLabels {
+  finishes: { id: string; label: string }[];
+  handles: { id: string; label: string }[];
+}
+
+export async function optionLabelsFor(db: CompanyDb, job: Row<'jobs'>): Promise<OptionLabels> {
+  const designer = job.designer_id ? await db.get('designers', job.designer_id) : (await db.find('designers', { limit: 1 }))[0];
+  const settings = (designer?.config ?? {}) as { finishes?: OptionLabels['finishes']; handles?: OptionLabels['handles'] };
+  const pick = (list: { id: string; label: string }[]) => list.map(({ id, label }) => ({ id, label }));
+  return {
+    finishes: pick(settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes),
+    handles: pick(settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles),
   };
 }

@@ -171,9 +171,26 @@ export interface QuoteDetail {
   blocker: { error: string; message: string } | null;
 }
 
+export interface OptionLabel {
+  id: string;
+  label: string;
+}
+
 export interface JobDetail {
-  job: { id: string; reference: string; stage: Stage; created_at: string; updated_at: string; site_postcode: string | null };
+  job: {
+    id: string;
+    reference: string;
+    stage: Stage;
+    created_at: string;
+    updated_at: string;
+    site_address: string | null;
+    site_postcode: string | null;
+    /** What the fitters are told, on the installation sheets. */
+    install_notes: string | null;
+  };
   customer: { name: string; email: string | null; phone: string | null; postcode: string | null; address: string | null } | null;
+  /** What the company calls its finishes and handles. */
+  labels: { finishes: OptionLabel[]; handles: OptionLabel[] };
   designs: { id: string; label: string; position: number; current_revision: number; revision: Revision | null }[];
   files: JobFile[];
   events: JobEvent[];
@@ -224,6 +241,13 @@ export const api = {
   job: (id: string, signal?: AbortSignal) => call<JobDetail>(`/jobs/${encodeURIComponent(id)}`, { signal }),
   moveJob: (id: string, stage: Stage) => send<{ ok: true }>('PATCH', `/jobs/${encodeURIComponent(id)}`, { stage }),
   addNote: (id: string, text: string) => send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(id)}/notes`, { text }),
+  /** A field left out stays as it is. */
+  saveInstallation: (id: string, changes: { address?: string | null; postcode?: string | null; notes?: string | null }) =>
+    send<{ ok: true; installation: { address: string | null; postcode: string | null; notes: string | null } }>(
+      'PATCH',
+      `/jobs/${encodeURIComponent(id)}/installation`,
+      changes
+    ),
   /** revision: the number of the revision the person looked over. */
   check: (jobId: string, designId: string, revision: number) =>
     send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { revision }),

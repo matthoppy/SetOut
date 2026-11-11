@@ -64,6 +64,8 @@ export interface JobRow {
   assigned_to: string | null;
   site_address: string | null;
   site_postcode: string | null;
+  /** What the fitters are told, on the installation sheets. */
+  install_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -272,7 +274,7 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
   },
   jobs: {
     id: 'job',
-    columns: ['id', 'reference', 'customer_id', 'designer_id', 'stage', 'source', 'assigned_to', 'site_address', 'site_postcode', 'created_at', 'updated_at'],
+    columns: ['id', 'reference', 'customer_id', 'designer_id', 'stage', 'source', 'assigned_to', 'site_address', 'site_postcode', 'install_notes', 'created_at', 'updated_at'],
     json: [],
     tracksUpdates: true,
   },

@@ -31,7 +31,7 @@ import { companyDb } from '../db/company-db';
 import { usersByIds } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
-import { designerConfig } from '../lib/designer-config';
+import { designerConfig, optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -318,12 +318,13 @@ staff.get('/jobs/:id', async (c) => {
   const job = await db.get('jobs', c.req.param('id'));
   if (!job) return c.json({ error: 'not_found', message: 'There is no such job.' }, 404, PRIVATE);
 
-  const [customer, designs, files, events, quotes] = await Promise.all([
+  const [customer, designs, files, events, quotes, labels] = await Promise.all([
     db.get('customers', job.customer_id),
     db.find('designs', { where: { job_id: job.id }, orderBy: { column: 'position' } }),
     db.find('files', { where: { job_id: job.id }, orderBy: { column: 'created_at' } }),
     db.find('job_events', { where: { job_id: job.id }, orderBy: { column: 'created_at' }, limit: 500 }),
     db.find('quotes', { where: { job_id: job.id }, orderBy: { column: 'number' } }),
+    optionLabelsFor(db, job),
   ]);
   const revisions = await Promise.all(
     designs.map((d) => db.find('design_revisions', { where: { design_id: d.id, number: d.current_revision }, limit: 1 }))
@@ -342,6 +343,8 @@ staff.get('/jobs/:id', async (c) => {
     {
       job,
       customer,
+      // What the company calls its finishes and handles, for the sheets.
+      labels,
       designs: designs.map((design, i) => {
         const revision = revisions[i][0] ?? null;
         return {
@@ -709,6 +712,104 @@ staff.post('/jobs/:id/notes', async (c) => {
     data: { text },
   });
   return c.json({ ok: true, id: event.id }, 201, PRIVATE);
+});
+
+const MAX_ADDRESS_LINES = 6;
+const MAX_ADDRESS = 300;
+const MAX_POSTCODE = 12;
+const MAX_INSTALL_NOTES = 2000;
+
+type Tidied = { ok: true; value: string | null | undefined } | { ok: false };
+
+/** An address as lines, each trimmed, blank ones dropped. Missing means unchanged; empty means none. */
+function tidyAddress(input: unknown): Tidied {
+  if (input === undefined) return { ok: true, value: undefined };
+  if (input === null) return { ok: true, value: null };
+  if (typeof input !== 'string') return { ok: false };
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const value = lines.join('\n');
+  if (lines.length > MAX_ADDRESS_LINES || value.length > MAX_ADDRESS) return { ok: false };
+  return { ok: true, value: value || null };
+}
+
+function tidyPostcode(input: unknown): Tidied {
+  if (input === undefined) return { ok: true, value: undefined };
+  if (input === null) return { ok: true, value: null };
+  if (typeof input !== 'string') return { ok: false };
+  const value = input.replace(/\s+/g, ' ').trim().toUpperCase();
+  return value.length > MAX_POSTCODE ? { ok: false } : { ok: true, value: value || null };
+}
+
+function tidyNotes(input: unknown): Tidied {
+  if (input === undefined) return { ok: true, value: undefined };
+  if (input === null) return { ok: true, value: null };
+  if (typeof input !== 'string') return { ok: false };
+  const value = input.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return value.length > MAX_INSTALL_NOTES ? { ok: false } : { ok: true, value: value || null };
+}
+
+/**
+ * Where the glass goes and what the fitters are told, for the job's
+ * installation sheets. A field left out stays as it is. The timeline says who
+ * changed which.
+ */
+staff.patch('/jobs/:id/installation', async (c) => {
+  const session = c.get('session');
+  const db = companyDb(c.env, session.companyId);
+  const body = (await c.req.json().catch(() => null)) as { address?: unknown; postcode?: unknown; notes?: unknown } | null;
+  if (!body || typeof body !== 'object') return c.json({ error: 'invalid_request', message: 'Send the address, postcode or comments.' }, 400, PRIVATE);
+  const address = tidyAddress(body.address);
+  if (!address.ok) {
+    return c.json(
+      { error: 'invalid_address', message: `An address can be up to ${MAX_ADDRESS_LINES} lines and ${MAX_ADDRESS} characters.` },
+      400,
+      PRIVATE
+    );
+  }
+  const postcode = tidyPostcode(body.postcode);
+  if (!postcode.ok) return c.json({ error: 'invalid_postcode', message: 'That does not look like a postcode.' }, 400, PRIVATE);
+  const notes = tidyNotes(body.notes);
+  if (!notes.ok) {
+    return c.json({ error: 'notes_too_long', message: `The comments can be up to ${MAX_INSTALL_NOTES} characters.` }, 400, PRIVATE);
+  }
+
+  const job = await db.get('jobs', c.req.param('id'));
+  if (!job) return c.json({ error: 'not_found', message: 'There is no such job.' }, 404, PRIVATE);
+  const changes: { site_address?: string | null; site_postcode?: string | null; install_notes?: string | null } = {};
+  const changed: ('address' | 'postcode' | 'notes')[] = [];
+  if (address.value !== undefined && address.value !== job.site_address) {
+    changes.site_address = address.value;
+    changed.push('address');
+  }
+  if (postcode.value !== undefined && postcode.value !== job.site_postcode) {
+    changes.site_postcode = postcode.value;
+    changed.push('postcode');
+  }
+  if (notes.value !== undefined && notes.value !== job.install_notes) {
+    changes.install_notes = notes.value;
+    changed.push('notes');
+  }
+  if (changed.length > 0) {
+    await db.batch((batch) => {
+      batch.update('jobs', job.id, changes);
+      batch.insert('job_events', {
+        job_id: job.id,
+        type: 'installation_changed',
+        actor_kind: 'staff',
+        actor_id: session.userId,
+        data: { changed },
+      });
+    });
+  }
+  const saved = { ...job, ...changes };
+  return c.json(
+    { ok: true, installation: { address: saved.site_address, postcode: saved.site_postcode, notes: saved.install_notes } },
+    200,
+    PRIVATE
+  );
 });
 
 // ---------------------------------------------------------------------------

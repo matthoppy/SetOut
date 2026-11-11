@@ -23,6 +23,7 @@ import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
 import { GlassOrder } from './pages/GlassOrder';
+import { InstallationSheet } from './pages/InstallationSheet';
 import { MakingSheet } from './pages/MakingSheet';
 import { QuotePage } from './pages/QuotePage';
 import { Team } from './pages/Team';
@@ -70,6 +71,7 @@ function App() {
   const jobMatch = /^\/jobs\/([A-Za-z0-9_]+)$/.exec(path);
   const quoteMatch = /^\/jobs\/([A-Za-z0-9_]+)\/quotes\/([A-Za-z0-9_]+)$/.exec(path);
   const makingMatch = /^\/jobs\/([A-Za-z0-9_]+)\/making$/.exec(path);
+  const installMatch = /^\/jobs\/([A-Za-z0-9_]+)\/installation$/.exec(path);
   const page =
     path === '/team' ? (
       <Team me={me.data} />
@@ -77,6 +79,8 @@ function App() {
       <GlassOrder query={query} companyName={me.data.company?.name ?? ''} />
     ) : makingMatch ? (
       <MakingSheet id={makingMatch[1]} />
+    ) : installMatch ? (
+      <InstallationSheet id={installMatch[1]} companyName={me.data.company?.name ?? ''} />
     ) : quoteMatch ? (
       <QuotePage jobId={quoteMatch[1]} quoteId={quoteMatch[2]} />
     ) : jobMatch ? (

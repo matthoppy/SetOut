@@ -39,7 +39,7 @@ interface InboxBody {
 }
 
 interface JobBody {
-  job: { id: string; reference: string; stage: string };
+  job: { id: string; reference: string; stage: string; site_address: string | null; site_postcode: string | null; install_notes: string | null };
   customer: { name: string; email: string };
   designs: { id: string; revision: { number: number; computed: { panels: unknown[] }; document: { design: { panels: unknown[] } } } }[];
   files: { id: string; kind: string; name: string; contentType: string; sizeBytes: number }[];
@@ -413,6 +413,59 @@ describe('a job', () => {
       expect((await post(`/jobs/${jobs[0].id}/notes`, { text }, { cookie: owner })).status).toBe(400);
     }
   );
+});
+
+describe('a job’s installation details', () => {
+  const patch = (id: string, body: unknown, cookie = owner) => api(`/jobs/${id}/installation`, { cookie, method: 'PATCH', body: JSON.stringify(body) });
+
+  test('the address, postcode and comments are saved tidied, and the timeline says who changed which', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs?q=Asha', { cookie: owner }));
+    const id = jobs[0].id;
+    const saved = await patch(id, {
+      address: '  12 Mill Lane \r\n\n  Chedworth   ',
+      postcode: ' gl54  4np ',
+      notes: '  Glass delivered to site.\r\n\n\n\nCall before arriving.  ',
+    });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({
+      ok: true,
+      installation: { address: '12 Mill Lane\nChedworth', postcode: 'GL54 4NP', notes: 'Glass delivered to site.\n\nCall before arriving.' },
+    });
+    const body = await json<JobBody>(await api(`/jobs/${id}`, { cookie: owner }));
+    expect(body.job).toMatchObject({ site_address: '12 Mill Lane\nChedworth', site_postcode: 'GL54 4NP', install_notes: 'Glass delivered to site.\n\nCall before arriving.' });
+    expect(body.events.at(-1)).toMatchObject({
+      type: 'installation_changed',
+      actorKind: 'staff',
+      actor: { email: 'owner@cs.example' },
+      data: { changed: ['address', 'postcode', 'notes'] },
+    });
+
+    // Only what is sent changes, and saving it as it is adds nothing.
+    await patch(id, { notes: 'Glass delivered to site.\n\nCall before arriving.' });
+    expect((await patch(id, { notes: '' })).status).toBe(200);
+    const after = await json<JobBody>(await api(`/jobs/${id}`, { cookie: owner }));
+    expect(after.job).toMatchObject({ site_address: '12 Mill Lane\nChedworth', site_postcode: 'GL54 4NP', install_notes: null });
+    expect(after.events.filter((e) => e.type === 'installation_changed').map((e) => e.data.changed)).toEqual([['address', 'postcode', 'notes'], ['notes']]);
+  });
+
+  test.each([
+    ['an address of too many lines', { address: 'a\nb\nc\nd\ne\nf\ng' }],
+    ['an address too long to be one', { address: 'x'.repeat(301) }],
+    ['a postcode too long to be one', { postcode: 'GL54 4NP GL54 4NP' }],
+    ['comments too long', { notes: 'x'.repeat(2001) }],
+    ['something that is not text', { notes: 42 }],
+    ['nothing at all', null],
+  ])('%s is refused', async (_, body) => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
+    expect((await patch(jobs[0].id, body)).status).toBe(400);
+  });
+
+  test('another company’s job cannot be changed', async () => {
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    expect((await patch(jobs[0].id, { notes: 'Taken over' })).status).toBe(404);
+    const theirsNow = await json<JobBody>(await api(`/jobs/${jobs[0].id}`, { cookie: rival }));
+    expect(theirsNow.job.install_notes).toBeNull();
+  });
 });
 
 describe('a job’s files', () => {
