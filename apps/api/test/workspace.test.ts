@@ -658,6 +658,8 @@ describe('the team', () => {
     expect(message.reply_to).toBe('owner@cs.example');
     expect(message.html).toContain('Owner &lt;b&gt; has added you to Custom Showers on SetOut, as a member of staff.');
     expect(message.html).toContain('https://app.test/sign-in?email=sam%40cs.example');
+    // A name that ends in s reads well: no possessives.
+    expect(message.html).not.toContain('’s');
     // A sign-in link would run out long before some people open this.
     expect(message.html).not.toContain('token=');
   });

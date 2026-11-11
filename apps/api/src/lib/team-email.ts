@@ -25,10 +25,10 @@ export function addedToTeamEmail(from: string, to: string, added: AddedToTeam): 
   const as = added.role === 'owner' ? 'as an owner' : 'as a member of staff';
   const html = `
     <div style="${WRAP}max-width:520px;">
-      <h2 style="margin:0 0 12px;font-size:20px;">You are on ${esc(added.company)}’s team</h2>
+      <h2 style="margin:0 0 12px;font-size:20px;">You have been added to ${esc(added.company)}</h2>
       <p style="margin:0 0 20px;font-size:15px;line-height:1.5;">
         ${esc(added.by)} has added you to ${esc(added.company)} on SetOut, ${as}.
-        SetOut is where ${esc(added.company)}’s shower designs arrive and are worked on.
+        SetOut is where ${esc(added.company)} works on the shower designs its customers send.
       </p>
       <p style="margin:0 0 24px;">
         <a href="${esc(added.link)}" style="display:inline-block;background:#17202a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:6px;">Open the workspace</a>
