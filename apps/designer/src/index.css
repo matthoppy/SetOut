@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    /* Brand colors - Primary navy */
+    --primary: 210 50% 23%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 210 50% 18%;
+
+    /* Secondary light blue */
+    --secondary: 199 45% 63%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 33% 96%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 210 19% 70%;
+    --accent-foreground: 210 50% 23%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 80%;
+    --input: 0 0% 80%;
+    --ring: 210 50% 23%;
+
+    --radius: 0rem;
+
+    /* Dark footer colors */
+    --footer-bg: 0 0% 17%;
+    --footer-dark: 0 0% 23%;
+    --footer-text: 0 0% 90%;
+
+    /* Hero overlay */
+    --overlay: 0 0% 0%;
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s ease-in-out;
+  }
+
+  .dark {
+    --background: 0 0% 17%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 23%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 23%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 210 50% 23%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 210 50% 18%;
+
+    --secondary: 199 45% 63%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 23%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 210 19% 70%;
+    --accent-foreground: 210 50% 23%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 30%;
+    --input: 0 0% 30%;
+    --ring: 210 50% 23%;
+
+    --footer-bg: 0 0% 13%;
+    --footer-dark: 0 0% 17%;
+    --footer-text: 0 0% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* The one moving thing on a measuring screen: the line being measured
+   breathes, so the eye lands on it before reading anything. Everything else
+   on the page holds still. */
+@keyframes measure-pulse {
+  0%,
+  100% {
+    opacity: 0.22;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.measure-pulse {
+  animation: measure-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .measure-pulse {
+    animation: none;
+  }
+}
+
+/* The accent the measuring drawings are lit with. Navy on white; on a dark
+   surface the brand's lighter blue, which navy cannot do. */
+:root {
+  --measure-accent: 210 50% 23%;
+}
+
+.dark {
+  --measure-accent: 199 45% 63%;
+}
+
+/* Measuring cards: each picture shows its one action, holds, and goes
+   round again every four seconds. The resting state is the finished
+   picture, so with animations off it still reads. */
+@keyframes mw-extend {
+  0% { transform: scaleX(0); }
+  35%, 88% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+@keyframes mw-extend-y {
+  0% { transform: scaleY(0); }
+  35%, 88% { transform: scaleY(1); }
+  100% { transform: scaleY(0); }
+}
+@keyframes mw-appear {
+  0%, 34% { opacity: 0; }
+  44%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes mw-appear-early {
+  0% { opacity: 0; }
+  10%, 100% { opacity: 1; }
+}
+@keyframes mw-draw {
+  0%, 12% { stroke-dashoffset: var(--mw-len); }
+  45%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes mw-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.mw-extend { animation: mw-extend 4s cubic-bezier(0.16, 1, 0.3, 1) infinite; transform-box: view-box; }
+.mw-extend-y { animation: mw-extend-y 4s cubic-bezier(0.16, 1, 0.3, 1) infinite; transform-box: view-box; }
+.mw-appear { animation: mw-appear 4s ease-out infinite; }
+.mw-appear-early { animation: mw-appear-early 4s ease-out infinite; }
+.mw-draw { animation: mw-draw 4s cubic-bezier(0.16, 1, 0.3, 1) infinite; stroke-dasharray: var(--mw-len); }
+.mw-glow { animation: mw-glow 2s ease-in-out infinite; }

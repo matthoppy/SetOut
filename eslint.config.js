@@ -73,6 +73,19 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
 
+  // The designer's screens moved across from the Custom Showers configurator
+  // and predate the React Compiler rules. They work, and the measuring step
+  // is being replaced by the card deck, so these three rules are held back
+  // for those screens until each is rebuilt. New screens do not get the pass.
+  {
+    files: ['apps/designer/src/designer/**'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+    },
+  },
+
   // Config files and the moved engine tests run in Node.
   {
     files: ['**/*.config.{js,ts}', '**/*.mjs'],
