@@ -128,6 +128,19 @@ export interface MembershipRow {
   updated_at: string;
 }
 
+export const AUDIT_ACTIONS = ['member_added', 'member_removed', 'role_changed'] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+/** Something done to the company's account: who did it, what, and to what. */
+export interface AuditRow {
+  id: string;
+  actor_id: string | null;
+  action: AuditAction;
+  target_id: string | null;
+  data: JsonObject;
+  created_at: string;
+}
+
 export interface JobEventRow {
   id: string;
   job_id: string;
@@ -163,6 +176,7 @@ export interface Tables {
   files: { row: FileRow; required: 'kind' | 'storage_key' | 'content_type' | 'size_bytes' };
   job_events: { row: JobEventRow; required: 'job_id' | 'type' | 'actor_kind' };
   memberships: { row: MembershipRow; required: 'user_id' | 'role' };
+  audit_log: { row: AuditRow; required: 'action' };
 }
 
 export type TableName = keyof Tables;
@@ -244,6 +258,12 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: [],
     tracksUpdates: true,
   },
+  audit_log: {
+    id: 'audit',
+    columns: ['id', 'actor_id', 'action', 'target_id', 'data', 'created_at'],
+    json: ['data'],
+    tracksUpdates: false,
+  },
 };
 
 /**
@@ -256,4 +276,5 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   files: { kind: FILE_KINDS },
   job_events: { actor_kind: ACTOR_KINDS },
   memberships: { role: ROLES },
+  audit_log: { action: AUDIT_ACTIONS },
 };

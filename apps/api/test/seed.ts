@@ -77,6 +77,12 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
   });
   const { userId } = await addMember(env, company.id, `owner@${prefix.toLowerCase()}.example`, 'owner');
   const [membership] = await db.find('memberships', { where: { user_id: userId } });
+  const audit = await db.insert('audit_log', {
+    actor_id: null,
+    action: 'member_added',
+    target_id: membership.id,
+    data: { email: `owner@${prefix.toLowerCase()}.example`, role: 'owner' },
+  });
 
   return {
     company,
@@ -91,6 +97,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       files: file,
       job_events: event,
       memberships: membership,
+      audit_log: audit,
     },
   };
 }

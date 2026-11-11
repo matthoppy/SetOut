@@ -27,6 +27,7 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   files: { kind: 'other' },
   job_events: { type: 'tampered' },
   memberships: { role: 'staff' },
+  audit_log: { data: { tampered: true } },
 };
 
 let ours: Seeded;

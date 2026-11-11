@@ -10,6 +10,8 @@ import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { addMember, issueSignInLink, LINKS_PER_HOUR, sha256 } from '../src/db/auth';
 import { companyDb, type CompanyDb } from '../src/db/company-db';
+import { ADDS_PER_DAY } from '../src/db/team';
+import { addedToTeamEmail } from '../src/lib/team-email';
 import { createCompany, newSiteKey } from '../src/db/platform';
 import app from '../src/index';
 import { SESSION_COOKIE } from '../src/routes/workspace';
@@ -531,5 +533,132 @@ describe('a job’s files', () => {
     });
     await env.FILES.put(file.storage_key, new Uint8Array([1, 2, 3]));
     expect((await api(`/files/${file.id}`, { cookie: owner })).status).toBe(404);
+  });
+});
+
+describe('the team', () => {
+  interface TeamBody {
+    members: { id: string; email: string; name: string | null; role: string }[];
+    changes?: { action: string; by: { email: string } | null; data: Record<string, unknown> }[];
+  }
+  const team = async (cookie: string) => json<TeamBody>(await api('/team', { cookie }));
+  const memberId = async (email: string) => (await team(owner)).members.find((m) => m.email === email)?.id ?? 'mem_none';
+  const setRole = (id: string, role: string, cookie: string) => api(`/team/${id}`, { cookie, method: 'PATCH', body: JSON.stringify({ role }) });
+  const remove = (id: string, cookie: string) => api(`/team/${id}`, { cookie, method: 'DELETE' });
+  let sam: string;
+
+  test('an owner puts someone on the team, who can then sign in', async () => {
+    const added = await post('/team', { email: ' Sam.Staff@CS.example ', name: ' Sam   Staff ', role: 'staff' }, { cookie: owner });
+    expect(added.status).toBe(201);
+    const body = await json<{ member: { email: string; name: string; role: string }; emailed: boolean }>(added);
+    expect(body.member).toMatchObject({ email: 'sam.staff@cs.example', name: 'Sam Staff', role: 'staff' });
+    // There is no mail in the tests, and the answer says so.
+    expect(body.emailed).toBe(false);
+
+    sam = await signIn('sam.staff@cs.example');
+    expect(await json(await api('/me', { cookie: sam }))).toMatchObject({ role: 'staff', company: { name: 'Custom Showers' } });
+    const { changes } = await team(owner);
+    expect(changes?.[0]).toMatchObject({
+      action: 'member_added',
+      by: { email: 'owner@cs.example' },
+      data: { email: 'sam.staff@cs.example', role: 'staff' },
+    });
+  });
+
+  test('nobody is added twice, and a refused change is not on record', async () => {
+    const before = (await team(owner)).changes?.length;
+    const again = await post('/team', { email: 'sam.staff@cs.example', role: 'owner' }, { cookie: owner });
+    expect(again.status).toBe(409);
+    expect((await team(owner)).changes?.length).toBe(before);
+    expect((await team(owner)).members.find((m) => m.email === 'sam.staff@cs.example')?.role).toBe('staff');
+  });
+
+  test('a bad address or role is refused', async () => {
+    expect((await post('/team', { email: 'not an address' }, { cookie: owner })).status).toBe(400);
+    expect((await post('/team', { email: 'x@cs.example', role: 'boss' }, { cookie: owner })).status).toBe(400);
+    expect((await setRole(await memberId('sam.staff@cs.example'), 'boss', owner)).status).toBe(400);
+  });
+
+  test('staff can see the team, but neither change it nor see its changes', async () => {
+    const seen = await team(sam);
+    expect(seen.members.map((m) => m.email)).toEqual(expect.arrayContaining(['owner@cs.example', 'sam.staff@cs.example']));
+    expect(seen.changes).toBeUndefined();
+    const id = await memberId('sam.staff@cs.example');
+    expect((await post('/team', { email: 'x@cs.example' }, { cookie: sam })).status).toBe(403);
+    expect((await setRole(id, 'owner', sam)).status).toBe(403);
+    expect((await remove(await memberId('owner@cs.example'), sam)).status).toBe(403);
+  });
+
+  test('the last owner can neither stop being one nor be taken off', async () => {
+    const id = await memberId('owner@cs.example');
+    const demoted = await setRole(id, 'staff', owner);
+    expect(demoted.status).toBe(409);
+    expect((await json<{ error: string }>(demoted)).error).toBe('last_owner');
+    expect((await remove(id, owner)).status).toBe(409);
+    expect(await json(await api('/me', { cookie: owner }))).toMatchObject({ role: 'owner' });
+  });
+
+  test('an owner can make someone else an owner, who can hand it back', async () => {
+    const id = await memberId('sam.staff@cs.example');
+    expect((await setRole(id, 'owner', owner)).status).toBe(200);
+    // The new role holds at once, on the session Sam already has.
+    expect((await team(sam)).changes).toBeDefined();
+    expect((await setRole(id, 'staff', sam)).status).toBe(200);
+    const { changes } = await team(owner);
+    expect(changes?.slice(0, 2).map((c) => [c.action, c.by?.email, c.data.from, c.data.to])).toEqual([
+      ['role_changed', 'sam.staff@cs.example', 'owner', 'staff'],
+      ['role_changed', 'owner@cs.example', 'staff', 'owner'],
+    ]);
+  });
+
+  test('another company’s people can be neither seen nor changed', async () => {
+    const theirTeam = await team(rival);
+    const ourIds = (await team(owner)).members.map((m) => m.id);
+    expect(theirTeam.members.map((m) => m.email)).toContain('owner@bg.example');
+    expect(theirTeam.members.some((m) => ourIds.includes(m.id))).toBe(false);
+    const theirOwner = theirTeam.members.find((m) => m.email === 'owner@bg.example');
+    expect((await setRole(theirOwner?.id ?? '', 'staff', owner)).status).toBe(404);
+    expect((await remove(theirOwner?.id ?? '', owner)).status).toBe(404);
+  });
+
+  test('taking someone off the team signs them out of it at once', async () => {
+    const id = await memberId('sam.staff@cs.example');
+    expect((await remove(id, owner)).status).toBe(200);
+    expect((await api('/me', { cookie: sam })).status).toBe(401);
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM sessions WHERE company_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)')
+      .bind(ours.id, 'sam.staff@cs.example').first<{ n: number }>())?.n).toBe(0);
+    const { members, changes } = await team(owner);
+    expect(members.map((m) => m.email)).not.toContain('sam.staff@cs.example');
+    expect(changes?.[0]).toMatchObject({ action: 'member_removed', data: { email: 'sam.staff@cs.example', role: 'staff' } });
+    // Off every team, they cannot ask for a link.
+    expect((await json<{ link?: string }>(await post('/sign-in', { email: 'sam.staff@cs.example' }))).link).toBeUndefined();
+    expect((await remove(id, owner)).status).toBe(404);
+  });
+
+  test('a company can add only so many people a day', async () => {
+    const shop = await company('Busy Glass', 'BZ');
+    await addMember(env, shop.id, 'owner@bz.example', 'owner');
+    const boss = await signIn('owner@bz.example');
+    for (let i = 0; i < ADDS_PER_DAY; i++) {
+      await shop.db.insert('audit_log', { action: 'member_added', data: { email: `p${i}@bz.example` } });
+    }
+    expect((await post('/team', { email: 'one-too-many@bz.example' }, { cookie: boss })).status).toBe(429);
+  });
+
+  test('the email says who added them and as what, and opens the sign-in page with their address', () => {
+    const message = addedToTeamEmail('SetOut <hello@setout.example>', 'sam@cs.example', {
+      company: 'Custom Showers',
+      by: 'Owner <b>',
+      byEmail: 'owner@cs.example',
+      role: 'staff',
+      link: 'https://app.test/sign-in?email=sam%40cs.example',
+    });
+    expect(message.subject).toBe('You have been added to Custom Showers on SetOut');
+    expect(message.to).toEqual(['sam@cs.example']);
+    expect(message.reply_to).toBe('owner@cs.example');
+    expect(message.html).toContain('Owner &lt;b&gt; has added you to Custom Showers on SetOut, as a member of staff.');
+    expect(message.html).toContain('https://app.test/sign-in?email=sam%40cs.example');
+    // A sign-in link would run out long before some people open this.
+    expect(message.html).not.toContain('token=');
   });
 });

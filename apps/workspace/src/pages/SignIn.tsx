@@ -23,7 +23,8 @@ export function SignIn() {
 }
 
 function AskForLink() {
-  const [email, setEmail] = useState('');
+  // The email that says someone was added to a team opens this page with their address in.
+  const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email') ?? '');
   const [asked, setAsked] = useState<Asked>({ state: 'idle' });
 
   const submit = async (event: FormEvent) => {

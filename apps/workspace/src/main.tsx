@@ -22,6 +22,7 @@ import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
+import { Team } from './pages/Team';
 import { Problem } from './pages/parts';
 
 function App() {
@@ -64,9 +65,10 @@ function App() {
   }
 
   const jobMatch = /^\/jobs\/([A-Za-z0-9_]+)$/.exec(path);
+  const page = path === '/team' ? <Team me={me.data} /> : jobMatch ? <Job id={jobMatch[1]} /> : <Inbox query={query} />;
   return (
     <Shell me={me.data}>
-      <Boundary key={path}>{jobMatch ? <Job id={jobMatch[1]} /> : <Inbox query={query} />}</Boundary>
+      <Boundary key={path}>{page}</Boundary>
     </Shell>
   );
 }
@@ -152,6 +154,9 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
             {menu && (
               <div className="absolute right-0 mt-2 w-64 rounded-lg border border-rule bg-surface p-2 text-sm shadow-lg">
                 <p className="truncate px-2 py-1 text-quiet">{me.user.email}</p>
+                <Link to="/team" onClick={() => setMenu(false)} className="mt-1 block rounded border-t border-rule px-2 py-2 hover:bg-ground">
+                  Team
+                </Link>
                 {me.companies.length > 1 && (
                   <div className="mt-1 border-t border-rule pt-1">
                     <p className="px-2 py-1 text-xs uppercase tracking-wide text-quiet">Companies</p>

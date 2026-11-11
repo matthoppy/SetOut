@@ -28,10 +28,12 @@ import {
 } from '../db/auth';
 import { companyDb } from '../db/company-db';
 import { usersByIds } from '../db/platform';
-import { JOB_STAGES, type JobStage } from '../db/tables';
+import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
+import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
 import { sendEmail } from '../lib/email';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { signInEmail } from '../lib/sign-in-email';
+import { addedToTeamEmail } from '../lib/team-email';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
 
@@ -155,6 +157,98 @@ staff.post('/company', async (c) => {
 staff.post('/sign-out', async (c) => {
   await endSession(c.env, c.get('session'));
   deleteCookie(c, SESSION_COOKIE, { path: '/', secure: true });
+  return c.json({ ok: true }, 200, PRIVATE);
+});
+
+// ---------------------------------------------------------------------------
+// The team
+// ---------------------------------------------------------------------------
+
+const isRole = (v: unknown): v is Role => typeof v === 'string' && (ROLES as readonly string[]).includes(v);
+
+/** Only an owner may change the team. The role is read from the membership on every request. */
+const ownersOnly = createMiddleware<Bindings>(async (c, next) => {
+  if (c.get('session').role !== 'owner') {
+    return c.json({ error: 'owners_only', message: 'Only an owner can change the team.' }, 403, PRIVATE);
+  }
+  await next();
+});
+
+const LAST_OWNER = {
+  error: 'last_owner',
+  message: 'A company needs at least one owner. Make someone else an owner first.',
+} as const;
+const NO_MEMBER = { error: 'not_found', message: 'That person is not on the team.' } as const;
+
+/** Everyone on the team. Owners also see the latest changes to it. */
+staff.get('/team', async (c) => {
+  const session = c.get('session');
+  const [members, changes] = await Promise.all([
+    teamOf(c.env, session.companyId),
+    session.role === 'owner' ? teamChanges(c.env, session.companyId) : null,
+  ]);
+  return c.json({ members, ...(changes ? { changes } : {}) }, 200, PRIVATE);
+});
+
+/** Put someone on the team, and email them to say so. */
+staff.post('/team', ownersOnly, async (c) => {
+  const session = c.get('session');
+  const body = (await c.req.json().catch(() => null)) as { email?: unknown; name?: unknown; role?: unknown } | null;
+  const email = normaliseEmail(body?.email);
+  if (!email) return c.json({ error: 'invalid_email', message: 'That does not look like an email address.' }, 400, PRIVATE);
+  const role = body?.role ?? 'staff';
+  if (!isRole(role)) return c.json({ error: 'invalid_role', message: 'A person is an owner or staff.' }, 400, PRIVATE);
+  const name = typeof body?.name === 'string' ? body.name.replace(/\s+/g, ' ').trim().slice(0, 100) || null : null;
+
+  const result = await addToTeam(c.env, session.companyId, session.userId, { email, name, role });
+  if (!result.ok) {
+    return result.reason === 'already_on_team'
+      ? c.json({ error: 'already_on_team', message: 'That person is already on the team.' }, 409, PRIVATE)
+      : c.json(
+          { error: 'too_many_today', message: `A company can add up to ${ADDS_PER_DAY} people a day. Please try again tomorrow.` },
+          429,
+          PRIVATE
+        );
+  }
+
+  const mail = { apiKey: c.env.RESEND_API_KEY, from: c.env.EMAIL_FROM };
+  let emailed = false;
+  if (mailIsSetUp(mail)) {
+    const base = c.env.APP_HOST ? `https://${c.env.APP_HOST}` : new URL(c.req.url).origin;
+    const message = addedToTeamEmail(fromLine('SetOut', mail.from), email, {
+      company: session.companyName,
+      by: session.name ?? session.email,
+      byEmail: session.email,
+      role,
+      link: `${base}/sign-in?email=${encodeURIComponent(email)}`,
+    });
+    c.executionCtx.waitUntil(
+      sendEmail(mail.apiKey, message).catch((error: unknown) => {
+        console.error(JSON.stringify({ message: 'team email failed', reason: error instanceof Error ? error.message : String(error) }));
+      })
+    );
+    emailed = true;
+  }
+  return c.json({ ok: true, member: result.member, emailed }, 201, PRIVATE);
+});
+
+/** Make someone an owner, or staff. */
+staff.patch('/team/:id', ownersOnly, async (c) => {
+  const session = c.get('session');
+  const body = (await c.req.json().catch(() => null)) as { role?: unknown } | null;
+  if (!isRole(body?.role)) return c.json({ error: 'invalid_role', message: 'A person is an owner or staff.' }, 400, PRIVATE);
+  const result = await changeRole(c.env, session.companyId, session.userId, c.req.param('id'), body.role);
+  if (result === 'not_found') return c.json(NO_MEMBER, 404, PRIVATE);
+  if (result === 'last_owner') return c.json(LAST_OWNER, 409, PRIVATE);
+  return c.json({ ok: true, role: body.role }, 200, PRIVATE);
+});
+
+/** Take someone off the team. They are signed out of it at once. */
+staff.delete('/team/:id', ownersOnly, async (c) => {
+  const session = c.get('session');
+  const result = await removeFromTeam(c.env, session.companyId, session.userId, c.req.param('id'));
+  if (result === 'not_found') return c.json(NO_MEMBER, 404, PRIVATE);
+  if (result === 'last_owner') return c.json(LAST_OWNER, 409, PRIVATE);
   return c.json({ ok: true }, 200, PRIVATE);
 });
 

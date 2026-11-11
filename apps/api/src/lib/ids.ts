@@ -23,6 +23,7 @@ export const ID_PREFIX = {
   event: 'evt',
   user: 'usr',
   member: 'mem',
+  audit: 'aud',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

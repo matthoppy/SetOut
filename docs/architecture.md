@@ -121,10 +121,16 @@ A person is one user, whatever companies they belong to. A membership says which
 | `PATCH /api/workspace/jobs/:id` | Move a job to another stage. The timeline says who moved it |
 | `POST /api/workspace/jobs/:id/notes` | Add a note to a job's timeline |
 | `GET /api/workspace/files/:id` | A job's drawing or photo, to its company's signed-in staff alone |
+| `GET /api/workspace/team` | Everyone on the team. Owners also get the latest changes to it |
+| `POST /api/workspace/team` | An owner puts someone on the team. They are emailed to say so |
+| `PATCH /api/workspace/team/:id` | An owner makes someone an owner, or staff |
+| `DELETE /api/workspace/team/:id` | An owner takes someone off the team. They are signed out of it at once |
 
 These answer on the workspace's address only. Nothing running in the public designer can reach them.
 
-The workspace's pages are few: `/sign-in`, the inbox at `/jobs`, and a job at `/jobs/:id`. A job's page shows what the server worked out and the customer agreed to, never anything a browser added up: the drawings from the last card, each panel's cut size beside what was measured, the hardware and glass, every reading in the order it was taken, the photos and the timeline. Signing in, signing out and moving to another company each load the page afresh, so nothing one person or company could see is left in the page for the next.
+Owners run their own team. Adding someone needs only their address: they are emailed to say who added them and as what, with a button that opens the sign-in page with their address filled in. The email carries no sign-in link, because a link runs out in minutes and the email may not be opened for days. A company can add up to twenty people a day, so nobody can use SetOut to send mail in bulk. A company always keeps at least one owner, checked inside the statement that makes the change, so two owners demoting each other at once cannot leave it with none. Every change to the team is written to the company's audit log in the same batch as the change, and only if the change was made.
+
+The workspace's pages are few: `/sign-in`, the inbox at `/jobs`, a job at `/jobs/:id`, and the team at `/team`. A job's page shows what the server worked out and the customer agreed to, never anything a browser added up: the drawings from the last card, each panel's cut size beside what was measured, the hardware and glass, every reading in the order it was taken, the photos and the timeline. Signing in, signing out and moving to another company each load the page afresh, so nothing one person or company could see is left in the page for the next.
 
 ## The two addresses
 
@@ -170,10 +176,11 @@ Tables in place:
 | `files` | Photos, measuring photos, drawings and PDFs |
 | `job_events` | The job's timeline |
 | `memberships` | Who works for the company, as owner or staff |
+| `audit_log` | What was done to the company's account and by whom: who was added to the team, taken off it or given another role |
 
 Three tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, and `sessions` for signed-in browsers.
 
-Still to come, with the step that uses them: `invites` and `audit_log` in step 2. `catalog_items`, `finishes`, `price_books`, `quotes`, `quote_lines` and `orders` in step 3. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
+Still to come, with the step that uses them: `catalog_items`, `finishes`, `price_books`, `quotes`, `quote_lines` and `orders` in step 3. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
 
 ## The roadmap
 

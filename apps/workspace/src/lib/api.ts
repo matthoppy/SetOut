@@ -118,6 +118,32 @@ export interface JobDetail {
   events: JobEvent[];
 }
 
+export type Role = 'owner' | 'staff';
+
+export interface TeamMember {
+  id: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  joinedAt: string;
+  lastSignedInAt: string | null;
+}
+
+export interface TeamChange {
+  id: string;
+  action: 'member_added' | 'member_removed' | 'role_changed';
+  by: { email: string; name: string | null } | null;
+  data: { email?: string; role?: Role; from?: Role; to?: Role };
+  at: string;
+}
+
+export interface Team {
+  members: TeamMember[];
+  /** Owners only. */
+  changes?: TeamChange[];
+}
+
 export const api = {
   me: () => call<Me>('/me'),
   askForLink: (email: string) => send<{ ok: true; link?: string }>('POST', '/sign-in', { email }),
@@ -136,6 +162,11 @@ export const api = {
   job: (id: string, signal?: AbortSignal) => call<JobDetail>(`/jobs/${encodeURIComponent(id)}`, { signal }),
   moveJob: (id: string, stage: Stage) => send<{ ok: true }>('PATCH', `/jobs/${encodeURIComponent(id)}`, { stage }),
   addNote: (id: string, text: string) => send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(id)}/notes`, { text }),
+  team: (signal?: AbortSignal) => call<Team>('/team', { signal }),
+  addToTeam: (person: { email: string; name: string; role: Role }) =>
+    send<{ ok: true; member: TeamMember; emailed: boolean }>('POST', '/team', person),
+  setRole: (id: string, role: Role) => send<{ ok: true }>('PATCH', `/team/${encodeURIComponent(id)}`, { role }),
+  removeFromTeam: (id: string) => call<{ ok: true }>(`/team/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
 
 /**
