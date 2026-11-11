@@ -22,6 +22,7 @@ import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
+import { QuotePage } from './pages/QuotePage';
 import { Team } from './pages/Team';
 import { Problem } from './pages/parts';
 
@@ -65,7 +66,17 @@ function App() {
   }
 
   const jobMatch = /^\/jobs\/([A-Za-z0-9_]+)$/.exec(path);
-  const page = path === '/team' ? <Team me={me.data} /> : jobMatch ? <Job id={jobMatch[1]} /> : <Inbox query={query} />;
+  const quoteMatch = /^\/jobs\/([A-Za-z0-9_]+)\/quotes\/([A-Za-z0-9_]+)$/.exec(path);
+  const page =
+    path === '/team' ? (
+      <Team me={me.data} />
+    ) : quoteMatch ? (
+      <QuotePage jobId={quoteMatch[1]} quoteId={quoteMatch[2]} />
+    ) : jobMatch ? (
+      <Job id={jobMatch[1]} />
+    ) : (
+      <Inbox query={query} />
+    );
   return (
     <Shell me={me.data}>
       <Boundary key={path}>{page}</Boundary>

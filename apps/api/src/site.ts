@@ -31,6 +31,8 @@ export function surfaceFor(env: Pick<Env, 'DESIGNER_HOST' | 'APP_HOST'>, hostnam
 const isEmbedScript = (path: string) => path === '/embed.js' || path === '/designer/embed.js';
 /** Where staff change a sent design: /edit/<job>/<shower>. */
 const isEditorPath = (path: string) => path.startsWith('/edit/');
+/** Where a customer reads and accepts their quote: /q/<link>. */
+const isQuotePath = (path: string) => path.startsWith('/q/');
 const isDesignerPath = (path: string) => path === '/designer' || path.startsWith('/designer/');
 
 /** An origin as it may appear in a header: https and a host, nothing else. */
@@ -120,6 +122,22 @@ async function editorPage(c: SiteContext): Promise<Response> {
   });
 }
 
+/**
+ * A customer's quote. Public, like the designer, but never framed, never
+ * kept by a cache, and its address, which is the customer's link, is never
+ * sent on to anywhere it links to.
+ */
+async function quotePage(c: SiteContext): Promise<Response> {
+  const page = await c.env.ASSETS.fetch(new Request(new URL('/designer/quote', c.req.url), { headers: c.req.raw.headers }));
+  return withHeaders(page, {
+    ...COMMON,
+    'Content-Security-Policy': "frame-ancestors 'none'",
+    'X-Frame-Options': 'DENY',
+    'Cache-Control': 'no-store',
+    'Referrer-Policy': 'no-referrer',
+  });
+}
+
 const notFound = () => new Response('Not found', { status: 404, headers: { ...COMMON, 'Cache-Control': 'no-store' } });
 
 /** Everything that is not the API: the designer, its embed script and the workspace. */
@@ -132,8 +150,9 @@ export async function serveSite(c: SiteContext): Promise<Response> {
   const path = url.pathname;
 
   if (surface !== 'designer' && isEditorPath(path)) return editorPage(c);
+  if (surface !== 'workspace' && isQuotePath(path)) return quotePage(c);
   if (surface === 'workspace') {
-    if (isEmbedScript(path) || isDesignerPath(path)) return notFound();
+    if (isEmbedScript(path) || isDesignerPath(path) || isQuotePath(path)) return notFound();
     return workspacePage(c);
   }
   if (isEmbedScript(path)) return embedScript(c);

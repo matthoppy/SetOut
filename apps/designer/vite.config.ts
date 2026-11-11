@@ -18,6 +18,8 @@ export default defineConfig({
       input: {
         main: path.resolve(import.meta.dirname, 'index.html'),
         edit: path.resolve(import.meta.dirname, 'edit.html'),
+        // A customer's quote, served on the designer's address at /q/<link>.
+        quote: path.resolve(import.meta.dirname, 'quote.html'),
       },
     },
   },

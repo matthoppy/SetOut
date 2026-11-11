@@ -10,9 +10,10 @@
 import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type PanelSpec } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
-import { bytes, humanise, layoutName, STAGE_NAMES, when, whenExactly } from '../lib/format';
+import { bytes, humanise, layoutName, money, STAGE_NAMES, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
-import { Link } from '../lib/router';
+import { go, Link } from '../lib/router';
+import { QuoteStatusPill } from './QuotePage';
 import { Problem, Section, StagePill } from './parts';
 
 export function Job({ id }: { id: string }) {
@@ -102,6 +103,30 @@ export function Job({ id }: { id: string }) {
         ) : null
       )}
 
+      <Section title="Quotes">
+        {detail.quotes.length > 0 && (
+          <ul className="mb-3 divide-y divide-rule rounded-lg border border-rule bg-surface text-sm">
+            {detail.quotes.map((q) => (
+              <li key={q.id}>
+                <Link to={`/jobs/${detail.job.id}/quotes/${q.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-ground/60">
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium">Quote {q.number}</span>
+                    <QuoteStatusPill status={q.status} />
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-semibold tabular-nums">{money(q.totalPence, q.currency)}</span>
+                    <span className="block text-xs text-quiet">
+                      {q.acceptedAt ? `Accepted ${when(q.acceptedAt)}` : q.sentAt ? `Sent ${when(q.sentAt)}` : `Written ${when(q.createdAt)}`}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <WriteQuote jobId={detail.job.id} />
+      </Section>
+
       {earlier.length > 0 && (
         <Section title="Earlier drawings">
           <details className="rounded-lg border border-rule bg-surface p-3 text-sm">
@@ -163,6 +188,33 @@ export function Job({ id }: { id: string }) {
         <NoteForm jobId={detail.job.id} onAdded={job.reload} />
       </Section>
     </article>
+  );
+}
+
+/** Start a new quote, filled in from the showers as they stand, and open it. */
+function WriteQuote({ jobId }: { jobId: string }) {
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const write = async () => {
+    setState({ busy: true, error: null });
+    try {
+      const made = await api.writeQuote(jobId);
+      go(`/jobs/${jobId}/quotes/${made.id}`);
+    } catch (error) {
+      if (error instanceof SignedOut) return signInAgain();
+      setState({ busy: false, error: error instanceof ApiError ? error.message : 'The quote could not be started.' });
+    }
+  };
+  return (
+    <div>
+      <button type="button" onClick={write} disabled={state.busy} className="h-10 rounded-md bg-accent px-4 text-sm font-semibold text-accent-ink disabled:opacity-60">
+        {state.busy ? 'Writing the quote' : 'Write a quote'}
+      </button>
+      {state.error && (
+        <p role="alert" className="mt-2 text-sm text-bad">
+          {state.error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -516,6 +568,8 @@ function describe(event: JobEvent): string {
       return said.join(' ');
     }
     case 'email_sent':
+      if (d.what === 'quote') return `Quote ${String(d.number)} emailed to the customer.`;
+      if (d.what === 'quote_accepted') return `The team was emailed that quote ${String(d.number)} was accepted.`;
       return `Emailed to ${WHO[String(d.to)] ?? String(d.to)}.`;
     case 'email_failed':
       return `The email to ${WHO[String(d.to)] ?? String(d.to)} failed: ${String(d.reason ?? 'no reason given')}`;
@@ -525,6 +579,16 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} moved it from ${STAGE_NAMES[d.from as Stage] ?? String(d.from)} to ${STAGE_NAMES[d.to as Stage] ?? String(d.to)}.`;
     case 'note':
       return String(d.text ?? '');
+    case 'quote_sent':
+      return `${who ?? 'Someone'} sent quote ${String(d.number)} for ${money(Number(d.totalPence ?? 0), String(d.currency ?? 'GBP'))}.${
+        typeof d.to === 'string' && d.to ? ` The job moved to ${STAGE_NAMES[d.to as Stage] ?? d.to}.` : ''
+      }`;
+    case 'quote_accepted':
+      return `${String(d.name ?? 'The customer')} accepted quote ${String(d.number)} for ${money(Number(d.totalPence ?? 0), String(d.currency ?? 'GBP'))}.${
+        typeof d.to === 'string' && d.to ? ` The job moved to ${STAGE_NAMES[d.to as Stage] ?? d.to}.` : ''
+      }`;
+    case 'quote_withdrawn':
+      return `${who ?? 'Someone'} withdrew quote ${String(d.number)}.`;
     case 'revision_saved':
       return `${who ?? 'Someone'} saved revision ${String(d.revision)} of ${named(d.label) ?? 'the shower'}${typeof d.reason === 'string' && d.reason ? `: ${d.reason}` : '.'}`;
     case 'revision_checked':

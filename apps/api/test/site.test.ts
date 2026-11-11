@@ -71,6 +71,16 @@ describe('the designer’s address', () => {
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
+  test('serves a customer’s quote, never framed, never cached, never passed on', async () => {
+    const response = await get(`${DESIGNER}/q/qt_abcdefghijkmnpqrstuvwxyz23456789`);
+    expect(response.status).toBe(200);
+    expect(await title(response)).toBe('quote');
+    expect(response.headers.get('content-security-policy')).toBe("frame-ancestors 'none'");
+    expect(response.headers.get('x-frame-options')).toBe('DENY');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+
   test('answers the designer’s own routes and the health check', async () => {
     expect((await get(`${DESIGNER}/api/designer/config?key=${liveKey}`)).status).toBe(200);
     expect((await get(`${DESIGNER}/api/health`)).status).toBe(200);
@@ -96,7 +106,7 @@ describe('the workspace’s address', () => {
   });
 
   test('has no designer, no embed script and no designer routes', async () => {
-    for (const path of ['/designer', '/designer/', `/designer/?key=${liveKey}`, '/embed.js', '/designer/embed.js']) {
+    for (const path of ['/designer', '/designer/', `/designer/?key=${liveKey}`, '/embed.js', '/designer/embed.js', '/q/qt_abcdefghijkmnpqrstuvwxyz23456789']) {
       const response = await get(APP + path);
       expect(response.status, path).toBe(404);
       expect(await response.text(), path).toBe('Not found');
@@ -133,6 +143,7 @@ describe('one address for both, as on staging', () => {
     expect(await title(await get(`${BOTH}/`))).toBe('workspace');
     expect(await title(await get(`${BOTH}/jobs/12`))).toBe('workspace');
     expect(await title(await get(`${BOTH}/edit/job_1/dsg_1`))).toBe('editor');
+    expect(await title(await get(`${BOTH}/q/qt_abcdefghijkmnpqrstuvwxyz23456789`))).toBe('quote');
     expect((await get(`${BOTH}/designer/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/api/designer/config?key=${testKey}`)).status).toBe(200);

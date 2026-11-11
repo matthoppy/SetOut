@@ -49,6 +49,13 @@ export function humanise(id: string | null | undefined): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** "£1,234.50". */
+export function money(pence: number, currency = 'GBP'): string {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(pence / 100);
+}
+
+export const UNIT_NAMES: Record<string, string> = { each: 'each', m2: 'm²', m: 'm', set: 'set', job: 'job' };
+
 export function bytes(size: number): string {
   if (size < 1024) return `${size} bytes`;
   if (size < 1024 * 1024) return `${Math.round(size / 1024)}KB`;

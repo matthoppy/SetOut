@@ -118,12 +118,66 @@ export interface Revision {
   created_at: string;
 }
 
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'withdrawn';
+export type QuoteUnit = 'each' | 'm2' | 'm' | 'set' | 'job';
+
+export interface QuoteSummary {
+  id: string;
+  number: number;
+  status: QuoteStatus;
+  totalPence: number;
+  currency: string;
+  createdAt: string;
+  sentAt: string | null;
+  validUntil: string | null;
+  acceptedAt: string | null;
+  acceptedName: string | null;
+}
+
+export interface QuoteLine {
+  key: string | null;
+  description: string;
+  quantity: number;
+  unit: QuoteUnit;
+  unitPricePence: number;
+  totalPence?: number;
+}
+
+export interface Quote {
+  id: string;
+  job_id: string;
+  number: number;
+  status: QuoteStatus;
+  lines: QuoteLine[];
+  note: string | null;
+  currency: string;
+  vat_rate_bp: number;
+  subtotal_pence: number;
+  vat_pence: number;
+  total_pence: number;
+  valid_days: number;
+  valid_until: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  accepted_name: string | null;
+  created_at: string;
+}
+
+export interface QuoteDetail {
+  quote: Quote;
+  job: { id: string; reference: string; stage: Stage } | null;
+  customer: { name: string; email: string | null } | null;
+  /** What stands in the way of sending a draft, if anything. */
+  blocker: { error: string; message: string } | null;
+}
+
 export interface JobDetail {
   job: { id: string; reference: string; stage: Stage; created_at: string; updated_at: string; site_postcode: string | null };
   customer: { name: string; email: string | null; phone: string | null; postcode: string | null; address: string | null } | null;
   designs: { id: string; label: string; position: number; current_revision: number; revision: Revision | null }[];
   files: JobFile[];
   events: JobEvent[];
+  quotes: QuoteSummary[];
 }
 
 export type Role = 'owner' | 'staff';
@@ -175,6 +229,17 @@ export const api = {
     send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { revision }),
   uncheck: (jobId: string, designId: string) =>
     call<{ ok: true }>(`/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { method: 'DELETE' }),
+  writeQuote: (jobId: string) => send<{ ok: true; id: string; number: number }>('POST', `/jobs/${encodeURIComponent(jobId)}/quotes`, {}),
+  quote: (jobId: string, quoteId: string, signal?: AbortSignal) =>
+    call<QuoteDetail>(`/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}`, { signal }),
+  saveQuote: (jobId: string, quoteId: string, changes: { lines?: QuoteLine[]; note?: string | null; vatRateBp?: number; validDays?: number }) =>
+    send<{ ok: true; quote: Quote }>('PATCH', `/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}`, changes),
+  deleteQuote: (jobId: string, quoteId: string) =>
+    call<{ ok: true }>(`/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}`, { method: 'DELETE' }),
+  sendQuote: (jobId: string, quoteId: string) =>
+    send<{ ok: true; quote: Quote; link: string; emailed: boolean }>('POST', `/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}/send`, {}),
+  withdrawQuote: (jobId: string, quoteId: string) =>
+    send<{ ok: true; quote: Quote }>('POST', `/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}/withdraw`, {}),
   team: (signal?: AbortSignal) => call<Team>('/team', { signal }),
   addToTeam: (person: { email: string; name: string; role: Role }) =>
     send<{ ok: true; member: TeamMember; emailed: boolean }>('POST', '/team', person),
