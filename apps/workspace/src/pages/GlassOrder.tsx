@@ -193,7 +193,7 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
                   {s.pane.features.length ? (
                     <ul>
                       {s.pane.features.map((f, j) => (
-                        <li key={j}>{describeFeature(f)}</li>
+                        <li key={j}>{describeFeature(f, s.pane)}</li>
                       ))}
                     </ul>
                   ) : (

@@ -542,7 +542,7 @@ function PanelRow({ panel, pane }: { panel: PanelSpec; pane: Pane }) {
         {pane.shaped && <p className="mt-0.5 text-xs font-semibold text-warn">Cut to shape: see the glass order for its corners</p>}
         {pane.features.map((f, i) => (
           <p key={i} className="mt-0.5 text-xs text-quiet">
-            {describeFeature(f)}
+            {describeFeature(f, pane)}
           </p>
         ))}
       </div>

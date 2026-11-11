@@ -1,8 +1,13 @@
 /**
  * One pane, drawn for the toughener the way Matt's own glass orders are: to
  * scale, every edge dimensioned and marked FP, each hinge notch, handle hole
- * and corner notch on its stated edge with its distance from the nearer end,
- * a letter for its template, and where the toughening stamp goes.
+ * and corner notch on its stated edge, a letter for its template, where the
+ * toughening stamp goes, and on a pane cut to shape a small square in each
+ * corner that is still square.
+ *
+ * Measured as the orders measure them: a hinge notch from the nearer end of
+ * its edge to the notch's near edge; a hole from the bottom to its centre,
+ * and a pull handle's second hole from the first.
  *
  * Drawn as seen from outside the shower. Nothing on it is worked out here:
  * every size and position comes from the engine's panes.
@@ -15,10 +20,8 @@ export const TEMPLATES: Record<string, { letter: string; name: string }> = {
   'door-hinge': { letter: 'A', name: 'Door hinge notch' },
   'fixed-hinge': { letter: 'B', name: 'Mating hinge notch' },
   handle: { letter: 'C', name: 'Handle holes' },
+  knob: { letter: 'D', name: 'Knob hole' },
 };
-
-/** Where the toughening stamp sits in its corner. */
-export const STAMP = { fromSideMm: 59, fromBottomMm: 5 };
 
 const BOX = { width: 640, height: 820 };
 const MARGIN = { left: 90, right: 90, top: 70, bottom: 90 };
@@ -65,16 +68,58 @@ export function PaneDrawing({ pane, edgework = 'FP' }: { pane: Pane; edgework?: 
       {/* Edgework, on every edge. */}
       <EdgeLabel x={(at(tl).X + at(tr).X) / 2} y={(at(tl).Y + at(tr).Y) / 2 + 16} text={edgework} />
       <EdgeLabel x={(at(bl).X + at(br).X) / 2} y={(at(bl).Y + at(br).Y) / 2 - 8} text={edgework} />
-      <EdgeLabel x={(at(bl).X + at(tl).X) / 2 + 18} y={(at(bl).Y + at(tl).Y) / 2} text={edgework} />
-      <EdgeLabel x={(at(br).X + at(tr).X) / 2 - 18} y={(at(br).Y + at(tr).Y) / 2} text={edgework} />
+      {/* A third of the way down each side: clear of the hinges near the ends and a handle in the middle. */}
+      <EdgeLabel x={at(tl).X + (at(bl).X - at(tl).X) * 0.35 + 18} y={at(tl).Y + (at(bl).Y - at(tl).Y) * 0.35} text={edgework} />
+      <EdgeLabel x={at(tr).X + (at(br).X - at(tr).X) * 0.35 - 18} y={at(tr).Y + (at(br).Y - at(tr).Y) * 0.35} text={edgework} />
+
+      {/* A small square in each corner that is still square, on a pane cut to shape. */}
+      {pane.shaped && <SquareCorners pane={pane} at={at} />}
 
       {pane.features.map((f, i) => (
-        <Feature key={i} feature={f} scale={scale} at={at} edge={edge} x0={x0} w={w} />
+        <Feature key={i} feature={f} below={below(pane, f)} scale={scale} at={at} edge={edge} x0={x0} w={w} />
       ))}
 
       {/* The toughening stamp. */}
-      <Stamp corner={pane.stamp} at={at(pane.stamp === 'bottom-left' ? bl : br)} scale={scale} y0={y0} h={h} />
+      <Stamp stamp={pane.stamp} at={at(pane.stamp.corner === 'bottom-left' ? bl : br)} scale={scale} y0={y0} h={h} />
     </svg>
+  );
+}
+
+/** A pull handle's hole above another is measured from it, as the orders do: the pair's spacing. */
+function below(pane: Pane, f: PaneFeature): number | null {
+  if (f.kind !== 'hole' || f.template !== 'handle') return null;
+  const lower = pane.features
+    .filter((g): g is Extract<PaneFeature, { kind: 'hole' }> => g.kind === 'hole' && g.template === 'handle' && g.side === f.side && g.centreMm < f.centreMm)
+    .sort((a, b) => b.centreMm - a.centreMm)[0];
+  return lower ? lower.centreMm : null;
+}
+
+/** The corners of a shape whose two edges meet square, each marked with a small square. */
+function SquareCorners({ pane, at }: { pane: Pane; at: At }) {
+  const { bottomLeft: bl, bottomRight: br, topRight: tr, topLeft: tl } = pane.outline;
+  const ring = [bl, br, tr, tl];
+  const marks: string[] = [];
+  ring.forEach((c, i) => {
+    const a = ring[(i + 1) % 4];
+    const b = ring[(i + 3) % 4];
+    const square = (a.x - c.x) * (b.x - c.x) + (a.y - c.y) * (b.y - c.y) === 0;
+    if (!square) return;
+    const C = at(c);
+    const unit = (p: { x: number; y: number }) => {
+      const P = at(p);
+      const len = Math.hypot(P.X - C.X, P.Y - C.Y) || 1;
+      return { X: ((P.X - C.X) / len) * 9, Y: ((P.Y - C.Y) / len) * 9 };
+    };
+    const u = unit(a);
+    const v = unit(b);
+    marks.push([C, { X: C.X + u.X, Y: C.Y + u.Y }, { X: C.X + u.X + v.X, Y: C.Y + u.Y + v.Y }, { X: C.X + v.X, Y: C.Y + v.Y }].map((p) => `${p.X},${p.Y}`).join(' '));
+  });
+  return (
+    <g>
+      {marks.map((points) => (
+        <polygon key={points} points={points} fill="none" stroke={INK} strokeWidth="1" />
+      ))}
+    </g>
   );
 }
 
@@ -140,26 +185,48 @@ function onEdge(e: { bottom: { x: number; y: number }; top: { x: number; y: numb
   return { x: e.bottom.x + ((e.top.x - e.bottom.x) * up) / rise, y: e.bottom.y + up };
 }
 
-/** A short dimension from the nearer end of its edge to a cut-out's centre, beside that edge. */
-function FromEnd({ side, centre, edge, at, x0, w }: { side: 'left' | 'right'; centre: number; edge: Edge; at: At; x0: number; w: number }) {
+/** Where a cut-out is measured to, as the orders measure it, and from where. */
+export function placing(
+  edgeLengthMm: number,
+  f: Exclude<PaneFeature, { kind: 'corner' }>
+): { from: 'top' | 'bottom'; to: 'edge' | 'centre'; distanceMm: number; atMm: number } {
+  const round = (v: number) => Math.round(v * 10) / 10;
+  if (f.kind === 'notch') {
+    // From the nearer end of the edge to the notch's near edge.
+    const half = f.heightMm / 2;
+    const fromTop = edgeLengthMm - f.centreMm < f.centreMm;
+    const atMm = fromTop ? f.centreMm + half : f.centreMm - half;
+    return { from: fromTop ? 'top' : 'bottom', to: 'edge', distanceMm: round(fromTop ? edgeLengthMm - atMm : atMm), atMm };
+  }
+  // A hole from the bottom to its centre.
+  return { from: 'bottom', to: 'centre', distanceMm: round(f.centreMm), atMm: f.centreMm };
+}
+
+/** A short dimension beside an edge, between two heights on it, in mm up from its bottom corner. */
+function Along({ side, fromMm, toMm, label, edge, at, x0, w, offset = 22 }: { side: 'left' | 'right'; fromMm: number; toMm: number; label: number; edge: Edge; at: At; x0: number; w: number; offset?: number }) {
   const e = edge(side);
-  const length = e.top.y - e.bottom.y;
-  const fromTop = length - centre < centre;
-  const distance = Math.round((fromTop ? length - centre : centre) * 10) / 10;
-  const x = side === 'left' ? x0 - 22 : x0 + w + 22;
-  const yEnd = at(fromTop ? e.top : e.bottom).Y;
-  const yCentre = at(onEdge(e, centre)).Y;
+  const x = side === 'left' ? x0 - offset : x0 + w + offset;
+  const y1 = at(onEdge(e, fromMm)).Y;
+  const y2 = at(onEdge(e, toMm)).Y;
   return (
     <g>
-      <line x1={x} y1={yEnd} x2={x} y2={yCentre} stroke={DIM} strokeWidth="0.9" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
-      <text x={x - 5} y={(yEnd + yCentre) / 2} fontSize="12" textAnchor="middle" transform={`rotate(-90 ${x - 5} ${(yEnd + yCentre) / 2})`} fill={INK}>
-        {distance}
+      <line x1={x} y1={y1} x2={x} y2={y2} stroke={DIM} strokeWidth="0.9" markerStart="url(#arrow)" markerEnd="url(#arrow)" />
+      <text x={x - 5} y={(y1 + y2) / 2} fontSize="12" textAnchor="middle" transform={`rotate(-90 ${x - 5} ${(y1 + y2) / 2})`} fill={INK}>
+        {label}
       </text>
     </g>
   );
 }
 
-function Feature({ feature: f, scale, at, edge, x0, w }: { feature: PaneFeature; scale: number; at: At; edge: Edge; x0: number; w: number }) {
+/** A cut-out's place: from the nearer end to a notch's near edge, or from the bottom to a hole. */
+function FromEnd({ feature, edge, at, x0, w }: { feature: Exclude<PaneFeature, { kind: 'corner' }>; edge: Edge; at: At; x0: number; w: number }) {
+  const e = edge(feature.side);
+  const length = e.top.y - e.bottom.y;
+  const p = placing(length, feature);
+  return <Along side={feature.side} fromMm={p.from === 'top' ? length : 0} toMm={p.atMm} label={p.distanceMm} edge={edge} at={at} x0={x0} w={w} />;
+}
+
+function Feature({ feature: f, below, scale, at, edge, x0, w }: { feature: PaneFeature; below: number | null; scale: number; at: At; edge: Edge; x0: number; w: number }) {
   if (f.kind === 'corner') {
     const e = edge(f.corner === 'bottom-left' ? 'left' : 'right');
     const c = at(e.bottom);
@@ -189,7 +256,7 @@ function Feature({ feature: f, scale, at, edge, x0, w }: { feature: PaneFeature;
         <text x={f.side === 'left' ? point.X + depth + 6 : point.X - depth - 6} y={point.Y + 4} fontSize="13" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
           {template.letter}
         </text>
-        <FromEnd side={f.side} centre={f.centreMm} edge={edge} at={at} x0={x0} w={w} />
+        <FromEnd feature={f} edge={edge} at={at} x0={x0} w={w} />
       </g>
     );
   }
@@ -207,22 +274,27 @@ function Feature({ feature: f, scale, at, edge, x0, w }: { feature: PaneFeature;
       <text x={f.side === 'left' ? cx + r + 5 : cx - r - 5} y={cy + 4} fontSize="12" fontWeight="700" textAnchor={f.side === 'left' ? 'start' : 'end'} fill={INK}>
         {template.letter}
       </text>
-      <FromEnd side={f.side} centre={f.centreMm} edge={edge} at={at} x0={x0} w={w} />
+      {below === null ? (
+        <FromEnd feature={f} edge={edge} at={at} x0={x0} w={w} />
+      ) : (
+        <Along side={f.side} fromMm={below} toMm={f.centreMm} label={Math.round((f.centreMm - below) * 10) / 10} edge={edge} at={at} x0={x0} w={w} />
+      )}
     </g>
   );
 }
 
-function Stamp({ corner, at, scale, y0, h }: { corner: 'bottom-left' | 'bottom-right'; at: { X: number; Y: number }; scale: number; y0: number; h: number }) {
-  const inX = Math.max(STAMP.fromSideMm * scale, 14);
+function Stamp({ stamp, at, scale, y0, h }: { stamp: Pane['stamp']; at: { X: number; Y: number }; scale: number; y0: number; h: number }) {
+  const { corner } = stamp;
+  const inX = Math.max(stamp.inMm * scale, 14);
   const x = corner === 'bottom-left' ? at.X + inX : at.X - inX;
-  const y = at.Y - Math.max(STAMP.fromBottomMm * scale, 6);
+  const y = at.Y - Math.max(stamp.upMm * scale, 6);
   return (
     <g>
       <text x={x} y={y - 4} fontSize="12" fontStyle="italic" fontWeight="700" textAnchor={corner === 'bottom-left' ? 'start' : 'end'} fill={INK}>
         TGS
       </text>
       <text x={at.X} y={y0 + h + 16} fontSize="10" textAnchor={corner === 'bottom-left' ? 'start' : 'end'} fill={DIM}>
-        stamp {STAMP.fromSideMm} in, {STAMP.fromBottomMm} up
+        stamp {stamp.inMm} in, {stamp.upMm} up
       </text>
     </g>
   );
@@ -260,7 +332,7 @@ export function TemplateDrawing({ template, feature }: { template: string; featu
             {feature.heightMm} high
           </text>
           <text x={40 + d / 2} y={hh + 64} fontSize="12" textAnchor="middle" fill={INK}>
-            corners r{feature.radiusMm}, centred on the height given
+            corners r{feature.radiusMm}; placed by its near edge
           </text>
         </svg>
       </figure>
@@ -273,7 +345,9 @@ export function TemplateDrawing({ template, feature }: { template: string; featu
           Template {t.letter}: {t.name}
         </figcaption>
         <p className="mt-1 text-sm">
-          Ø{feature.diameterMm}mm holes through the glass, each centred {feature.insetMm}mm in from the edge, at the heights given on the pane.
+          {feature.template === 'knob'
+            ? `One Ø${feature.diameterMm}mm hole through the glass, centred ${feature.insetMm}mm in from the edge, at the height given on the pane.`
+            : `Ø${feature.diameterMm}mm holes through the glass, each centred ${feature.insetMm}mm in from the edge, at the heights given on the pane.`}
         </p>
       </figure>
     );

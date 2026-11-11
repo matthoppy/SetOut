@@ -148,6 +148,17 @@ export interface FixedRules {
     /** A handle nearer than this to a hinge notch is flagged. */
     hingeClearanceMm: number;
   };
+  /**
+   * [OURS] Where the toughening stamp goes, as on Custom Showers' own glass
+   * orders (November 2026): a bottom corner, this far up, and this far in from
+   * the side. A fixed panel has it away from its hinges; a door on its hinge
+   * side.
+   */
+  stamp: {
+    upMm: number;
+    fixedInMm: number;
+    doorInMm: number;
+  };
   /** [CONFIRMED] Cutout sizes for the hardware. The toughener rejects sharper shapes. */
   cutouts: {
     /** Edge notch in the door leaf for a glass hinge. */
@@ -262,6 +273,7 @@ export const FIXED_RULES: FixedRules = {
     knobHalfSpanMm: 25,
     hingeClearanceMm: 50,
   },
+  stamp: { upMm: 5, fixedInMm: 59, doorInMm: 50 },
   cutouts: {
     doorHingeNotch: { widthMm: 58, heightMm: 47, radiusMm: 8 },
     fixedHingeNotch: { widthMm: 52, heightMm: 33, radiusMm: 8 },

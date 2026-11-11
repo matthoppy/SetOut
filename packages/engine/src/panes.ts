@@ -1,6 +1,7 @@
 /**
  * Each pane of a shower as the toughener draws it: its size, exactly where
- * every notch and hole is on it, and which corner takes the toughening stamp.
+ * every notch and hole is on it (a pull handle's pair, or a knob's one), and
+ * which corner takes the toughening stamp.
  *
  * Every position is on a stated edge, seen from outside the shower, the way
  * the elevation is drawn: a pane's left edge is on your left as you face it
@@ -38,10 +39,10 @@ export interface PaneNotch {
   radiusMm: number;
 }
 
-/** A hole through the glass, for a handle. */
+/** A hole through the glass: a pair for a pull handle, or one for a knob. */
 export interface PaneHole {
   kind: 'hole';
-  template: 'handle';
+  template: 'handle' | 'knob';
   side: PaneSide;
   /** Its centre, up from the bottom edge. */
   centreMm: number;
@@ -74,8 +75,18 @@ export interface Pane {
   shaped: boolean;
   /** Each cut-out's centre is up from the bottom corner of the edge it is on. */
   features: PaneFeature[];
-  /** Where the toughening stamp goes: a bottom corner, away from the hinges. */
-  stamp: PaneCorner;
+  /**
+   * Where the toughening stamp goes: a bottom corner, so far in from its side
+   * and up from the bottom. Away from the hinges on a fixed panel, on the
+   * hinge side of a door, as Custom Showers' own orders have it.
+   */
+  stamp: PaneStamp;
+}
+
+export interface PaneStamp {
+  corner: PaneCorner;
+  inMm: number;
+  upMm: number;
 }
 
 const other = (side: PaneSide): PaneSide => (side === 'left' ? 'right' : 'left');
@@ -87,7 +98,7 @@ const other = (side: PaneSide): PaneSide => (side === 'left' ? 'right' : 'left')
 export function panesOf(
   design: ConfiguratorState,
   spec: ConfiguratorSpec,
-  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'hinges' | 'glassDensityKgPerM2PerMm'>
+  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'hinges' | 'stamp' | 'glassDensityKgPerM2PerMm'>
 ): Pane[] {
   const shapes = shapesOf(design, spec, fixed);
   const panes: Pane[] = spec.panels.map((panel, i) => ({
@@ -105,7 +116,7 @@ export function panesOf(
       widthMm: n.widthMm,
       heightMm: n.heightMm,
     })),
-    stamp: 'bottom-right',
+    stamp: { corner: 'bottom-right' as PaneCorner, inMm: fixed.stamp.fixedInMm, upMm: fixed.stamp.upMm },
   }));
   // The side each pane's hinges are on, if it has any, for where its stamp goes.
   const hingeSide = new Map<number, PaneSide>();
@@ -137,6 +148,16 @@ export function panesOf(
           diameterMm: fixed.handle.holeDiameterMm,
         });
       }
+    } else {
+      // A knob goes through one hole, at its own height whatever the door.
+      pane.features.push({
+        kind: 'hole',
+        template: 'knob',
+        side: other(door.hingeSide),
+        centreMm: door.handlePlacement.handleHeight,
+        insetMm: fixed.handle.holeInsetMm,
+        diameterMm: fixed.handle.holeDiameterMm,
+      });
     }
 
     // The fixed panel the door hangs from takes a mating notch on the edge
@@ -172,13 +193,21 @@ export function panesOf(
     }
   });
 
-  // The stamp goes in the bottom corner away from the hinges, unless a
-  // corner notch is there and the other corner is clear.
+  // The stamp goes in a bottom corner: away from the hinges on a fixed
+  // panel, on the hinge side of a door, as Custom Showers' own orders have
+  // it. A corner notch there moves it to the other corner, if that is clear.
   panes.forEach((pane, i) => {
-    const away: PaneCorner = hingeSide.get(i) === 'right' ? 'bottom-left' : 'bottom-right';
+    const door = spec.panels[i]?.door;
+    const side = hingeSide.get(i);
+    const onLeft = door ? side === 'left' : side === 'right';
+    const first: PaneCorner = onLeft ? 'bottom-left' : 'bottom-right';
+    const second: PaneCorner = first === 'bottom-right' ? 'bottom-left' : 'bottom-right';
     const notched = (c: PaneCorner) => pane.features.some((f) => f.kind === 'corner' && f.corner === c);
-    const near: PaneCorner = away === 'bottom-right' ? 'bottom-left' : 'bottom-right';
-    pane.stamp = notched(away) && !notched(near) ? near : away;
+    pane.stamp = {
+      corner: notched(first) && !notched(second) ? second : first,
+      inMm: door ? fixed.stamp.doorInMm : fixed.stamp.fixedInMm,
+      upMm: fixed.stamp.upMm,
+    };
     pane.features.sort((a, b) => order(a) - order(b));
   });
   return panes;

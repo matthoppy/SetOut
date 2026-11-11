@@ -280,7 +280,7 @@ function Workings({ pane }: { pane: Pane }) {
   return (
     <ul className="space-y-0.5">
       {pane.features.map((f, i) => (
-        <li key={i}>{describeFeature(f)}</li>
+        <li key={i}>{describeFeature(f, pane)}</li>
       ))}
     </ul>
   );

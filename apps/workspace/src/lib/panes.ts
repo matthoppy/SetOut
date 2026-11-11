@@ -18,7 +18,7 @@ import {
   type PaneFeature,
   type SetOut,
 } from '@setout/engine';
-import { TEMPLATES } from '../pages/PaneDrawing';
+import { placing, TEMPLATES } from '../pages/PaneDrawing';
 
 export function panes(design: ConfiguratorState, spec: ConfiguratorSpec): Pane[] {
   return panesOf(design, spec, DEFAULT_RULESET.fixed);
@@ -36,10 +36,19 @@ export function fittings(design: ConfiguratorState, spec: ConfiguratorSpec): Fit
 
 const CORNER = { 'bottom-left': 'bottom left corner', 'bottom-right': 'bottom right corner' } as const;
 
-/** A cut-out in words, with its edge as seen from outside the shower. */
-export function describeFeature(f: PaneFeature): string {
+/**
+ * A cut-out in words, with its edge as seen from outside the shower, placed
+ * as the toughener's orders place it: a notch by its near edge from the nearer
+ * end, a hole by its centre from the bottom.
+ */
+export function describeFeature(f: PaneFeature, pane: Pane): string {
   if (f.kind === 'corner') return `Notch, ${CORNER[f.corner]}: ${f.widthMm} wide × ${f.heightMm} high`;
   const t = TEMPLATES[f.template];
-  if (f.kind === 'notch') return `${t.letter}: ${t.name}, ${f.depthMm} deep × ${f.heightMm} high, r${f.radiusMm}, ${f.side} edge, centre ${f.centreMm}mm up`;
-  return `${t.letter}: Ø${f.diameterMm} hole, ${f.insetMm}mm in from the ${f.side} edge, centre ${f.centreMm}mm up`;
+  const { bottomLeft, bottomRight, topLeft, topRight } = pane.outline;
+  const length = f.side === 'left' ? topLeft.y - bottomLeft.y : topRight.y - bottomRight.y;
+  const p = placing(length, f);
+  if (f.kind === 'notch') {
+    return `${t.letter}: ${t.name}, ${f.depthMm} deep × ${f.heightMm} high, r${f.radiusMm}, ${f.side} edge, ${p.distanceMm}mm from the ${p.from} to its ${p.from === 'top' ? 'upper' : 'lower'} edge`;
+  }
+  return `${t.letter}: Ø${f.diameterMm} hole, ${f.insetMm}mm in from the ${f.side} edge, centre ${p.distanceMm}mm up`;
 }

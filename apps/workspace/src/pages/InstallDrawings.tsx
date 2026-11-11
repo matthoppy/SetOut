@@ -235,7 +235,7 @@ function RunElevation({
                   const hole = panes[i].features.find((f) => f.kind === 'hole');
                   const inset = (door.hingeSide === 'left' ? -1 : 1) * Math.max((hole?.kind === 'hole' ? hole.insetMm : 0) * s, 5);
                   const hx = X(r, latch) + inset;
-                  const isKnob = !hole;
+                  const isKnob = !hole || (hole.kind === 'hole' && hole.template === 'knob');
                   if (isKnob) return <circle cx={hx} cy={Y(panel.deductions.vertical.bottom + door.handlePlacement.handleHeight)} r="3" fill={INK} />;
                   return (
                     <line
