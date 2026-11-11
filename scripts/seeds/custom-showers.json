@@ -1,0 +1,34 @@
+{
+  "name": "Custom Showers",
+  "referencePrefix": "CS",
+  "branding": { "primary": "#1e293b", "primaryForeground": "#ffffff" },
+  "designer": {
+    "name": "customshowers.uk",
+    "allowedOrigins": ["https://customshowers.uk", "https://www.customshowers.uk"],
+    "settings": {
+      "finishes": [
+        { "id": "chrome", "label": "Polished chrome", "swatch": "#d4d8db" },
+        { "id": "satin-chrome", "label": "Satin chrome", "swatch": "#b8bcbf" },
+        { "id": "brushed-nickel", "label": "Brushed nickel", "swatch": "#b0aaa2" },
+        { "id": "polished-nickel", "label": "Polished nickel", "swatch": "#c8ccc9" },
+        { "id": "satin-nickel", "label": "Satin nickel", "swatch": "#b6b2ab" },
+        { "id": "matte-black", "label": "Matte black", "swatch": "#1c1c1c" },
+        { "id": "gun-metal", "label": "Gun metal", "swatch": "#4a4f54" },
+        { "id": "polished-brass", "label": "Polished brass", "swatch": "#c9a545" },
+        { "id": "satin-brass", "label": "Satin brass", "swatch": "#b5a26a" },
+        { "id": "unlacquered-brass", "label": "Unlacquered brass", "swatch": "#b08d3f" },
+        { "id": "antic-brass", "label": "Antique brass", "swatch": "#8a6d3b" },
+        { "id": "gold", "label": "Brushed gold", "swatch": "#c0a062" },
+        { "id": "brushed-bronze", "label": "Brushed bronze", "swatch": "#7a5c43" },
+        { "id": "oil-rubbed-bronze", "label": "Oil rubbed bronze", "swatch": "#3d2f27" }
+      ],
+      "handles": [
+        { "id": "pull", "label": "Pull handle", "description": "Back-to-back bar handle, 203mm centres." },
+        { "id": "knob", "label": "Knob", "description": "Single round knob, centred at 950mm." }
+      ],
+      "glassThicknessMm": 10,
+      "measurementDisclaimer": "I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.",
+      "intro": "Design your enclosure and send the measurements straight to our workshop."
+    }
+  }
+}

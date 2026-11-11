@@ -8,6 +8,7 @@
 
 import { newId, nowIso } from '../lib/ids';
 import { DataError, type CompanyRecord } from './company-db';
+import type { DesignerRow } from './tables';
 
 export interface NewCompany {
   name: string;
@@ -57,3 +58,57 @@ export async function databaseStatus(env: Pick<Env, 'DB'>): Promise<DatabaseStat
     return { ok: false, migrations: 0 };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Designers
+// ---------------------------------------------------------------------------
+
+/**
+ * A new site key: the public name of one embedded designer. It is safe to
+ * publish. It says which company a designer belongs to and nothing more.
+ */
+export function newSiteKey(kind: 'live' | 'test'): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let key = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(24))) key += alphabet[byte & 31];
+  return `pk_${kind}_${key}`;
+}
+
+/** Who a site key belongs to. */
+export interface ResolvedDesigner {
+  companyId: string;
+  designerId: string;
+}
+
+/**
+ * Find the company behind a site key.
+ *
+ * This is one of the two places a request is tied to a company, the other
+ * being a staff sign-in. Everything after it goes through companyDb with the
+ * company found here, never with anything else the request says.
+ *
+ * Null for a key that is unknown, or whose designer or company is not active.
+ */
+export async function resolveDesigner(env: Pick<Env, 'DB'>, siteKey: unknown): Promise<ResolvedDesigner | null> {
+  if (typeof siteKey !== 'string' || !/^pk_(live|test)_[a-z0-9]{16,40}$/.test(siteKey)) return null;
+  const row = await env.DB.prepare(
+    `SELECT d.company_id AS companyId, d.id AS designerId
+       FROM designers d JOIN companies c ON c.id = d.company_id
+      WHERE d.site_key = ? AND d.status = 'active' AND c.status = 'active'`
+  )
+    .bind(siteKey)
+    .first<ResolvedDesigner>();
+  return row ?? null;
+}
+
+/** What a designer row's config column holds. All of it is public. */
+export interface DesignerSettings {
+  finishes?: { id: string; label: string; swatch: string }[];
+  handles?: { id: string; label: string; description: string }[];
+  glassThicknessMm?: number;
+  measurementDisclaimer?: string;
+  intro?: string;
+  turnstileSiteKey?: string;
+}
+
+export type { DesignerRow };

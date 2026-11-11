@@ -10,7 +10,9 @@ There are two apps and one engine:
 
 ## Where it stands
 
-Step 0 of six is done: the foundations. The engine has moved across from the Custom Showers configurator with its rules passed in, the database and its company-scoped data layer exist, and one Worker serves the API and both app shells. The designer's and the workspace's real screens arrive in steps 1 and 2.
+Step 0 of six is done: the foundations. The engine has moved across from the Custom Showers configurator with its rules passed in, the database and its company-scoped data layer exist, and one Worker serves the API and both apps.
+
+Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. Still to come in step 1: the email a company receives, the card decks for every layout, the final dimensioned drawing, and the permanent address for the embed script.
 
 The plan, the data model and the decisions behind them are in [docs/architecture.md](docs/architecture.md).
 
@@ -37,6 +39,14 @@ npm run dev
 
 That builds both apps, creates a local database, and starts the Worker at http://localhost:8787. The workspace is at `/`, the designer at `/designer/`, and the health check at `/api/health`.
 
+With no site key the designer is a preview: everything works except sending. To send designs locally, add a company to the local database and open the designer with its key:
+
+```sh
+node scripts/seed-company.mjs scripts/seeds/custom-showers.json --notify you@example.com > seed.sql
+(cd apps/api && npx wrangler d1 execute DB --local --file ../../seed.sql)
+# then open http://localhost:8787/designer/?key=pk_test_... using the key printed at the top of seed.sql
+```
+
 To work on one app with live reload, keep that running and start the app beside it:
 
 ```sh
@@ -57,7 +67,7 @@ runs everything CI runs:
 | `npm run lint` | Code style, and two rules of the house: the engine uses nothing from the platform it runs on, and only `apps/api/src/db` touches the database. |
 | `npm run typecheck` | Every package compiles in strict mode. |
 | `npm run build` | Both apps build. |
-| `npm test` | The engine cuts 33 known designs to their known sizes. No company can read, change, delete or link to another company's rows. |
+| `npm test` | The engine cuts 33 known designs to their known sizes. No company can read, change, delete or link to another company's rows. A sent design is worked out again on the server and lands only in the company its site key belongs to. |
 
 ## Deploying
 

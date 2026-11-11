@@ -4,14 +4,15 @@
  * One Worker. It answers /api, and the built designer and workspace are
  * served beside it as files, so all three ship together with the same engine.
  *
- * Routes arrive with the steps that need them: designer routes in step 1,
- * workspace routes in step 2. Today there is the health check, which is what
- * a deploy is judged by.
+ * Routes arrive with the steps that need them. The designer's routes are
+ * here; the workspace's come in step 2. The health check is what a deploy is
+ * judged by.
  */
 
 import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
+import { designer } from './routes/designer';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -40,6 +41,8 @@ app.get('/api/health', async (c) => {
     { 'Cache-Control': 'no-store' }
   );
 });
+
+app.route('/api/designer', designer);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 

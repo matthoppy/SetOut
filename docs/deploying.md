@@ -26,9 +26,10 @@ The next push to `main` then deploys staging. To deploy without changing anythin
 ## What a staging deploy does
 
 1. Runs lint, typecheck, build and every test.
-2. Applies any new database migrations to the staging database.
-3. Publishes the Worker with both built apps, stamped with the commit.
-4. Asks the new deploy's `/api/health` whether it is the commit that was just sent, whether its engine cuts the known design to the known sizes, and whether it can reach its database. If any of that is wrong the run fails.
+2. Makes sure the bucket for drawings and photos exists, creating it in the EU the first time.
+3. Applies any new database migrations to the staging database.
+4. Publishes the Worker with both built apps, stamped with the commit.
+5. Asks the new deploy's `/api/health` whether it is the commit that was just sent, whether its engine cuts the known design to the known sizes, and whether it can reach its database. If any of that is wrong the run fails.
 
 The address is shown on the run, under the staging environment. Open it to see the same check in the browser: the workspace shell at `/` and the designer shell at `/designer/`.
 
@@ -78,9 +79,35 @@ npm run build
 node scripts/deploy.mjs staging
 ```
 
+## Adding a company
+
+Until the platform admin exists in step 4, a company and its first designer are added with a seed file. The script only prints SQL. You run what it prints against the database you mean.
+
+```sh
+node scripts/seed-company.mjs scripts/seeds/custom-showers.json --key live --notify sales@example.com > seed.sql
+cd apps/api
+npx wrangler d1 execute DB --env staging --remote --file ../../seed.sql
+```
+
+The site key is printed at the top of `seed.sql`. It is safe to publish: it is what goes in the embed code. Use `--key test` for staging and `--key live` for production. The notify address is given on the command line so that no inbox is committed to the repository.
+
+## Secrets
+
+Secrets are set per environment with `wrangler secret put`, or in the Cloudflare dashboard under the Worker's settings. They never go in `wrangler.jsonc`. Each is optional, and the code says what it does without it.
+
+| Secret | What it is for | Without it |
+| --- | --- | --- |
+| `TURNSTILE_SECRET_KEY` | Checking the bot check's token when a design is sent | Designs are accepted and marked as unchecked |
+| `RESEND_API_KEY` | Sending email | Nothing is emailed |
+
+```sh
+cd apps/api
+npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
+```
+
 ## Still to set up, with the step that needs it
 
-- **File storage (R2)**, for photos and drawings, in step 1. It has to be switched on in the Cloudflare dashboard, which asks for a payment card. The bucket should be created in the EU, like the databases.
 - **The paid Workers plan**, before real traffic. The free plan's limits are enough for staging.
-- **The product's own addresses**, once the domain is registered: one for the designer and one for the workspace.
-- **Secrets for email and bot checks**, in step 1. They are added with `wrangler secret put`, per environment, and never go in `wrangler.jsonc`.
+- **The product's own addresses**: one for the designer and one for the workspace, on the registered domain. The embed script's address is permanent once a company pastes it, so no company should be given the embed code until this is done.
+- **A bot check widget for SetOut's addresses.** Turnstile keys are tied to the addresses they run on, so the designer needs its own widget, with its site key in the designer's settings and its secret set as above.
+- **Which websites may show each designer.** The allowed websites are stored per designer. Enforcing them when the frame is served comes with the product's own addresses.

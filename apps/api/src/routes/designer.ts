@@ -1,0 +1,253 @@
+/**
+ * The designer's routes.
+ *
+ * These are called by the embedded designer, from a frame SetOut serves. They
+ * are public: anyone can call them. So a request is tied to a company by the
+ * designer's site key and by nothing else it says, and whatever a browser
+ * worked out is thrown away and worked out again here.
+ */
+
+import {
+  buildSpec,
+  DOCUMENT_FORMAT,
+  DocumentError,
+  ENGINE_VERSION,
+  upgradeDocument,
+} from '@setout/engine';
+import { Hono } from 'hono';
+import { companyDb } from '../db/company-db';
+import { resolveDesigner, type DesignerSettings } from '../db/platform';
+import { checkBot, MAX_BODY_BYTES, readEnquiry, RequestError, type BotCheck } from '../lib/enquiry';
+
+export const designer = new Hono<{ Bindings: Env }>();
+
+/** Sent faster than this, an enquiry is flagged: a person cannot measure a shower in ten seconds. */
+const SUSPICIOUS_ELAPSED_MS = 10_000;
+
+const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey'>> = {
+  finishes: [
+    { id: 'chrome', label: 'Polished chrome', swatch: '#d4d8db' },
+    { id: 'brushed-nickel', label: 'Brushed nickel', swatch: '#b0aaa2' },
+    { id: 'matte-black', label: 'Matte black', swatch: '#1c1c1c' },
+    { id: 'satin-brass', label: 'Satin brass', swatch: '#b5a26a' },
+  ],
+  handles: [
+    { id: 'pull', label: 'Pull handle', description: 'Back-to-back bar handle, 203mm centres.' },
+    { id: 'knob', label: 'Knob', description: 'Single round knob, centred at 950mm.' },
+  ],
+  glassThicknessMm: 10,
+  measurementDisclaimer:
+    'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
+};
+
+const text = (v: unknown, fallback: string): string => (typeof v === 'string' && v.length > 0 ? v : fallback);
+
+/**
+ * What a designer needs to know about its company. Everything in it is
+ * public. Where enquiries are emailed, and anything about staff or prices,
+ * stays on the server.
+ */
+designer.get('/config', async (c) => {
+  const found = await resolveDesigner(c.env, c.req.query('key'));
+  if (!found) return c.json({ error: 'unknown_designer', message: 'This designer is not set up.' }, 404);
+
+  const db = companyDb(c.env, found.companyId);
+  const [company, row, ruleset] = await Promise.all([
+    db.company(),
+    db.get('designers', found.designerId),
+    db.rulesets.current(),
+  ]);
+  if (!company || !row) return c.json({ error: 'unknown_designer', message: 'This designer is not set up.' }, 404);
+
+  const settings = row.config as DesignerSettings;
+  const branding = company.branding;
+  return c.json(
+    {
+      id: row.id,
+      siteKey: row.site_key,
+      brand: {
+        name: company.name,
+        ...(typeof branding.logoUrl === 'string' ? { logoUrl: branding.logoUrl } : {}),
+        primary: text(branding.primary, '#1e293b'),
+        primaryForeground: text(branding.primaryForeground, '#ffffff'),
+      },
+      finishes: settings.finishes?.length ? settings.finishes : DEFAULT_SETTINGS.finishes,
+      handles: settings.handles?.length ? settings.handles : DEFAULT_SETTINGS.handles,
+      glassThicknessMm: settings.glassThicknessMm ?? DEFAULT_SETTINGS.glassThicknessMm,
+      measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
+      ...(settings.intro ? { intro: settings.intro } : {}),
+      ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),
+      rules: ruleset,
+    },
+    200,
+    { 'Cache-Control': 'private, max-age=60' }
+  );
+});
+
+/**
+ * A customer sends their design.
+ *
+ * The order matters. The design is checked and worked out, then the customer,
+ * the job, the design and its first revision are saved together. Only then
+ * are the drawings and photos stored. A failure to store a photo must never
+ * lose the measurements someone spent ten minutes taking.
+ */
+designer.post('/enquiries', async (c) => {
+  const length = Number(c.req.header('content-length') ?? 0);
+  if (length > MAX_BODY_BYTES) {
+    return c.json({ error: 'too_large', message: 'That is too much to send at once. Try fewer photos.' }, 413);
+  }
+
+  let enquiry;
+  try {
+    enquiry = readEnquiry(await c.req.json().catch(() => null));
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status);
+    throw error;
+  }
+
+  // The site key decides the company. Nothing else in the request can.
+  const found = await resolveDesigner(c.env, enquiry.siteKey);
+  if (!found) return c.json({ error: 'unknown_designer', message: 'This designer is not set up.' }, 404);
+  const db = companyDb(c.env, found.companyId);
+
+  // A hidden field no person can see or fill. Answer as if it worked, so a
+  // script learns nothing, and keep none of it.
+  if (enquiry.honeypot.length > 0) {
+    console.warn(JSON.stringify({ message: 'enquiry dropped', reason: 'honeypot', company: found.companyId }));
+    return c.json({ ok: true, reference: null }, 201);
+  }
+
+  const botCheck: BotCheck = await checkBot(
+    c.env.TURNSTILE_SECRET_KEY,
+    enquiry.turnstileToken,
+    c.req.header('cf-connecting-ip') ?? null
+  );
+  if (botCheck === 'failed') {
+    return c.json(
+      { error: 'bot_check_failed', message: 'The security check did not pass. Please reload the page and try again.' },
+      403
+    );
+  }
+
+  // The design, checked field by field, then worked out here with this
+  // company's rules. Anything the browser calculated was never sent.
+  let document;
+  try {
+    document = upgradeDocument(enquiry.document);
+  } catch (error) {
+    if (error instanceof DocumentError) {
+      return c.json({ error: 'invalid_design', message: `We could not read that design: ${error.message}` }, 422);
+    }
+    throw error;
+  }
+  const { context, rulesetVersion } = await db.engineContext();
+  const computed = buildSpec(document.design, context);
+
+  const { customer } = enquiry;
+  const [existing] = await db.find('customers', { where: { email: customer.email }, limit: 1 });
+  const reference = await db.allocateJobReference();
+
+  let jobId = '';
+  let revisionId = '';
+  await db.batch((batch) => {
+    const customerId =
+      existing?.id ??
+      batch.insert('customers', {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone || null,
+        postcode: customer.postcode || null,
+      });
+    jobId = batch.insert('jobs', {
+      reference,
+      customer_id: customerId,
+      designer_id: found.designerId,
+      source: 'designer',
+      site_postcode: customer.postcode || null,
+    });
+    const designId = batch.insert('designs', { job_id: jobId, current_revision: 1 });
+    revisionId = batch.insert('design_revisions', {
+      design_id: designId,
+      number: 1,
+      document,
+      format_version: DOCUMENT_FORMAT,
+      engine_version: ENGINE_VERSION,
+      ruleset_version: rulesetVersion,
+      computed,
+      author_kind: 'customer',
+    });
+    batch.insert('job_events', {
+      job_id: jobId,
+      type: 'received',
+      actor_kind: 'customer',
+      data: {
+        template: enquiry.templateId,
+        notes: customer.notes,
+        name: customer.name,
+        phone: customer.phone,
+        botCheck,
+        sentQuickly: enquiry.elapsedMs !== null && enquiry.elapsedMs < SUSPICIOUS_ELAPSED_MS,
+        warnings: computed.warnings.length,
+        blockingIssues: computed.blockingIssues.length,
+        files: enquiry.files.length,
+      },
+    });
+  });
+  await db.usage.add('enquiries');
+
+  // The measurements are safe. Now the drawings and photos.
+  const stored: { key: string; file: (typeof enquiry.files)[number] }[] = [];
+  let failed = 0;
+  for (const file of enquiry.files) {
+    const key = `${found.companyId}/jobs/${jobId}/${crypto.randomUUID()}-${file.filename}`;
+    try {
+      await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
+      stored.push({ key, file });
+    } catch (error) {
+      failed++;
+      console.error(
+        JSON.stringify({
+          message: 'file not stored',
+          job: jobId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+  if (stored.length > 0 || failed > 0) {
+    await db.batch((batch) => {
+      for (const { key, file } of stored) {
+        batch.insert('files', {
+          job_id: jobId,
+          revision_id: file.kind === 'drawing' ? revisionId : null,
+          kind: file.kind,
+          storage_key: key,
+          content_type: file.contentType,
+          size_bytes: file.bytes.length,
+        });
+      }
+      if (failed > 0) {
+        batch.insert('job_events', {
+          job_id: jobId,
+          type: 'files_not_stored',
+          actor_kind: 'system',
+          data: { count: failed },
+        });
+      }
+    });
+  }
+
+  console.log(
+    JSON.stringify({
+      message: 'enquiry received',
+      company: found.companyId,
+      job: jobId,
+      reference,
+      botCheck,
+      files: stored.length,
+      filesFailed: failed,
+    })
+  );
+  return c.json({ ok: true, reference }, 201);
+});

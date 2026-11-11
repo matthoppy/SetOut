@@ -23,6 +23,8 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
       ],
+      // Adding members to a generated interface is done by extending it.
+      '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'with-single-extends' }],
     },
   },
 
@@ -67,7 +69,7 @@ export default tseslint.config(
 
   // The browser apps.
   {
-    files: ['apps/designer/src/**', 'apps/workspace/src/**', 'packages/ui/src/**'],
+    files: ['apps/designer/src/**', 'apps/designer/public/**', 'apps/workspace/src/**', 'packages/ui/src/**'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,

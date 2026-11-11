@@ -52,6 +52,26 @@ The designer and the workspace never talk to each other. Both talk to the API, a
 
 Revisions are the versioning. Each one records the document format, the engine version and the company's ruleset version that produced it.
 
+## The designer's routes
+
+Public, called from the designer's own frame. A request is tied to a company by its site key and by nothing else it says.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/designer/config?key=` | What a designer needs to know about its company: name, colour, finishes, handles, wording and its changes to the making rules. Nothing private |
+| `POST /api/designer/enquiries` | A customer sends a design. The document is checked, the engine is run again with the company's rules, and the customer, job, design, first revision and timeline entry are saved together. Then drawings and photos are stored |
+
+A photo failing to store never loses the measurements: the job is saved first. A script that fills the hidden field is told it worked and nothing is kept. A missing bot check token is marked, not refused, because the widget can fail to load in a frame and a real customer's measuring is worth more than a flagged enquiry.
+
+On a company's page the designer is added with one element and one script:
+
+```html
+<div data-setout-designer="pk_live_..."></div>
+<script src="https://SETOUT-ADDRESS/designer/embed.js" async></script>
+```
+
+`data-mode="button"` shows a button that opens the designer over the page. The page is told when a design is sent, as a `setout:sent` event on the element, and never sees the customer's details.
+
 ## The database
 
 One database holds every company. The job is the spine: it links the customer, the designs, the quotes, the order and the fitting.

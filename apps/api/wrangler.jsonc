@@ -35,6 +35,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Drawings and photos. One bucket per environment, one folder per company
+  // inside it. The deployed buckets are created in the EU by the deploy script.
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "setout-local-files" }],
 
   "env": {
     "staging": {
@@ -49,6 +52,9 @@
           "database_id": "cbdb554c-c41f-4bb1-aa16-c94a013dc617",
           "migrations_dir": "migrations"
         }
+      ],
+      "r2_buckets": [
+        { "binding": "FILES", "bucket_name": "setout-staging-files", "jurisdiction": "eu" }
       ]
     },
     "production": {
@@ -63,6 +69,9 @@
           "database_id": "faee68c8-6ecf-4884-b724-e80f98672d50",
           "migrations_dir": "migrations"
         }
+      ],
+      "r2_buckets": [
+        { "binding": "FILES", "bucket_name": "setout-production-files", "jurisdiction": "eu" }
       ]
     }
   }

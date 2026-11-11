@@ -40,15 +40,40 @@ const commit =
   execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const outputFile = join(mkdtempSync(join(tmpdir(), 'setout-deploy-')), 'wrangler.ndjson');
 
+const wranglerEnv = { ...process.env, CI: 'true', WRANGLER_OUTPUT_FILE_PATH: outputFile };
+
 function wrangler(args) {
   console.log(`\n> wrangler ${args.join(' ')}`);
-  execFileSync('npx', ['wrangler', ...args], {
-    cwd: api,
-    stdio: 'inherit',
-    env: { ...process.env, CI: 'true', WRANGLER_OUTPUT_FILE_PATH: outputFile },
-  });
+  execFileSync('npx', ['wrangler', ...args], { cwd: api, stdio: 'inherit', env: wranglerEnv });
 }
 
+/**
+ * The bucket for drawings and photos, made in the EU the first time. A
+ * bucket's place cannot be changed afterwards, so it is never left to chance.
+ */
+function ensureFilesBucket() {
+  const bucket = `setout-${environment}-files`;
+  console.log(`\n> wrangler r2 bucket create ${bucket} --jurisdiction eu`);
+  try {
+    const out = execFileSync('npx', ['wrangler', 'r2', 'bucket', 'create', bucket, '--jurisdiction', 'eu'], {
+      cwd: api,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: wranglerEnv,
+    });
+    console.log(out.trim());
+  } catch (error) {
+    const said = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    if (/already exists|already own/i.test(said)) {
+      console.log(`${bucket} is already there.`);
+      return;
+    }
+    console.error(said);
+    throw new Error(`Could not make sure the ${bucket} bucket exists.`, { cause: error });
+  }
+}
+
+ensureFilesBucket();
 wrangler(['d1', 'migrations', 'apply', 'DB', '--env', environment, '--remote']);
 wrangler(['deploy', '--env', environment, '--var', `COMMIT:${commit}`]);
 
