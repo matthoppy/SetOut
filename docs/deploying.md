@@ -123,22 +123,22 @@ Email also needs the address it is sent from. That is not a secret: it is `EMAIL
 
 When mail is set up, a design that arrives is emailed to the addresses on its designer, with the whole job and the drawings and photos attached, and a copy goes to the customer. Emails are sent after the customer has had their answer, and what happened to each one is written on the job's timeline: sent, refused with the reason, or held back.
 
-## What is set up, as of 10 November 2026
+## What is set up, as of 11 November 2026
 
 | | Staging | Production |
 | --- | --- | --- |
+| Deployed | Every push to `main` that passes the checks | By hand. First deployed on 11 November 2026, at `b155bb7` |
 | Sending domain | `setoutglass.com` in Resend, region EU, with its DNS records in Cloudflare | The same |
 | Sent from | `hello@setoutglass.com`, under the company's name | The same |
-| `RESEND_API_KEY` | Set. A key that can only send, and only from `setoutglass.com` | Set right after the first production deploy, with a key of its own |
+| `RESEND_API_KEY` | Set. A key that can only send, and only from `setoutglass.com` | Set. A key of its own, "SetOut production", that can only send, and only from `setoutglass.com` |
 | Bot check widget | "SetOut designer" in Turnstile, for `setoutglass.com` and its addresses, and staging's workers.dev name | The same widget |
-| `TURNSTILE_SECRET_KEY` | Set | Set right after the first production deploy |
-| Custom Showers' designer | Its bot check site key is in its settings. Its enquiries go to `delivered@resend.dev`, Resend's test inbox, so trying the designer never lands in a real one. Sent emails can be read in Resend under Emails | Added by the seed script, with its notify address on the command line |
+| `TURNSTILE_SECRET_KEY` | Set | Set |
+| Custom Showers' designer | A test key. Its bot check site key is in its settings. Its enquiries go to `delivered@resend.dev`, Resend's test inbox, so trying the designer never lands in a real one. Sent emails can be read in Resend under Emails | A live key, for `customshowers.uk` and `www.customshowers.uk` only, with the bot check. Its enquiries go to `sales@customshowers.uk` |
+| Custom Showers' team | Matt, as owner | Matt, as owner |
 
 The secrets were put straight into the Worker through Cloudflare's API and never written down anywhere. If one is lost or leaked, make a new key, set it, and delete the old one. Nothing needs copying.
-
-A secret can only be set on a Worker that exists, and production's does not exist until its first deploy. So the order for going live is: deploy production, then set its two secrets and seed its first company, then check a design end to end.
 
 ## Still to set up, with the step that needs it
 
 - **The paid Workers plan**, before real traffic. The free plan's limits are enough for staging.
-- **Production itself.** It has not been deployed yet. No company should be given the embed code until it has, because the script's address is permanent.
+- **Custom Showers' own site on the SetOut designer.** Production is ready for it. The switch is Matt's call: once the site embeds the SetOut designer, its enquiries arrive in the SetOut workspace and by email, and stop reaching the old dashboard.
