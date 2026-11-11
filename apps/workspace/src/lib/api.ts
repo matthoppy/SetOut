@@ -107,6 +107,8 @@ export interface Revision {
   author_kind: string;
   checked_by: string | null;
   checked_at: string | null;
+  /** Who checked it, if they are still on the team. */
+  checkedBy: { name: string | null; email: string } | null;
   created_at: string;
 }
 
@@ -162,6 +164,11 @@ export const api = {
   job: (id: string, signal?: AbortSignal) => call<JobDetail>(`/jobs/${encodeURIComponent(id)}`, { signal }),
   moveJob: (id: string, stage: Stage) => send<{ ok: true }>('PATCH', `/jobs/${encodeURIComponent(id)}`, { stage }),
   addNote: (id: string, text: string) => send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(id)}/notes`, { text }),
+  /** revision: the number of the revision the person looked over. */
+  check: (jobId: string, designId: string, revision: number) =>
+    send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { revision }),
+  uncheck: (jobId: string, designId: string) =>
+    call<{ ok: true }>(`/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { method: 'DELETE' }),
   team: (signal?: AbortSignal) => call<Team>('/team', { signal }),
   addToTeam: (person: { email: string; name: string; role: Role }) =>
     send<{ ok: true; member: TeamMember; emailed: boolean }>('POST', '/team', person),

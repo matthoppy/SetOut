@@ -9,7 +9,7 @@
 
 import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type PanelSpec } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
-import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type JobDetail, type JobEvent, type JobFile, type Stage } from '../lib/api';
+import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
 import { bytes, humanise, layoutName, STAGE_NAMES, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { Link } from '../lib/router';
@@ -80,12 +80,13 @@ export function Job({ id }: { id: string }) {
         design.revision ? (
           <Shower
             key={design.id}
-            title={detail.designs.length > 1 ? design.label || `Shower ${i + 1}` : null}
+            title={detail.designs.length > 1 ? (named(design.label) ?? `Shower ${i + 1}`) : null}
             layout={typeof received?.data.template === 'string' ? received.data.template : null}
             design={design.revision.document.design}
             spec={design.revision.computed}
             revision={design.revision.number}
             drawings={i === 0 ? drawings : []}
+            signOff={<SignOff jobId={detail.job.id} designId={design.id} revision={design.revision} canBeMade={design.revision.computed.blockingIssues.length === 0} onChanged={job.reload} />}
           />
         ) : null
       )}
@@ -212,6 +213,7 @@ function Shower({
   spec,
   revision,
   drawings,
+  signOff,
 }: {
   title: string | null;
   layout: string | null;
@@ -219,6 +221,7 @@ function Shower({
   spec: ConfiguratorSpec;
   revision: number;
   drawings: JobFile[];
+  signOff: React.ReactNode;
 }) {
   const readings = journeySummary(design).filter((row) => row.status !== 'optional' || row.value);
   return (
@@ -233,6 +236,7 @@ function Shower({
           {spec.isFloorToCeiling ? ', floor to ceiling' : ''}
         </p>
         <Checks spec={spec} />
+        {signOff}
       </Section>
 
       {drawings.length > 0 && (
@@ -292,6 +296,87 @@ function Shower({
         </dl>
       </Section>
     </>
+  );
+}
+
+/**
+ * Whether a member of staff has looked over this shower and is happy for it
+ * to be made. Only a checked design can become a making sheet or an order.
+ */
+function SignOff({
+  jobId,
+  designId,
+  revision,
+  canBeMade,
+  onChanged,
+}: {
+  jobId: string;
+  designId: string;
+  revision: Revision;
+  canBeMade: boolean;
+  onChanged: () => void;
+}) {
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const act = async (change: () => Promise<unknown>, otherwise: string) => {
+    setState({ busy: true, error: null });
+    try {
+      await change();
+      setState({ busy: false, error: null });
+      onChanged();
+    } catch (error) {
+      if (error instanceof SignedOut) return signInAgain();
+      setState({ busy: false, error: error instanceof ApiError ? error.message : otherwise });
+    }
+  };
+
+  if (revision.checked_at) {
+    const who = revision.checkedBy ? (revision.checkedBy.name ?? revision.checkedBy.email) : 'someone no longer on the team';
+    return (
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-good/40 bg-good/10 px-3 py-2 text-sm">
+        <p>
+          <span className="font-semibold text-good">✓ Checked</span> by {who}, {whenExactly(revision.checked_at)}
+        </p>
+        <button
+          type="button"
+          disabled={state.busy}
+          onClick={() => act(() => api.uncheck(jobId, designId), 'The check could not be taken back.')}
+          className="text-sm font-medium text-quiet underline underline-offset-2 disabled:opacity-60"
+        >
+          Take back
+        </button>
+        {state.error && (
+          <p role="alert" className="w-full text-bad">
+            {state.error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-md border border-rule bg-surface p-3 text-sm">
+      <p className="font-semibold">Not checked yet</p>
+      <p className="mt-1 text-quiet">
+        {canBeMade
+          ? 'Look over the drawings, cut sizes and readings below, then mark it as checked. Only a checked design can be made.'
+          : 'It cannot be made as drawn, so it cannot be checked until it is changed.'}
+      </p>
+      {canBeMade && (
+        <button
+          type="button"
+          disabled={state.busy}
+          onClick={() => act(() => api.check(jobId, designId, revision.number), 'It could not be marked as checked.')}
+          className="mt-2 h-10 rounded-md bg-accent px-4 font-semibold text-accent-ink disabled:opacity-60"
+        >
+          {state.busy ? 'Marking as checked' : 'Mark as checked'}
+        </button>
+      )}
+      {state.error && (
+        <p role="alert" className="mt-2 text-bad">
+          {state.error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -363,6 +448,11 @@ function PanelRow({ panel }: { panel: PanelSpec }) {
 
 const WHO: Record<string, string> = { company: 'the team', customer: 'the customer' };
 
+/** A shower's own name, if it was given one: every shower is called "Shower" until then. */
+function named(label: unknown): string | null {
+  return typeof label === 'string' && label.trim() && label !== 'Shower' ? label : null;
+}
+
 /** A timeline entry in words. */
 function describe(event: JobEvent): string {
   const d = event.data;
@@ -384,6 +474,10 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} moved it from ${STAGE_NAMES[d.from as Stage] ?? String(d.from)} to ${STAGE_NAMES[d.to as Stage] ?? String(d.to)}.`;
     case 'note':
       return String(d.text ?? '');
+    case 'revision_checked':
+      return `${who ?? 'Someone'} checked ${named(d.label) ?? 'the shower'} and is happy for it to be made.`;
+    case 'revision_unchecked':
+      return `${who ?? 'Someone'} took back the check on ${named(d.label) ?? 'the shower'}.`;
     default:
       return humanise(event.type);
   }

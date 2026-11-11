@@ -324,14 +324,28 @@ staff.get('/jobs/:id', async (c) => {
     designs.map((d) => db.find('design_revisions', { where: { design_id: d.id, number: d.current_revision }, limit: 1 }))
   );
   // Who did what, for the timeline. Staff are named; nobody else's id is.
-  const staffIds = [...new Set(events.filter((e) => e.actor_kind === 'staff' && e.actor_id).map((e) => e.actor_id as string))];
+  const staffIds = [
+    ...new Set([
+      ...events.filter((e) => e.actor_kind === 'staff' && e.actor_id).map((e) => e.actor_id as string),
+      ...revisions.flatMap(([r]) => (r?.checked_by ? [r.checked_by] : [])),
+    ]),
+  ];
   const people = await usersByIds(c.env, c.get('session').companyId, staffIds);
 
   return c.json(
     {
       job,
       customer,
-      designs: designs.map((design, i) => ({ ...design, revision: revisions[i][0] ?? null })),
+      designs: designs.map((design, i) => {
+        const revision = revisions[i][0] ?? null;
+        return {
+          ...design,
+          revision: revision && {
+            ...revision,
+            checkedBy: revision.checked_by ? (people[revision.checked_by] ?? null) : null,
+          },
+        };
+      }),
       files: [...files]
         .sort(
           (a, b) =>
@@ -385,6 +399,79 @@ staff.patch('/jobs/:id', async (c) => {
   }
   return c.json({ ok: true, stage: body.stage }, 200, PRIVATE);
 });
+
+/**
+ * Mark the shower's current revision as checked: a member of staff has looked
+ * over its sizes and is happy for it to be made. Only a checked revision can
+ * become a making sheet or an order. The revision the person looked at is
+ * named, so a design that changed in the meantime is never checked unseen.
+ */
+staff.post('/jobs/:id/designs/:designId/check', async (c) => {
+  const session = c.get('session');
+  const db = companyDb(c.env, session.companyId);
+  const body = (await c.req.json().catch(() => null)) as { revision?: unknown } | null;
+  const found = await currentRevision(db, c.req.param('id'), c.req.param('designId'));
+  if (!found) return c.json({ error: 'not_found', message: 'There is no such shower on this job.' }, 404, PRIVATE);
+  const { job, design, revision } = found;
+  if (body?.revision !== revision.number) {
+    return c.json(
+      { error: 'stale', message: 'This shower has changed since you opened it. Look it over again before checking it.' },
+      409,
+      PRIVATE
+    );
+  }
+  if (revision.computed.blockingIssues.length > 0) {
+    return c.json(
+      { error: 'cannot_be_made', message: 'This shower cannot be made as drawn, so it cannot be checked.' },
+      409,
+      PRIVATE
+    );
+  }
+  if (revision.checked_at) return c.json({ ok: true, checkedAt: revision.checked_at }, 200, PRIVATE);
+  const at = new Date().toISOString();
+  await db.batch((batch) => {
+    batch.update('design_revisions', revision.id, { checked_by: session.userId, checked_at: at });
+    batch.insert('job_events', {
+      job_id: job.id,
+      type: 'revision_checked',
+      actor_kind: 'staff',
+      actor_id: session.userId,
+      data: { designId: design.id, label: design.label, revision: revision.number },
+    });
+  });
+  return c.json({ ok: true, checkedAt: at }, 200, PRIVATE);
+});
+
+/** Take back a check, when something is found that needs another look. */
+staff.delete('/jobs/:id/designs/:designId/check', async (c) => {
+  const session = c.get('session');
+  const db = companyDb(c.env, session.companyId);
+  const found = await currentRevision(db, c.req.param('id'), c.req.param('designId'));
+  if (!found) return c.json({ error: 'not_found', message: 'There is no such shower on this job.' }, 404, PRIVATE);
+  const { job, design, revision } = found;
+  if (!revision.checked_at) return c.json({ ok: true }, 200, PRIVATE);
+  await db.batch((batch) => {
+    batch.update('design_revisions', revision.id, { checked_by: null, checked_at: null });
+    batch.insert('job_events', {
+      job_id: job.id,
+      type: 'revision_unchecked',
+      actor_kind: 'staff',
+      actor_id: session.userId,
+      data: { designId: design.id, label: design.label, revision: revision.number },
+    });
+  });
+  return c.json({ ok: true }, 200, PRIVATE);
+});
+
+/** A job's shower and the revision it now stands at, or null if either is not this company's. */
+async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, designId: string) {
+  const job = await db.get('jobs', jobId);
+  if (!job) return null;
+  const design = await db.get('designs', designId);
+  if (!design || design.job_id !== job.id) return null;
+  const [revision] = await db.find('design_revisions', { where: { design_id: design.id, number: design.current_revision }, limit: 1 });
+  return revision ? { job, design, revision } : null;
+}
 
 const MAX_NOTE = 4000;
 

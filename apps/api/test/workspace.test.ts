@@ -662,3 +662,90 @@ describe('the team', () => {
     expect(message.html).not.toContain('token=');
   });
 });
+
+describe('checking a shower', () => {
+  interface Checked {
+    job: { id: string };
+    designs: { id: string; revision: { number: number; checked_at: string | null; checkedBy: { email: string } | null } }[];
+    events: { type: string; actor: { email: string } | null; data: Record<string, unknown> }[];
+  }
+  const jobFor = async (name: string) => {
+    const { jobs } = await json<InboxBody>(await api(`/jobs?q=${encodeURIComponent(name)}`, { cookie: owner }));
+    return json<Checked>(await api(`/jobs/${jobs[0].id}`, { cookie: owner }));
+  };
+  const check = (jobId: string, designId: string, revision: unknown, cookie = owner) =>
+    post(`/jobs/${jobId}/designs/${designId}/check`, { revision }, { cookie });
+  const uncheck = (jobId: string, designId: string, cookie = owner) =>
+    api(`/jobs/${jobId}/designs/${designId}/check`, { cookie, method: 'DELETE' });
+
+  test('staff mark a shower as checked, and the job says who and when', async () => {
+    const before = await jobFor('Cara');
+    const design = before.designs[0];
+    expect(design.revision).toMatchObject({ checked_at: null, checkedBy: null });
+    expect((await check(before.job.id, design.id, design.revision.number)).status).toBe(200);
+
+    const after = await jobFor('Cara');
+    expect(after.designs[0].revision.checked_at).toBeTruthy();
+    expect(after.designs[0].revision.checkedBy).toMatchObject({ email: 'owner@cs.example' });
+    expect(after.events.at(-1)).toMatchObject({
+      type: 'revision_checked',
+      actor: { email: 'owner@cs.example' },
+      data: { designId: design.id, revision: 1 },
+    });
+    // Checking it again changes nothing.
+    expect((await check(before.job.id, design.id, design.revision.number)).status).toBe(200);
+    expect((await jobFor('Cara')).events.filter((e) => e.type === 'revision_checked')).toHaveLength(1);
+  });
+
+  test('only the revision the shower stands at can be checked', async () => {
+    const job = await jobFor('Asha');
+    const design = job.designs[0];
+    for (const wrong of [design.revision.number + 1, String(design.revision.number), null]) {
+      const refused = await check(job.job.id, design.id, wrong);
+      expect(refused.status).toBe(409);
+      expect((await json<{ error: string }>(refused)).error).toBe('stale');
+    }
+    expect((await jobFor('Asha')).designs[0].revision.checked_at).toBeNull();
+  });
+
+  test('a shower that cannot be made cannot be checked', async () => {
+    const [sample] = await ours.db.find('design_revisions', { limit: 1 });
+    const customer = await ours.db.insert('customers', { name: 'Ida Wide' });
+    const job = await ours.db.insert('jobs', { reference: 'CS-9901', customer_id: customer.id });
+    const design = await ours.db.insert('designs', { job_id: job.id, current_revision: 1 });
+    await ours.db.insert('design_revisions', {
+      design_id: design.id,
+      number: 1,
+      document: sample.document,
+      format_version: sample.format_version,
+      engine_version: sample.engine_version,
+      ruleset_version: sample.ruleset_version,
+      computed: { ...sample.computed, blockingIssues: ['The door is wider than its hinges can carry.'] },
+      author_kind: 'customer',
+    });
+    const refused = await check(job.id, design.id, 1);
+    expect(refused.status).toBe(409);
+    expect((await json<{ error: string }>(refused)).error).toBe('cannot_be_made');
+  });
+
+  test('a check can be taken back, and that goes on the timeline too', async () => {
+    const job = await jobFor('Cara');
+    const design = job.designs[0];
+    expect((await uncheck(job.job.id, design.id)).status).toBe(200);
+    const after = await jobFor('Cara');
+    expect(after.designs[0].revision).toMatchObject({ checked_at: null, checkedBy: null });
+    expect(after.events.at(-1)).toMatchObject({ type: 'revision_unchecked', actor: { email: 'owner@cs.example' } });
+  });
+
+  test('nobody checks another company’s shower', async () => {
+    const ourJob = await jobFor('Cara');
+    const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: rival }));
+    const theirJob = await json<Checked>(await api(`/jobs/${jobs[0].id}`, { cookie: rival }));
+    expect((await check(theirJob.job.id, theirJob.designs[0].id, 1)).status).toBe(404);
+    expect((await uncheck(theirJob.job.id, theirJob.designs[0].id)).status).toBe(404);
+    // Nor a shower named under a job it is not on.
+    expect((await check(ourJob.job.id, theirJob.designs[0].id, 1)).status).toBe(404);
+    expect((await check(theirJob.job.id, ourJob.designs[0].id, 1)).status).toBe(404);
+    expect((await check(ourJob.job.id, ourJob.designs[0].id, 1, rival)).status).toBe(404);
+  });
+});

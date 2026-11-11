@@ -120,6 +120,8 @@ A person is one user, whatever companies they belong to. A membership says which
 | `GET /api/workspace/jobs/:id` | Everything about a job: the customer, each shower as it now stands, its files and its timeline |
 | `PATCH /api/workspace/jobs/:id` | Move a job to another stage. The timeline says who moved it |
 | `POST /api/workspace/jobs/:id/notes` | Add a note to a job's timeline |
+| `POST /api/workspace/jobs/:id/designs/:designId/check` | Mark the revision a shower stands at as checked. The request names the revision that was looked over |
+| `DELETE /api/workspace/jobs/:id/designs/:designId/check` | Take a check back |
 | `GET /api/workspace/files/:id` | A job's drawing or photo, to its company's signed-in staff alone |
 | `GET /api/workspace/team` | Everyone on the team. Owners also get the latest changes to it |
 | `POST /api/workspace/team` | An owner puts someone on the team. They are emailed to say so |
@@ -127,6 +129,8 @@ A person is one user, whatever companies they belong to. A membership says which
 | `DELETE /api/workspace/team/:id` | An owner takes someone off the team. They are signed out of it at once |
 
 These answer on the workspace's address only. Nothing running in the public designer can reach them.
+
+A shower is made only from a design a member of staff has checked. On the job page, staff look over the drawings, cut sizes and readings and mark the shower as checked. The request names the revision they looked at, so a design that changed meanwhile is never checked unseen, and a design that cannot be made as drawn cannot be checked at all. Checking, and taking a check back, both go on the job's timeline with who did it. The database lets nothing about a revision change afterwards except its check.
 
 Owners run their own team. Adding someone needs only their address: they are emailed to say who added them and as what, with a button that opens the sign-in page with their address filled in. The email carries no sign-in link, because a link runs out in minutes and the email may not be opened for days. A company can add up to twenty people a day, so nobody can use SetOut to send mail in bulk. A company always keeps at least one owner, checked inside the statement that makes the change, so two owners demoting each other at once cannot leave it with none. Every change to the team is written to the company's audit log in the same batch as the change, and only if the change was made.
 
