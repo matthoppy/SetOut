@@ -74,7 +74,7 @@ function App() {
     path === '/team' ? (
       <Team me={me.data} />
     ) : path === '/glass' ? (
-      <GlassOrder query={query} />
+      <GlassOrder query={query} companyName={me.data.company?.name ?? ''} />
     ) : makingMatch ? (
       <MakingSheet id={makingMatch[1]} />
     ) : quoteMatch ? (

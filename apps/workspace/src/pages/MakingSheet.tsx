@@ -9,10 +9,11 @@
  * the glass, the fixings, and the drawings of that revision.
  */
 
-import type { ConfiguratorSpec, ConfiguratorState, PanelSpec } from '@setout/engine';
+import type { ConfiguratorSpec, ConfiguratorState, Pane } from '@setout/engine';
 import { api, fileUrl, type JobDetail, type JobFile, type Revision } from '../lib/api';
 import { humanise, layoutName, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
+import { describeFeature, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { Problem } from './parts';
 
@@ -99,6 +100,7 @@ function Sheet({
   printedAt: string;
 }) {
   const doors = spec.panels.filter((p) => p.door);
+  const drawn = panesFor(design, spec);
   const checker = revision.checkedBy ? (revision.checkedBy.name ?? revision.checkedBy.email) : 'a former member of the team';
   const glass = `${spec.glassThicknessMm}mm toughened ${GLASS[design.glassType] ?? design.glassType}${design.glassCoating === 'easy-clean' ? ', easy-clean coated' : ''}`;
   const finish = humanise(design.finishId);
@@ -150,11 +152,11 @@ function Sheet({
             <th className="py-1 pr-2 text-right font-semibold">Cut W × H mm</th>
             <th className="py-1 pr-2 text-right font-semibold">Measured</th>
             <th className="py-1 pr-2 text-right font-semibold">Weight</th>
-            <th className="py-1 font-semibold">Notches, holes and cut-outs</th>
+            <th className="py-1 font-semibold">Notches, holes and cut-outs, as seen from outside</th>
           </tr>
         </thead>
         <tbody>
-          {spec.panels.map((panel) => (
+          {spec.panels.map((panel, i) => (
             <tr key={panel.id} className="border-b border-black/20 align-top">
               <td className="py-1.5 pr-2 font-semibold">{panel.label}</td>
               <td className="whitespace-nowrap py-1.5 pr-2 text-right text-base font-bold tabular-nums">
@@ -165,7 +167,7 @@ function Sheet({
               </td>
               <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{Math.round(panel.weightKg * 10) / 10}kg</td>
               <td className="py-1.5 text-xs">
-                <Workings panel={panel} />
+                <Workings pane={drawn[i]} />
               </td>
             </tr>
           ))}
@@ -272,16 +274,12 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function Workings({ panel }: { panel: PanelSpec }) {
-  const items = [
-    ...panel.notches.map((n) => `Notch, ${n.corner}: ${n.widthMm} × ${n.heightMm}mm`),
-    ...panel.cutouts.map((c) => `${c.description}: ${c.heightMm}mm up, ${c.edge}`),
-  ];
-  if (items.length === 0) return <span className="text-black/50">None</span>;
+function Workings({ pane }: { pane: Pane }) {
+  if (pane.features.length === 0) return <span className="text-black/50">None</span>;
   return (
     <ul className="space-y-0.5">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
+      {pane.features.map((f, i) => (
+        <li key={i}>{describeFeature(f)}</li>
       ))}
     </ul>
   );
