@@ -116,13 +116,15 @@ A person is one user, whatever companies they belong to. A membership says which
 | `GET /api/workspace/me` | Who is signed in, the company they are working in, and their others |
 | `POST /api/workspace/company` | Work in another of one's companies |
 | `POST /api/workspace/sign-out` | End the session |
-| `GET /api/workspace/jobs` | The inbox: the company's jobs, newest first, by stage or by search, with how many are at each stage |
+| `GET /api/workspace/jobs` | The inbox: the company's jobs, newest first, fifty at a time, by stage or by search, with how many of them are at each stage. Each page gives the mark the next one starts `after` |
 | `GET /api/workspace/jobs/:id` | Everything about a job: the customer, each shower as it now stands, its files and its timeline |
 | `PATCH /api/workspace/jobs/:id` | Move a job to another stage. The timeline says who moved it |
 | `POST /api/workspace/jobs/:id/notes` | Add a note to a job's timeline |
 | `GET /api/workspace/files/:id` | A job's drawing or photo, to its company's signed-in staff alone |
 
 These answer on the workspace's address only. Nothing running in the public designer can reach them.
+
+The workspace's pages are few: `/sign-in`, the inbox at `/jobs`, and a job at `/jobs/:id`. A job's page shows what the server worked out and the customer agreed to, never anything a browser added up: the drawings from the last card, each panel's cut size beside what was measured, the hardware and glass, every reading in the order it was taken, the photos and the timeline. Signing in, signing out and moving to another company each load the page afresh, so nothing one person or company could see is left in the page for the next.
 
 ## The two addresses
 

@@ -93,6 +93,18 @@ npx wrangler d1 execute DB --env staging --remote --file ../../seed.sql
 
 The site key is printed at the top of `seed.sql`. It is safe to publish: it is what goes in the embed code. Use `--key test` for staging and `--key live` for production. The notify address is given on the command line so that no inbox is committed to the repository.
 
+## Adding a person to a company
+
+Until owners can invite their own staff, a person is put on a company's team with a script. Like the seed script, it only prints SQL. It makes the person's user if they have none, gives someone already on the team the role given, and adds nothing if the company id is wrong.
+
+```sh
+node scripts/add-member.mjs co_01... someone@example.com --role owner --name "Their name" > member.sql
+cd apps/api
+npx wrangler d1 execute DB --env staging --remote --file ../../member.sql
+```
+
+A company's id can be read from the database with `npx wrangler d1 execute DB --env staging --remote --command "SELECT id, name FROM companies"`. Once added, the person asks for a link on the workspace's sign-in page. The address is given on the command line so that no inbox is committed to the repository.
+
 ## Secrets
 
 Secrets are set per environment with `wrangler secret put`, or in the Cloudflare dashboard under the Worker's settings. They never go in `wrangler.jsonc`. Each is optional, and the code says what it does without it.

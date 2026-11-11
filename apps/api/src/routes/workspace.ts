@@ -165,25 +165,40 @@ staff.post('/sign-out', async (c) => {
 const isStage = (v: unknown): v is JobStage => typeof v === 'string' && (JOB_STAGES as readonly string[]).includes(v);
 const PAGE = 50;
 
-/** The inbox: the company's jobs, newest first, with how many are at each stage. */
+/**
+ * Where the next page of the inbox starts: the last job listed, as when it
+ * arrived and its id, since jobs can arrive in the same millisecond.
+ */
+const PAGE_MARK = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z)~(job_[0-9A-HJKMNP-TV-Z]{26})$/;
+
+/**
+ * The inbox: the company's jobs, newest first, with how many are at each
+ * stage. A search narrows both the jobs and the counts.
+ */
 staff.get('/jobs', async (c) => {
   const db = companyDb(c.env, c.get('session').companyId);
   const stage = c.req.query('stage');
   if (stage !== undefined && stage !== '' && !isStage(stage)) {
     return c.json({ error: 'invalid_stage', message: 'There is no such stage.' }, 400, PRIVATE);
   }
-  const before = c.req.query('before');
+  const page = c.req.query('after');
+  const mark = page ? PAGE_MARK.exec(page) : null;
+  if (page && !mark) {
+    return c.json({ error: 'invalid_page', message: 'That page of jobs could not be found.' }, 400, PRIVATE);
+  }
+  const search = c.req.query('q') || undefined;
   const jobs = await db.jobs.inbox({
     stage: isStage(stage) ? stage : undefined,
-    search: c.req.query('q') ?? undefined,
-    before: before && !Number.isNaN(Date.parse(before)) ? before : undefined,
+    search,
+    after: mark ? { createdAt: mark[1], id: mark[2] } : undefined,
     limit: PAGE,
   });
+  const last = jobs.at(-1);
   return c.json(
     {
       jobs,
-      counts: await db.jobs.stageCounts(),
-      next: jobs.length === PAGE ? jobs[jobs.length - 1].createdAt : null,
+      counts: await db.jobs.stageCounts(search),
+      next: jobs.length === PAGE && last ? `${last.createdAt}~${last.id}` : null,
     },
     200,
     PRIVATE

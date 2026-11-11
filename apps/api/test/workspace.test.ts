@@ -378,11 +378,34 @@ describe('the inbox', () => {
     expect(await names('Dan')).toEqual([]);
   });
 
+  test('a search narrows the counts as well as the jobs', async () => {
+    const { counts } = await json<InboxBody>(await api('/jobs?q=patel', { cookie: owner }));
+    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(1);
+  });
+
   test('pages on from where the last page ended', async () => {
     const { jobs } = await json<InboxBody>(await api('/jobs', { cookie: owner }));
-    const after = await json<InboxBody>(await api(`/jobs?before=${encodeURIComponent(jobs[0].createdAt)}`, { cookie: owner }));
+    const mark = encodeURIComponent(`${jobs[0].createdAt}~${jobs[0].id}`);
+    const after = await json<InboxBody>(await api(`/jobs?after=${mark}`, { cookie: owner }));
     expect(after.jobs.map((j) => j.customer.name)).toEqual(['Ben Okafor', 'Asha Patel']);
     expect(after.next).toBeNull();
+    expect((await api('/jobs?after=yesterday', { cookie: owner })).status).toBe(400);
+  });
+
+  test('misses no job when several arrived in the same millisecond', async () => {
+    const shop = await company('Same Moment Glass', 'SM');
+    for (const [i, name] of ['One', 'Two', 'Three'].entries()) {
+      const customer = await shop.db.insert('customers', { name });
+      await shop.db.insert('jobs', { reference: `SM-${1001 + i}`, customer_id: customer.id });
+    }
+    await env.DB.prepare('UPDATE jobs SET created_at = ? WHERE company_id = ?').bind('2026-01-01T00:00:00.000Z', shop.id).run();
+    const seen: string[] = [];
+    let after: { createdAt: string; id: string } | undefined;
+    for (let page = await shop.db.jobs.inbox({ limit: 1 }); page.length > 0; page = await shop.db.jobs.inbox({ after, limit: 1 })) {
+      seen.push(page[0].customer.name);
+      after = { createdAt: page[0].createdAt, id: page[0].id };
+    }
+    expect(seen.sort()).toEqual(['One', 'Three', 'Two']);
   });
 
   test('a stage that is not one is refused', async () => {

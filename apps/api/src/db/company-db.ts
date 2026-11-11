@@ -68,8 +68,8 @@ export interface InboxOptions {
   stage?: JobStage;
   /** Part of a reference, a name, an email address, a phone number or a postcode. */
   search?: string;
-  /** Only jobs that arrived before this time: the next page after a page that ended there. */
-  before?: string;
+  /** Only jobs listed after this one: the next page, after a page that ended with it. */
+  after?: { createdAt: string; id: string };
   /** At most this many. 50 unless given, never more than 200. */
   limit?: number;
 }
@@ -149,8 +149,8 @@ export interface CompanyDb {
   jobs: {
     /** The company's jobs, newest first, as the inbox lists them. */
     inbox(options?: InboxOptions): Promise<InboxJob[]>;
-    /** How many jobs are at each stage. */
-    stageCounts(): Promise<Record<JobStage, number>>;
+    /** How many jobs are at each stage, of those a search finds, or of all of them. */
+    stageCounts(search?: string): Promise<Record<JobStage, number>>;
   };
 }
 
@@ -278,6 +278,23 @@ function buildRemove(companyId: string, table: string, id: string): Built {
  * company, by a site key or a sign-in, and never from anything the request
  * itself claims.
  */
+/**
+ * The part of a WHERE clause that finds jobs by what was typed: part of a
+ * reference, or the customer's name, email, phone or postcode. Null when
+ * nothing was typed. It is matched as typed: % and _ mean themselves. The
+ * query must call jobs j and customers c.
+ */
+function matching(text: string | undefined): { sql: string; params: Value[] } | null {
+  const search = text?.trim().slice(0, 100);
+  if (!search) return null;
+  const like = `%${search.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  const columns = ['j.reference', 'c.name', 'c.email', 'c.phone', 'c.postcode', 'j.site_postcode'];
+  return {
+    sql: `(${columns.map((column) => `${column} LIKE ? ESCAPE '\\'`).join(' OR ')})`,
+    params: columns.map(() => like),
+  };
+}
+
 export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
   if (typeof companyId !== 'string' || companyId.length === 0) {
     throw new DataError('A company is needed to read or write company data.');
@@ -457,18 +474,16 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
           where += ' AND j.stage = ?';
           params.push(options.stage);
         }
-        if (options.before) {
-          where += ' AND j.created_at < ?';
-          params.push(options.before);
+        if (options.after) {
+          // Jobs can arrive in the same millisecond, so the id settles ties,
+          // as it does in the order the inbox lists them.
+          where += ' AND (j.created_at < ? OR (j.created_at = ? AND j.id < ?))';
+          params.push(options.after.createdAt, options.after.createdAt, options.after.id);
         }
-        const search = options.search?.trim().slice(0, 100);
+        const search = matching(options.search);
         if (search) {
-          // What was typed is matched as typed: % and _ mean themselves.
-          const like = `%${search.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-          where += ` AND (${['j.reference', 'c.name', 'c.email', 'c.phone', 'c.postcode', 'j.site_postcode']
-            .map((column) => `${column} LIKE ? ESCAPE '\\'`)
-            .join(' OR ')})`;
-          params.push(like, like, like, like, like, like);
+          where += ` AND ${search.sql}`;
+          params.push(...search.params);
         }
         params.push(Math.min(Math.max(options.limit ?? 50, 1), 200));
         const rows = await d1
@@ -532,10 +547,16 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
         });
       },
 
-      async stageCounts() {
+      async stageCounts(text) {
+        const search = matching(text);
         const rows = await d1
-          .prepare('SELECT stage, COUNT(*) AS n FROM jobs WHERE company_id = ? GROUP BY stage')
-          .bind(companyId)
+          .prepare(
+            `SELECT j.stage, COUNT(*) AS n FROM jobs j
+               JOIN customers c ON c.company_id = j.company_id AND c.id = j.customer_id
+              WHERE j.company_id = ?${search ? ` AND ${search.sql}` : ''}
+              GROUP BY j.stage`
+          )
+          .bind(companyId, ...(search?.params ?? []))
           .all<{ stage: JobStage; n: number }>();
         const counts = Object.fromEntries(JOB_STAGES.map((stage) => [stage, 0])) as Record<JobStage, number>;
         for (const row of rows.results) if (JOB_STAGES.includes(row.stage)) counts[row.stage] = row.n;
