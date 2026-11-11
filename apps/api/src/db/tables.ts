@@ -97,6 +97,8 @@ export interface DraftRow {
   resume_token_hash: string;
   document: unknown;
   format_version: number;
+  /** Where the customer had got to: the step, the measuring card and the layout they started from. */
+  progress: Record<string, unknown>;
   expires_at: string;
   created_at: string;
   updated_at: string;
@@ -207,8 +209,8 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
   },
   drafts: {
     id: 'draft',
-    columns: ['id', 'designer_id', 'resume_token_hash', 'document', 'format_version', 'expires_at', 'created_at', 'updated_at'],
-    json: ['document'],
+    columns: ['id', 'designer_id', 'resume_token_hash', 'document', 'format_version', 'progress', 'expires_at', 'created_at', 'updated_at'],
+    json: ['document', 'progress'],
     tracksUpdates: true,
   },
   files: {

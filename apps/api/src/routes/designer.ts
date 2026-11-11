@@ -19,8 +19,11 @@ import { companyDb } from '../db/company-db';
 import { resolveDesigner, type DesignerSettings } from '../db/platform';
 import { checkBot, MAX_BODY_BYTES, readEnquiry, RequestError, type BotCheck } from '../lib/enquiry';
 import { mailIsSetUp, notifyEnquiry, type MailSettings } from '../lib/notify';
+import { drafts } from './drafts';
 
 export const designer = new Hono<{ Bindings: Env }>();
+
+designer.route('/drafts', drafts);
 
 /** Sent faster than this, an enquiry is flagged: a person cannot measure a shower in ten seconds. */
 const SUSPICIOUS_ELAPSED_MS = 10_000;

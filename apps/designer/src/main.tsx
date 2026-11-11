@@ -13,6 +13,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Configurator } from './designer/Configurator';
 import { loadConfig, type DesignerConfig } from './designer/config';
+import { DraftError, openDraft, type OpenedDraft } from './designer/drafts';
 import { EngineProvider } from './designer/engine';
 import { applyBrand } from './lib/brand';
 
@@ -22,10 +23,31 @@ const embedded = window.self !== window.top;
 // In the frame that covers the page, the designer has the whole screen. In a
 // frame that grows with its content there is no screen height to fill.
 const fillsViewport = !embedded || params.get('mode') === 'full';
+// A link from another device opens the design that device was working on.
+const draftToken = params.get('draft');
 
 if (params.get('theme') === 'dark') document.documentElement.classList.add('dark');
 
-type Loaded = { state: 'loading' } | { state: 'ready'; config: DesignerConfig } | { state: 'failed'; reason: string };
+type Loaded =
+  | { state: 'loading' }
+  | { state: 'ready'; config: DesignerConfig; resume: OpenedDraft | null; draftProblem: string | null }
+  | { state: 'failed'; reason: string };
+
+/** The draft a link asked for, or why it could not be opened. The designer starts either way. */
+async function resumeFrom(config: DesignerConfig): Promise<{ resume: OpenedDraft | null; draftProblem: string | null }> {
+  if (!draftToken || !config.siteKey) return { resume: null, draftProblem: null };
+  try {
+    return { resume: await openDraft(draftToken, config.siteKey), draftProblem: null };
+  } catch (error) {
+    const gone = error instanceof DraftError && error.kind === 'gone';
+    return {
+      resume: null,
+      draftProblem: gone
+        ? 'That saved design could not be found. It may have run out. You can start again here.'
+        : 'Your saved design could not be reached. Check your connection and reload to try again.',
+    };
+  }
+}
 
 function App() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -34,10 +56,11 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     loadConfig(siteKey)
-      .then((config) => {
+      .then(async (config) => {
+        const draft = await resumeFrom(config);
         if (cancelled) return;
         applyBrand(config.brand);
-        setLoaded({ state: 'ready', config });
+        setLoaded({ state: 'ready', config, ...draft });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -92,9 +115,14 @@ function App() {
           <p className="mt-2 text-sm text-muted-foreground">{loaded.reason}</p>
         </div>
       )}
+      {loaded.state === 'ready' && loaded.draftProblem && (
+        <p role="alert" className="border-b bg-muted/40 px-4 py-2 text-center text-xs text-muted-foreground sm:text-sm">
+          {loaded.draftProblem}
+        </p>
+      )}
       {loaded.state === 'ready' && engine && (
         <EngineProvider value={engine}>
-          <Configurator config={loaded.config} embedded={embedded} fillsViewport={fillsViewport} />
+          <Configurator config={loaded.config} embedded={embedded} fillsViewport={fillsViewport} resume={loaded.resume} />
         </EngineProvider>
       )}
     </div>

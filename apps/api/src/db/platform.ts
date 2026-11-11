@@ -116,6 +116,60 @@ export async function designerFrameOrigins(env: Pick<Env, 'DB'>, siteKey: unknow
   return Array.isArray(origins) ? origins.filter((o): o is string => typeof o === 'string') : [];
 }
 
+// ---------------------------------------------------------------------------
+// Drafts
+// ---------------------------------------------------------------------------
+
+/**
+ * A new resume token: the secret in the link that opens an unfinished design
+ * on another device. Whoever holds it can read and change that one draft and
+ * nothing else, so it is long, random, and never stored: only its hash is.
+ */
+export function newResumeToken(): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let token = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(32))) token += alphabet[byte & 31];
+  return `rt_${token}`;
+}
+
+const RESUME_TOKEN = /^rt_[a-z0-9]{32}$/;
+
+/** The form a resume token is stored in. */
+export async function hashResumeToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Which draft a resume token opens. */
+export interface ResolvedDraft {
+  companyId: string;
+  draftId: string;
+  designerId: string;
+  expiresAt: string;
+}
+
+/**
+ * Find the draft behind a resume token.
+ *
+ * Like a site key, a resume token is all a request has to say which company
+ * it belongs to, so it is looked up here and everything after goes through
+ * companyDb with the company found. Null for a token that is not one, is
+ * unknown, or whose designer or company is no longer active.
+ */
+export async function resolveDraft(env: Pick<Env, 'DB'>, token: unknown): Promise<ResolvedDraft | null> {
+  if (typeof token !== 'string' || !RESUME_TOKEN.test(token)) return null;
+  const row = await env.DB.prepare(
+    `SELECT f.company_id AS companyId, f.id AS draftId, f.designer_id AS designerId, f.expires_at AS expiresAt
+       FROM drafts f
+       JOIN designers d ON d.company_id = f.company_id AND d.id = f.designer_id
+       JOIN companies c ON c.id = f.company_id
+      WHERE f.resume_token_hash = ? AND d.status = 'active' AND c.status = 'active'`
+  )
+    .bind(await hashResumeToken(token))
+    .first<ResolvedDraft>();
+  return row ?? null;
+}
+
 /** What a designer row's config column holds. All of it is public. */
 export interface DesignerSettings {
   finishes?: { id: string; label: string; swatch: string }[];

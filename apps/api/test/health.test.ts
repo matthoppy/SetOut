@@ -1,5 +1,5 @@
 import { DOCUMENT_FORMAT, ENGINE_VERSION } from '@setout/engine';
-import { exports } from 'cloudflare:workers';
+import { env, exports } from 'cloudflare:workers';
 import { expect, test } from 'vitest';
 
 test('the health check reports the engine, its known answer and the database', async () => {
@@ -14,7 +14,8 @@ test('the health check reports the engine, its known answer and the database', a
     engine: ENGINE_VERSION,
     documentFormat: DOCUMENT_FORMAT,
     selfCheck: { ok: true, cutSizes: '395 x 1980, 690 x 1980', expected: '395 x 1980, 690 x 1980' },
-    database: { ok: true, migrations: 1 },
+    // Every migration in the folder has been applied, however many there are by now.
+    database: { ok: true, migrations: env.TEST_MIGRATIONS.length },
   });
 });
 

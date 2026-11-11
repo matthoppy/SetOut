@@ -105,6 +105,11 @@ export interface CompanyDb {
     add(metric: UsageMetric, month?: string): Promise<void>;
     get(month: string): Promise<{ enquiries: number; quotes_sent: number }>;
   };
+
+  drafts: {
+    /** Remove this company's unfinished designs whose time has run out. Says how many went. */
+    clearExpired(now?: string): Promise<number>;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -396,6 +401,20 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
           .bind(companyId, month)
           .first<{ enquiries: number; quotes_sent: number }>();
         return row ?? { enquiries: 0, quotes_sent: 0 };
+      },
+    },
+
+    drafts: {
+      async clearExpired(now = nowIso()) {
+        // A draft with a file stored against it is left for whatever clears the file.
+        const result = await d1
+          .prepare(
+            `DELETE FROM drafts WHERE company_id = ? AND expires_at < ?
+               AND NOT EXISTS (SELECT 1 FROM files f WHERE f.company_id = drafts.company_id AND f.draft_id = drafts.id)`
+          )
+          .bind(companyId, now)
+          .run();
+        return result.meta.changes;
       },
     },
   };

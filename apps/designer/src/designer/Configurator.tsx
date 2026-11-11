@@ -22,6 +22,8 @@ import {
 import { buildCards, hasDeck, openingContext, runPanelIndices, runWidthsMm } from '@setout/engine';
 import { MeasureStep } from './steps/MeasureStep';
 import { MeasureDeck } from './measure/MeasureDeck';
+import { CarryOn } from './CarryOn';
+import { DraftError, draftBody, draftKey, draftLink, openDraft, saveDraft, startDraft, type OpenedDraft } from './drafts';
 import { buildJourney, canLeaveScreen, measureScreenCount } from '@setout/engine';
 import { SizesStep } from './steps/SizesStep';
 import { HardwareStep } from './steps/HardwareStep';
@@ -63,6 +65,10 @@ interface SavedDesign {
   customer: CustomerDetails;
   stepId: StepId;
   measureCard: number;
+  /** The draft on the server this design is saved to, when it is being carried on elsewhere. */
+  draftToken?: string;
+  /** When the server last saved that draft, as this device knows it. */
+  draftSyncedAt?: string;
 }
 
 function storageKey(designerId: string) {
@@ -95,12 +101,14 @@ function worthResuming(saved: SavedDesign): boolean {
 }
 
 /** Fill in anything a saved design predates, so last week's design still loads. */
-function hydrate(saved: SavedDesign, config: DesignerConfig): ConfiguratorState {
+function hydrateState(saved: ConfiguratorState, config: DesignerConfig): ConfiguratorState {
   const fresh = createInitialState(config.glassThicknessMm);
-  const state: ConfiguratorState = { ...fresh, ...saved.state };
-  state.opening = hydrateOpening(saved.state.opening, runWidthsMm(state.panels, state.junctions));
+  const state: ConfiguratorState = { ...fresh, ...saved };
+  state.opening = hydrateOpening(saved.opening, runWidthsMm(state.panels, state.junctions));
   return state;
 }
+
+const hydrate = (saved: SavedDesign, config: DesignerConfig) => hydrateState(saved.state, config);
 
 function describeSavedAt(savedAt: number): string {
   const minutes = Math.round((Date.now() - savedAt) / 60000);
@@ -121,11 +129,34 @@ interface ConfiguratorProps {
    * frame that covers the page. False in a frame that grows with its content.
    */
   fillsViewport?: boolean;
+  /** A draft opened from a link, to carry on from where another device left it. */
+  resume?: OpenedDraft | null;
 }
 
-export function Configurator({ config, embedded = false, fillsViewport = !embedded }: ConfiguratorProps) {
+/**
+ * What to start from: the draft a link opened, or what this browser saved.
+ * This browser's own copy wins when it is the same draft saved more recently,
+ * which is what a phone that lost its signal in a bathroom looks like.
+ */
+function startingPoint(local: SavedDesign | null, resume: OpenedDraft | null | undefined): SavedDesign | null {
+  if (!resume) return local;
+  if (local?.draftToken === resume.token && local.savedAt > Date.parse(resume.updatedAt)) return local;
+  return {
+    v: STORAGE_VERSION,
+    savedAt: Date.parse(resume.updatedAt),
+    templateId: resume.progress.templateId,
+    state: resume.state,
+    customer: local?.customer ?? EMPTY_CUSTOMER,
+    stepId: resume.progress.stepId,
+    measureCard: resume.progress.measureCard,
+    draftToken: resume.token,
+    draftSyncedAt: resume.updatedAt,
+  };
+}
+
+export function Configurator({ config, embedded = false, fillsViewport = !embedded, resume = null }: ConfiguratorProps) {
   const saveKey = storageKey(config.id);
-  const [saved] = useState(() => loadSaved(saveKey));
+  const [saved] = useState(() => startingPoint(loadSaved(saveKey), resume));
   const [stepId, setStepId] = useState<StepId>(saved?.stepId ?? 'shape');
   const [templateId, setTemplateId] = useState<string | null>(saved ? saved.templateId : TEMPLATES[0].id);
   const [state, setState] = useState<ConfiguratorState>(() =>
@@ -135,9 +166,16 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
   const [activePanelId, setActivePanelId] = useState<string | null>(state.panels[0]?.id ?? null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [measureCard, setMeasureCard] = useState(saved?.measureCard ?? 0);
+  // Whether this start came from a link opened on this device, not from what this browser had saved.
+  const startedFromLink = !!resume && saved?.draftToken === resume.token && saved.savedAt === Date.parse(resume.updatedAt);
   const [resumedFrom, setResumedFrom] = useState<number | null>(
-    saved && worthResuming(saved) ? saved.savedAt : null
+    saved && !startedFromLink && worthResuming(saved) ? saved.savedAt : null
   );
+  // The draft on the server, when this design is being carried on elsewhere.
+  const [draftToken, setDraftToken] = useState<string | null>(saved?.draftToken ?? null);
+  /** When the server last saved it as far as this device knows, and what it amounted to. */
+  const draftSync = useRef<{ at: string; key: string | null }>({ at: saved?.draftSyncedAt ?? '', key: null });
+  const [fromOtherDevice, setFromOtherDevice] = useState(startedFromLink);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,11 +266,12 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
       customer,
       stepId,
       measureCard,
+      ...(draftToken ? { draftToken, draftSyncedAt: draftSync.current.at } : {}),
     };
     const timer = setTimeout(writeSave, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveKey, templateId, state, customer, stepId, measureCard, submitted]);
+  }, [saveKey, templateId, state, customer, stepId, measureCard, submitted, draftToken]);
   useEffect(() => {
     const onHide = () => {
       if (document.visibilityState === 'hidden') writeSave();
@@ -245,6 +284,82 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveKey]);
+
+  // Carried on elsewhere: the same design is kept on the server, so another
+  // device can open it and this one can pick up what was done there.
+  const progress = { stepId, measureCard, templateId };
+  const draftNow = draftKey(state, progress);
+  useEffect(() => {
+    // Opened from a link, the design is what the server already has, so
+    // there is nothing to send until something changes.
+    if (startedFromLink && draftSync.current.key === null) draftSync.current.key = draftNow;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const pushDraft = () => {
+    const token = draftToken;
+    if (!token || submitted || draftNow === draftSync.current.key) return;
+    const key = draftNow;
+    saveDraft(token, draftBody(state, progress))
+      .then((stamp) => {
+        draftSync.current = { at: stamp.updatedAt, key };
+      })
+      .catch((error: unknown) => {
+        // Gone for good: stop trying. Out of reach: the next change tries again.
+        if (error instanceof DraftError && error.kind === 'gone') setDraftToken(null);
+      });
+  };
+  const pullDraft = () => {
+    const token = draftToken;
+    if (!token || submitted || !config.siteKey) return;
+    openDraft(token, config.siteKey)
+      .then((found) => {
+        // Only something saved since this device last knew of it is news.
+        if (found.updatedAt <= draftSync.current.at) return;
+        const theirs = hydrateState(found.state, config);
+        const incoming = draftKey(theirs, found.progress);
+        draftSync.current = { at: found.updatedAt, key: incoming };
+        if (incoming === draftNow) return;
+        setTemplateId(found.progress.templateId);
+        setState(theirs);
+        setStepId(found.progress.stepId);
+        setMeasureCard(found.progress.measureCard);
+        setFromOtherDevice(true);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DraftError && error.kind === 'gone') setDraftToken(null);
+      });
+  };
+  useEffect(() => {
+    if (!draftToken || submitted) return;
+    const timer = setTimeout(pushDraft, 1200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftToken, draftNow, submitted]);
+  useEffect(() => {
+    if (!draftToken) return;
+    // Coming back to this device: see whether the other one has moved on.
+    const onShow = () => {
+      if (document.visibilityState === 'visible') pullDraft();
+    };
+    window.addEventListener('focus', pullDraft);
+    window.addEventListener('online', pushDraft);
+    document.addEventListener('visibilitychange', onShow);
+    return () => {
+      window.removeEventListener('focus', pullDraft);
+      window.removeEventListener('online', pushDraft);
+      document.removeEventListener('visibilitychange', onShow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftToken, draftNow, submitted]);
+
+  /** Make the link for another device: start a draft from the design as it stands. */
+  const startCarryOn = async () => {
+    if (!config.siteKey) throw new Error('This is a preview, so there is nothing to carry on.');
+    const key = draftNow;
+    const started = await startDraft(config.siteKey, draftBody(state, progress));
+    draftSync.current = { at: started.updatedAt, key };
+    setDraftToken(started.token);
+  };
 
   const stepIndex = STEPS.findIndex((s) => s.id === stepId);
   const step = STEPS[stepIndex];
@@ -408,6 +523,10 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
     setPhotos([]);
     setMeasureCard(0);
     setResumedFrom(null);
+    // A new design is not the one being carried on elsewhere.
+    setDraftToken(null);
+    draftSync.current = { at: '', key: null };
+    setFromOtherDevice(false);
     setStepId('shape');
     setSubmitted(false);
     setError(null);
@@ -524,6 +643,23 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
         </div>
       )}
 
+      {/* Brought up to date from the other device. */}
+      {fromOtherDevice && (
+        <div className="border-b bg-muted/40" role="status">
+          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 text-xs sm:px-6 sm:text-sm">
+            <p className="flex-1 text-muted-foreground">Carried on from your other device. Any photos need adding again.</p>
+            <button
+              type="button"
+              className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => setFromOtherDevice(false)}
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Body. */}
       <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
@@ -561,6 +697,11 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
                     setActivePanelId(fresh.panels[0].id);
                   }}
                 />
+              )}
+              {stepId === 'shape' && config.siteKey && (
+                <div className="mt-5">
+                  <CarryOn link={draftToken ? draftLink(config.siteKey, draftToken) : null} onStart={startCarryOn} />
+                </div>
               )}
               {stepId === 'measure' && <MeasureStep {...stepProps} />}
               {stepId === 'sizes' && <SizesStep {...stepProps} />}

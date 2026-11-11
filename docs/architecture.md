@@ -42,7 +42,7 @@ Three rules hold it together:
 The designer and the workspace never talk to each other. Both talk to the API, and the design document is what travels between them.
 
 1. The company's page loads one script with its site key. The script opens the designer in a frame served by SetOut, and the designer fetches that company's configuration.
-2. As the customer works, the design is saved as a draft and photos are uploaded.
+2. As the customer works, the design is saved in their browser. If they ask to carry on on another device, it is also kept on the server as a draft, which a link opens there.
 3. The customer sends the design: the document, their contact details and a bot check.
 4. The API runs the engine on the document with that company's rules, then stores the customer, the job, revision 1 of the design and the files. Whatever the browser calculated is discarded.
 5. The company and the customer are emailed. The company's own systems are told by webhook if it has one.
@@ -60,8 +60,17 @@ Public, called from the designer's own frame. A request is tied to a company by 
 | --- | --- |
 | `GET /api/designer/config?key=` | What a designer needs to know about its company: name, colour, finishes, handles, wording and its changes to the making rules. Nothing private |
 | `POST /api/designer/enquiries` | A customer sends a design. The document is checked, the engine is run again with the company's rules, and the customer, job, design, first revision and timeline entry are saved together. Then drawings and photos are stored |
+| `POST /api/designer/drafts` | Start a draft from the design as it stands, tied to a company by the site key. Answers with the resume token that opens it |
+| `GET /api/designer/drafts/:token?key=` | Open a draft on another device. It opens only in the designer it was made in |
+| `PUT /api/designer/drafts/:token` | Save a draft as it now stands, and keep it for another thirty days |
 
 After the customer has had their answer, the company is emailed the whole job, built from the server's own sizes, with the drawings and photos attached, and the customer is sent a copy. What happens to each email is written on the job's timeline.
+
+### Carrying on on another device
+
+Choosing a layout is comfortable at a computer. Measuring is done standing in a bathroom with a phone. So the designer offers a link, and a code to point a phone's camera at, that open the design where it now stands on another device. From then on each device saves to the draft as it changes and, when it is come back to, picks up whatever the other one did. A device that was out of signal keeps its own copy and wins if it is the newer.
+
+A draft holds the design and where the customer had got to. It never holds their name, their contact details or their photos. The token in the link is a long random secret. Only its hash is stored, so the database cannot be used to open anyone's draft. A draft is kept for thirty days after it was last saved, and ones that have run out are cleared when the company's next draft is started. One company may hold 5,000 at a time, which stops a script filling the database through a public route.
 
 A photo failing to store never loses the measurements: the job is saved first. A script that fills the hidden field is told it worked and nothing is kept. A missing bot check token is marked, not refused, because the widget can fail to load in a frame and a real customer's measuring is worth more than a flagged enquiry.
 
