@@ -25,6 +25,7 @@ describe('the door hardware', () => {
       { kind: 'hinges', pane: 1, count: door.door!.hingeCount, brand: door.door!.hingeBrand, mount: 'wall-to-glass' },
       { kind: 'handle', pane: 1, handleId: 'pull' },
       { kind: 'seal', pane: 1, seal: '90° stopper seal', lengthMm: door.cutHeightMm },
+      { kind: 'bottom-seal', pane: 1, lengthMm: door.cutWidthMm },
       { kind: 'channel', lengthMm: spec.totalChannelLengthMm },
     ]);
   });

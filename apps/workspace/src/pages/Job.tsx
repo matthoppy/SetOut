@@ -457,6 +457,9 @@ function SignOff({
           <Link to={`/glass?jobs=${encodeURIComponent(jobId)}`} className="text-sm font-semibold text-accent underline underline-offset-2">
             Glass order
           </Link>
+          <Link to={`/crl?jobs=${encodeURIComponent(jobId)}`} className="text-sm font-semibold text-accent underline underline-offset-2">
+            CRL order
+          </Link>
           <Link to={`/jobs/${jobId}/installation`} className="text-sm font-semibold text-accent underline underline-offset-2">
             Installation sheet
           </Link>

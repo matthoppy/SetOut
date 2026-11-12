@@ -1,6 +1,7 @@
 /**
  * What the fitter takes to a shower: the hinges on each door and how they
- * fix, its handle and its seal, how the fixed glass is held, and any support.
+ * fix, its handle, its seal and the wipe under it, how the fixed glass is
+ * held, and any support.
  *
  * Every number comes from the spec, and the seal's length from the glass the
  * door is cut to. The finish and handle are the company's own options, so
@@ -20,6 +21,8 @@ export type Fitting =
   | { kind: 'handle'; pane: number; handleId: string }
   /** Along the door's latch edge, as long as that edge. */
   | { kind: 'seal'; pane: number; seal: string; lengthMm: number }
+  /** A wipe with a drip rail along the door's bottom edge, as long as that edge. */
+  | { kind: 'bottom-seal'; pane: number; lengthMm: number }
   | { kind: 'channel'; lengthMm: number }
   | { kind: 'clamps' }
   | { kind: 'support-bar'; reason: string | null }
@@ -49,6 +52,8 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     const { bottomLeft, bottomRight, topLeft, topRight } = shapes[i].corners;
     const latch = door.hingeSide === 'left' ? topRight.y - bottomRight.y : topLeft.y - bottomLeft.y;
     fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch });
+    // Every door has a wipe under it, as Custom Showers always fit.
+    fittings.push({ kind: 'bottom-seal', pane: i, lengthMm: Math.round(Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) });
   });
   fittings.push(spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm } : { kind: 'clamps' });
   if (spec.support.supportBarRequired) fittings.push({ kind: 'support-bar', reason: spec.support.supportBarReason });

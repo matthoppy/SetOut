@@ -8,6 +8,8 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      // Agents' git worktrees: copies of the repository, each linted where it is.
+      '.claude/**',
       '**/.wrangler/**',
       '**/worker-configuration.d.ts',
       '**/test/goldens/**',

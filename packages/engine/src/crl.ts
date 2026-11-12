@@ -5,7 +5,7 @@
  * follows from its range and how it fixes, and a finish adds CRL's code for
  * it: GEN044 + CH is a polished chrome Geneva hinge to the wall on an offset
  * back plate. Which of CRL's hinges a door takes is chosen (hinges.ts).
- * Seals are clear and have no finish. The channel is CRL's deep U-channel in
+ * Seals and wipes are clear and have no finish. The channel is CRL's deep U-channel in
  * 2.41m lengths: it is aluminium, which is never chromed, so polished chrome
  * hardware has its channel brite anodised.
  *
@@ -82,6 +82,32 @@ const SEALS: Record<string, Partial<Record<number, string>>> = {
   '90° stopper seal': { 8: 'PC0890', 10: 'PC1090' },
 };
 
+/** CRL's stock length for seals, wipes and channel: 95 inches. */
+export const CRL_STOCK_LENGTH_MM = 2413;
+
+/**
+ * How many stock lengths a set of pieces is cut from, longest first, each
+ * from the first length it still fits in. A piece longer than a length is
+ * made from whole lengths joined.
+ */
+export function stockLengthsFor(piecesMm: readonly number[], stockMm: number = CRL_STOCK_LENGTH_MM): number {
+  let whole = 0;
+  const left: number[] = [];
+  for (const piece of [...piecesMm].filter((p) => p > 0).sort((a, b) => b - a)) {
+    if (piece > stockMm) {
+      whole += Math.ceil(piece / stockMm);
+      continue;
+    }
+    const at = left.findIndex((room) => room >= piece);
+    if (at >= 0) left[at] -= piece;
+    else left.push(stockMm - piece);
+  }
+  return whole + left.length;
+}
+
+/** Clear bottom wipe with drip rail, 2.41m lengths, by the glass it snaps onto. */
+const BOTTOM_WIPES: Partial<Record<number, string>> = { 8: 'P956WS', 10: 'P990WS', 12: 'P912WS' };
+
 /** Deep U-channel, 2.41m lengths. */
 const CHANNEL: Partial<Record<number, string>> = { 10: 'SDCD38', 12: 'SDCD12' };
 
@@ -138,6 +164,10 @@ export function crlPartOf(fitting: Fitting, choices: CrlChoices): CrlPart | null
     }
     case 'seal': {
       const code = SEALS[fitting.seal]?.[choices.glassMm];
+      return code ? { status: 'found', code } : null;
+    }
+    case 'bottom-seal': {
+      const code = BOTTOM_WIPES[choices.glassMm];
       return code ? { status: 'found', code } : null;
     }
     case 'channel': {

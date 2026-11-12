@@ -362,6 +362,8 @@ function wordsFor(
       return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
     case 'seal':
       return { qty: '1', item: capitalised(f.seal), where: `${door(f.pane)}, latch edge, ${f.lengthMm}mm`, finish: '' };
+    case 'bottom-seal':
+      return { qty: '1', item: 'Bottom wipe', where: `${door(f.pane)}, bottom edge, ${f.lengthMm}mm`, finish: '' };
     case 'channel':
       return { qty: `${(f.lengthMm / 1000).toFixed(2)}m`, item: 'U-channel', where: 'In all, cut on site', finish };
     case 'clamps':
