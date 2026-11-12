@@ -20,7 +20,8 @@ export interface Seeded {
 
 /**
  * A company with one of everything: a designer, a customer, a job with a
- * design and a revision, a draft, a file, an event and a member of staff.
+ * design and a revision, a draft, a file, an event, a member of staff, a
+ * quote, a price and a subscription.
  */
 export async function seedCompany(name: string, prefix: string): Promise<Seeded> {
   const company = await createCompany(env, { name, referencePrefix: prefix });
@@ -93,6 +94,11 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     total_pence: 30_000,
   });
   const price = await db.insert('price_list', { key: 'fitting', unit: 'job', unit_price_pence: 25_000 });
+  const subscription = await db.insert('subscriptions', {
+    status: 'trialing',
+    trial_ends_at: '2027-01-01T00:00:00.000Z',
+    stripe_customer_id: `cus_${prefix}`,
+  });
 
   return {
     company,
@@ -110,6 +116,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       audit_log: audit,
       quotes: quote,
       price_list: price,
+      subscriptions: subscription,
     },
   };
 }

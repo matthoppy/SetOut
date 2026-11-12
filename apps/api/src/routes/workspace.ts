@@ -14,7 +14,7 @@
 
 import { buildSpec, DOCUMENT_FORMAT, DocumentError, ENGINE_VERSION, upgradeDocument } from '@setout/engine';
 import { Hono } from 'hono';
-import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { deleteCookie, getCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import {
   companiesOf,
@@ -23,19 +23,24 @@ import {
   normaliseEmail,
   redeemSignInLink,
   resolveSession,
-  SESSION_DAYS,
   switchCompany,
   type Session,
 } from '../db/auth';
 import { companyDb } from '../db/company-db';
+import { setUpOf } from '../db/onboarding';
 import { usersByIds } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
+import { billingIsOn, standingOf, subscriptionOf } from '../lib/billing';
 import { ALL_HINGES, designerConfig, GLASS_THICKNESSES, optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
+import { SESSION_COOKIE, setSessionCookie } from '../lib/session-cookie';
 import { signInEmail } from '../lib/sign-in-email';
+import { isPlatformAdmin, signUpsAreOpen } from '../lib/sign-up';
+import { staffBilling } from './billing';
+import { signUp } from './sign-up';
 import { staffQuotes } from './staff-quotes';
 import { staffSettings } from './settings';
 import { addedToTeamEmail } from '../lib/team-email';
@@ -44,8 +49,7 @@ type Bindings = { Bindings: Env; Variables: { session: Session } };
 
 export const workspace = new Hono<Bindings>();
 
-/** Only this address is sent it, only over HTTPS, and no script can read it. */
-export const SESSION_COOKIE = '__Host-setout_session';
+export { SESSION_COOKIE };
 
 const PRIVATE = { 'Cache-Control': 'no-store' };
 
@@ -104,15 +108,12 @@ workspace.post('/sign-in/verify', async (c) => {
       PRIVATE
     );
   }
-  setCookie(c, SESSION_COOKIE, session.token, {
-    path: '/',
-    secure: true,
-    httpOnly: true,
-    sameSite: 'Lax',
-    maxAge: SESSION_DAYS * 86_400,
-  });
+  setSessionCookie(c, session.token);
   return c.json({ ok: true }, 200, PRIVATE);
 });
+
+// Signing up is the other way in, for a company that does not exist yet.
+workspace.route('/', signUp);
 
 // ---------------------------------------------------------------------------
 // Everything below needs a signed-in member of staff
@@ -128,10 +129,34 @@ const signedIn = createMiddleware<Bindings>(async (c, next) => {
 const staff = new Hono<Bindings>();
 staff.use('*', signedIn);
 
+/** What a locked company's staff can still reach: who they are, their other companies, the way out, and billing. */
+const OPEN_WHEN_LOCKED = /^\/api\/workspace\/(me|company|sign-out|billing(\/.*)?)$/;
+
+// With billing on, a company whose trial has run out, or whose subscription
+// has ended, is locked until a plan is paid for. Its staff can sign in and
+// reach the billing page, and nothing else. The designer is not touched: a
+// customer's design still arrives. With billing off this does nothing.
+staff.use('*', async (c, next) => {
+  if (billingIsOn(c.env) && !OPEN_WHEN_LOCKED.test(new URL(c.req.url).pathname)) {
+    const db = companyDb(c.env, c.get('session').companyId);
+    const [company, subscription] = await Promise.all([db.company(), subscriptionOf(db)]);
+    if (company && standingOf(company, subscription).locked) {
+      return c.json(
+        { error: 'payment_needed', message: 'This company’s trial or plan has ended. An owner can choose a plan on the billing page.' },
+        402,
+        PRIVATE
+      );
+    }
+  }
+  await next();
+});
+
 /** Who is signed in, the company they are working in, and their others. */
 staff.get('/me', async (c) => {
   const session = c.get('session');
-  const company = await companyDb(c.env, session.companyId).company();
+  const db = companyDb(c.env, session.companyId);
+  const company = await db.company();
+  const billing = company && billingIsOn(c.env) ? standingOf(company, await subscriptionOf(db)) : null;
   return c.json(
     {
       user: { id: session.userId, email: session.email, name: session.name },
@@ -143,6 +168,15 @@ staff.get('/me', async (c) => {
         branding: company.branding,
       },
       companies: await companiesOf(c.env, session.userId),
+      // Whether the set-up wizard is still to be finished. Null for a company
+      // that was never sent to it.
+      setUp: company ? setUpOf(company.settings) : null,
+      // Only with billing on: where the company stands, for the line at the
+      // top of the workspace.
+      ...(billing ? { billing } : {}),
+      // Read from the server's own settings on every request.
+      ...(isPlatformAdmin(c.env, session.email) ? { platformAdmin: true } : {}),
+      signUpsOpen: signUpsAreOpen(c.env),
     },
     200,
     PRIVATE
@@ -846,5 +880,7 @@ staff.get('/files/:id', async (c) => {
     },
   });
 });
+
+staff.route('/', staffBilling);
 
 workspace.route('/', staff);

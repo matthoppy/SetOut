@@ -8,6 +8,7 @@ import { env, exports } from 'cloudflare:workers';
 import { expect } from 'vitest';
 import { companyDb, type CompanyDb } from '../src/db/company-db';
 import { createCompany, newSiteKey } from '../src/db/platform';
+import app from '../src/index';
 import { SESSION_COOKIE } from '../src/routes/workspace';
 
 export const APP = 'https://app.test';
@@ -92,4 +93,47 @@ export async function signIn(email: string): Promise<string> {
 }
 
 export const json = async <T>(response: Response) => (await response.json()) as T;
+
+/** What a deploy is switched to and holds, where a test needs something other than a developer's machine. */
+export type Overrides = Partial<
+  Pick<
+    Env,
+    | 'ENVIRONMENT'
+    | 'SIGNUPS'
+    | 'BILLING'
+    | 'TRIAL_DAYS'
+    | 'PLATFORM_ADMINS'
+    | 'TURNSTILE_SECRET_KEY'
+    | 'TURNSTILE_SITE_KEY'
+    | 'STRIPE_SECRET_KEY'
+    | 'STRIPE_WEBHOOK_SECRET'
+    | 'RESEND_API_KEY'
+    | 'EMAIL_FROM'
+  >
+>;
+
+/**
+ * A call to the Worker with some of its settings changed, as another deploy
+ * would have them. `path` is the whole path, such as /api/platform/companies.
+ * A change comes from the workspace's own page unless told otherwise.
+ */
+export async function callWith(overrides: Overrides, path: string, init: Call = {}, host = APP): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (init.cookie) headers.set('Cookie', `${SESSION_COOKIE}=${init.cookie}`);
+  const method = init.method ?? 'GET';
+  if (method !== 'GET' && init.origin !== null) headers.set('Origin', init.origin ?? host);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const waiting: Promise<unknown>[] = [];
+  const ctx = {
+    waitUntil: (promise: Promise<unknown>) => void waiting.push(promise),
+    passThroughOnException() {},
+    props: {},
+  } as unknown as ExecutionContext;
+  const response = await app.fetch(new Request(`${host}${path}`, { ...init, method, headers }), { ...env, ...overrides }, ctx);
+  await Promise.all(waiting);
+  return response;
+}
+
+/** The body of a JSON call. */
+export const body = (value: unknown) => JSON.stringify(value);
 

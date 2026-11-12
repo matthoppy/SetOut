@@ -32,7 +32,14 @@
     "DESIGNER_HOST": "",
     "APP_HOST": "",
     // The address emails are sent from. Empty means nothing is emailed.
-    "EMAIL_FROM": ""
+    "EMAIL_FROM": "",
+    // Whether a company may open its own account: "open" or "closed".
+    "SIGNUPS": "open",
+    // Billing through Stripe: "on" or "off". Off everywhere until prices and
+    // keys are set. See docs/deploying.md before changing it.
+    "BILLING": "off",
+    // How many days a new company's trial lasts, once billing is on.
+    "TRIAL_DAYS": "14"
   },
   "d1_databases": [
     {
@@ -62,7 +69,10 @@
         "APP_HOST": "app-staging.setoutglass.com",
         // setoutglass.com is a verified sending domain in Resend. The mail key
         // is a secret on the Worker, set in Cloudflare, never here.
-        "EMAIL_FROM": "hello@setoutglass.com"
+        "EMAIL_FROM": "hello@setoutglass.com",
+        "SIGNUPS": "open",
+        "BILLING": "off",
+        "TRIAL_DAYS": "14"
       },
       "d1_databases": [
         {
@@ -91,7 +101,12 @@
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer.setoutglass.com",
         "APP_HOST": "app.setoutglass.com",
-        "EMAIL_FROM": "hello@setoutglass.com"
+        "EMAIL_FROM": "hello@setoutglass.com",
+        // Closed until Matt says to open it: with billing off, anyone who
+        // signed up here would use SetOut for nothing.
+        "SIGNUPS": "closed",
+        "BILLING": "off",
+        "TRIAL_DAYS": "14"
       },
       "d1_databases": [
         {

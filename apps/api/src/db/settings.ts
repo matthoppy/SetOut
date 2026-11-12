@@ -13,8 +13,9 @@
  * change unawares. Its audit entry is written in the same batch, and only if
  * the change was made, so the log never says something happened that did not.
  *
- * Which websites may show a designer is a security setting, and is not
- * written here at all.
+ * Which websites may show a designer is a security setting. An owner sets it
+ * for their own designer, checked as strictly as the page's framing rule
+ * reads it, and each change is in the audit log like any other.
  */
 
 import { newId } from '../lib/ids';
@@ -26,7 +27,7 @@ type Env_ = Pick<Env, 'DB'>;
 export interface StoredSettings {
   company: { name: string; branding: string; settings: string };
   /** Oldest first, as the rest of the workspace takes them. */
-  designers: { id: string; name: string; status: string; config: string; notify_emails: string }[];
+  designers: { id: string; name: string; status: string; site_key: string; allowed_origins: string; config: string; notify_emails: string }[];
 }
 
 /** The company's settings and its designers', as stored, to show them and to change them from. */
@@ -34,7 +35,7 @@ export async function readSettings(env: Env_, companyId: string): Promise<Stored
   const [company, designers] = await env.DB.batch([
     env.DB.prepare('SELECT name, branding, settings FROM companies WHERE id = ?').bind(companyId),
     env.DB.prepare(
-      'SELECT id, name, status, config, notify_emails FROM designers WHERE company_id = ? ORDER BY created_at, id'
+      'SELECT id, name, status, site_key, allowed_origins, config, notify_emails FROM designers WHERE company_id = ? ORDER BY created_at, id'
     ).bind(companyId),
   ]);
   const row = (company.results as StoredSettings['company'][])[0];
@@ -45,7 +46,7 @@ export async function readSettings(env: Env_, companyId: string): Promise<Stored
 /** The only columns a change to the settings may write. */
 const WRITABLE = {
   companies: ['name', 'branding', 'settings'],
-  designers: ['config', 'notify_emails'],
+  designers: ['config', 'notify_emails', 'allowed_origins'],
 } as const;
 
 type Change = { was: string; now: string };

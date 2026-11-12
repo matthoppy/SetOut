@@ -8,8 +8,7 @@
  * with one thing wrong changes nothing. What changed is worked out here too,
  * for the audit log.
  *
- * Left out on purpose: which websites may show a designer, which is a
- * security setting, and the making rules, which change cut sizes.
+ * Left out on purpose: the making rules, which change cut sizes.
  */
 
 import { CRL_CODE } from '@setout/engine';
@@ -56,6 +55,8 @@ export const LIMITS = {
   description: 200,
   /** Addresses emailed when a design arrives. */
   notifyEmails: 5,
+  /** Websites that may show one designer. */
+  websites: 10,
   companyName: 100,
   logoUrl: 500,
 } as const;
@@ -142,9 +143,21 @@ export interface DesignerView {
   glass: Glass;
   hinges: Hinges;
   notifyEmails: string[];
+  /** The designer's public key, which goes in the embed code. */
+  siteKey: string;
+  /** The websites that may show the designer, as origins: https://example.co.uk. */
+  websites: string[];
 }
 
-export function designerView(stored: { id: string; name: string; status: string; config: string; notify_emails: string }): DesignerView {
+export function designerView(stored: {
+  id: string;
+  name: string;
+  status: string;
+  site_key: string;
+  allowed_origins: string;
+  config: string;
+  notify_emails: string;
+}): DesignerView {
   const config = parsed(stored.config) as DesignerSettings;
   const { finishes, handles } = offeredOptions(config);
   return {
@@ -156,6 +169,8 @@ export function designerView(stored: { id: string; name: string; status: string;
     glass: glassOf(config),
     hinges: hingesOf(config),
     notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
+    siteKey: stored.site_key,
+    websites: list(stored.allowed_origins).filter((o): o is string => typeof o === 'string'),
   };
 }
 
@@ -175,14 +190,15 @@ export async function companyVersions(company: CompanyView) {
 }
 
 export async function designerVersions(designer: DesignerView) {
-  const [finishes, handles, glass, hinges, notifyEmails] = await Promise.all([
+  const [finishes, handles, glass, hinges, notifyEmails, websites] = await Promise.all([
     versionOf(designer.finishes),
     versionOf(designer.handles),
     versionOf(designer.glass),
     versionOf(designer.hinges),
     versionOf(designer.notifyEmails),
+    versionOf(designer.websites),
   ]);
-  return { finishes, handles, glass, hinges, notifyEmails };
+  return { finishes, handles, glass, hinges, notifyEmails, websites };
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +293,41 @@ export function readNotifyEmails(input: unknown): string[] {
     throw new RequestError(400, 'invalid_emails', 'Add at least one address, so each new design reaches someone.');
   }
   return emails;
+}
+
+/** A website's address as a browser names it: https, a host, and a port only if it has one. */
+const WEBSITE = /^https:\/\/[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/;
+
+/**
+ * The websites that may show a designer, as an owner sent them. Each is
+ * tidied to its origin, so https://www.example.co.uk/showers/ is kept as
+ * https://www.example.co.uk. Only https, only a real host name, each once.
+ * An empty list is allowed: the designer then shows nowhere.
+ */
+export function readWebsites(input: unknown): string[] {
+  if (!Array.isArray(input)) throw new RequestError(400, 'invalid_websites', 'The websites must be a list.');
+  if (input.length > LIMITS.websites) {
+    throw new RequestError(400, 'invalid_websites', `A designer can be shown on up to ${LIMITS.websites} websites.`);
+  }
+  const websites: string[] = [];
+  for (const raw of input) {
+    const typed = typeof raw === 'string' ? oneLine(raw).slice(0, 300) : '';
+    if (!typed) throw new RequestError(400, 'invalid_websites', 'Each website must be an address, such as https://www.example.co.uk.');
+    const url = urlOf(/^[a-z][a-z0-9+.-]*:\/\//i.test(typed) ? typed : `https://${typed}`);
+    const origin = url ? `${url.protocol}//${url.host}`.toLowerCase() : '';
+    if (!url || url.protocol !== 'https:' || url.username || url.password || !url.hostname.includes('.') || !WEBSITE.test(origin)) {
+      throw new RequestError(
+        400,
+        'invalid_websites',
+        `“${typed.slice(0, 80)}” is not a website the designer can be shown on. It must start https:// and be the site’s own address, such as https://www.example.co.uk.`
+      );
+    }
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(url.hostname)) {
+      throw new RequestError(400, 'invalid_websites', 'A website is named by its address, such as https://www.example.co.uk, not by numbers.');
+    }
+    if (!websites.includes(origin)) websites.push(origin);
+  }
+  return websites;
 }
 
 /** The glass a designer offers, as an owner sent it: thicknesses SetOut makes, and one of them to start new designs at. */
@@ -467,6 +518,7 @@ export type SettingsChange =
       to?: string;
     }
   | { field: Kind; change: 'reordered' }
+  | { field: 'websites'; added: string[]; removed: string[] }
   | { field: 'glassOffered'; from: number[]; to: number[] }
   | { field: 'glassStandard'; from: number; to: number }
   | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
@@ -528,6 +580,12 @@ export function emailChanges(before: readonly string[], after: readonly string[]
   const added = after.filter((e) => !before.includes(e));
   const removed = before.filter((e) => !after.includes(e));
   return added.length || removed.length ? [{ field: 'notifyEmails', added, removed }] : [];
+}
+
+export function websiteChanges(before: readonly string[], after: readonly string[]): SettingsChange[] {
+  const added = after.filter((w) => !before.includes(w));
+  const removed = before.filter((w) => !after.includes(w));
+  return added.length || removed.length ? [{ field: 'websites', added, removed }] : [];
 }
 
 export function companyChanges(before: CompanyView, after: CompanyView): SettingsChange[] {

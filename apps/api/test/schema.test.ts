@@ -10,14 +10,21 @@ import { expect, test } from 'vitest';
 import { TABLES } from '../src/db/tables';
 
 /** Tables that belong to the platform, not to a company. */
-const PLATFORM_TABLES = ['companies', 'users', 'login_tokens', 'sessions'];
+const PLATFORM_TABLES = ['companies', 'users', 'login_tokens', 'sessions', 'signups', 'plans', 'stripe_events'];
 /** Company tables reached through their own methods, not the general ones. */
 const SPECIAL_TABLES = ['rulesets', 'usage_monthly'];
 /**
  * The only indexes that may start with something other than the company:
  * the keys that say which company a request belongs to.
  */
-const GLOBAL_LOOKUPS = ['designers.site_key', 'drafts.resume_token_hash', 'memberships.user_id', 'quotes.link_token_hash'];
+const GLOBAL_LOOKUPS = [
+  'designers.site_key',
+  'drafts.resume_token_hash',
+  'memberships.user_id',
+  'quotes.link_token_hash',
+  // How Stripe's webhook comes to belong to a company.
+  'subscriptions.stripe_customer_id',
+];
 
 const all = async <T>(sql: string) => (await env.DB.prepare(sql).all<T>()).results;
 
