@@ -26,6 +26,7 @@ import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
 import { Job } from './pages/Job';
 import { SignIn } from './pages/SignIn';
+import { CrlOrder } from './pages/CrlOrder';
 import { GlassOrder } from './pages/GlassOrder';
 import { InstallationSheet } from './pages/InstallationSheet';
 import { MakingSheet } from './pages/MakingSheet';
@@ -99,6 +100,8 @@ function App() {
       <Settings me={me.data} onRenamed={me.reload} />
     ) : path === '/glass' ? (
       <GlassOrder query={query} companyName={me.data.company?.name ?? ''} />
+    ) : path === '/crl' ? (
+      <CrlOrder query={query} companyName={me.data.company?.name ?? ''} />
     ) : makingMatch ? (
       <MakingSheet id={makingMatch[1]} />
     ) : installMatch ? (
@@ -233,6 +236,9 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
                 <p className="truncate px-2 py-1 text-quiet">{me.user.email}</p>
                 <Link to="/glass" onClick={() => setMenu(false)} className="mt-1 block rounded border-t border-rule px-2 py-2 hover:bg-ground">
                   Glass order
+                </Link>
+                <Link to="/crl" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
+                  CRL order
                 </Link>
                 <Link to="/team" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
                   Team

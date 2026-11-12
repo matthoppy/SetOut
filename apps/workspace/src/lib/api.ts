@@ -378,6 +378,8 @@ export interface DesignerSettings {
   glass: { offered: number[]; standard: number };
   /** The hinge styles customers may choose for a door hung from a wall and one hung in line, and the standard of each. */
   hinges: Hinges;
+  /** Whether customers are offered the sliding door layouts (CRL Serenity). Off until an owner turns it on. */
+  sliding: boolean;
   notifyEmails: string[];
   /** The designer's public key, which goes in the embed code. */
   siteKey: string;
@@ -385,7 +387,7 @@ export interface DesignerSettings {
   websites: string[];
   /** How many showers on the company's jobs use each option, by id. */
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; hinges: string; notifyEmails: string; websites: string };
+  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string; websites: string };
 }
 
 export type SettingsChangeItem =
@@ -406,6 +408,7 @@ export type SettingsChangeItem =
   | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
+  | { field: 'slidingDoors'; from: boolean; to: boolean }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'websites'; added: string[]; removed: string[] };
 
@@ -440,6 +443,7 @@ export interface DesignerChanges {
   handles?: NewOption<Handle>[];
   glass?: DesignerSettings['glass'];
   hinges?: Hinges;
+  sliding?: boolean;
   notifyEmails?: string[];
   websites?: string[];
   basedOn: Partial<DesignerSettings['versions']>;

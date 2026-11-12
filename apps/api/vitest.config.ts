@@ -14,9 +14,11 @@ export default defineConfig(async () => {
           bindings: {
             // A test-only binding, so a setup file can apply the migrations.
             TEST_MIGRATIONS: migrations,
-            // Two addresses, as production has. Any other host serves both apps.
+            // The designer's address and the workspace's, as production has. Any other host serves everything by path.
             DESIGNER_HOST: 'designer.test',
             APP_HOST: 'app.test',
+            // SetOut's own site, which production has too.
+            SITE_HOST: 'site.test',
           },
           // A small stand-in for the built apps, served by the real file
           // binding, so these tests need no build and still meet the real

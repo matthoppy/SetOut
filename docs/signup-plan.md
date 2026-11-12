@@ -83,9 +83,10 @@ At `/set-up`, for owners, straight after sign-up and from the settings page at a
 4. **Handles.**
 5. **Glass.** Which thicknesses customers may choose.
 6. **Hinges.** Which hinge styles are offered.
-7. **Who is emailed.** One to five addresses for new designs.
-8. **Your website.** The websites the designer may appear on. New: until now only SetOut could set these. An owner may list up to ten, each an `https://` address with no path. A browser refuses to show the designer anywhere else. Every change goes in the audit log.
-9. **Add it to your website.** The two lines of embed code with the company's own site key, a button to copy them, where to paste them (WordPress, Wix, Squarespace, or plain HTML), and a link that opens the designer as customers will see it.
+7. **Sliding doors.** Off unless the company makes them. Added when sliding doors arrived on `main` while this was being built.
+8. **Who is emailed.** One to five addresses for new designs.
+9. **Your website.** The websites the designer may appear on. New: until now only SetOut could set these. An owner may list up to ten, each an `https://` address with no path. A browser refuses to show the designer anywhere else. Every change goes in the audit log.
+10. **Add it to your website.** The two lines of embed code with the company's own site key, a button to copy them, where to paste them (WordPress, Wix, Squarespace, or plain HTML), and a link that opens the designer as customers will see it.
 
 The wizard remembers that it has been finished. Until then an owner who signs in is taken to it once, and the inbox shows one line offering to carry on. Companies that existed before this step are never sent to it.
 
@@ -171,7 +172,7 @@ In order: Matt answers the questions below; products and prices are made in Stri
 
 ## The database
 
-One migration, `0007_signup_billing.sql`. Another branch is adding the public website's enquiry form with a migration of its own, so this number may need to change when the two are merged. It only adds tables, so the code before it keeps working.
+One migration, `0008_signup_billing.sql`. It was written as 0007 and took the next number when the public website's enquiry form, which has 0007, was merged. It only adds tables, so the code before it keeps working.
 
 | Table | Belongs to | Holds |
 | --- | --- | --- |
@@ -194,7 +195,7 @@ Sign-up adds a third way for a request to come to belong to a company, after the
 
 ## Before it goes live
 
-1. Merge with the public website's branch and renumber the migration if needed.
+1. Merge `signup` into `main`. The migration has already been renumbered past the public website's.
 2. Set `PLATFORM_ADMINS` and `TURNSTILE_SITE_KEY` on staging and production.
 3. Try sign-up on staging with a real inbox.
 4. Decide when to set `SIGNUPS` to `open` in production. Until billing is on, anyone who signs up there uses SetOut for nothing.

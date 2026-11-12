@@ -9,7 +9,18 @@
  * save over each other unawares.
  */
 
-import { CRL_CODE, crlFinishCode, IN_LINE_HINGE_STYLES, IN_LINE_HINGES, WALL_HINGE_STYLES, WALL_HINGES, type HingeStyle } from '@setout/engine';
+import {
+  CRL_CODE,
+  crlFinishCode,
+  handlePhotoOf,
+  hingePhotoOf,
+  IN_LINE_HINGE_STYLES,
+  IN_LINE_HINGES,
+  WALL_HINGE_STYLES,
+  WALL_HINGES,
+  type HingeStyle,
+} from '@setout/engine';
+import { crlPhotoSrc } from '@setout/ui';
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import {
   api,
@@ -129,6 +140,15 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 limits={data.limits}
                 justSaved={saved === `hinges:${designer.id}`}
                 onSaved={() => onSaved(`hinges:${designer.id}`)}
+                onReload={settings.reload}
+              />
+              <SlidingPart
+                key={designer.versions.sliding}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `sliding:${designer.id}`}
+                onSaved={() => onSaved(`sliding:${designer.id}`)}
                 onReload={settings.reload}
               />
               <EmailsPart
@@ -612,15 +632,19 @@ export function HandlesPart({ designer, owner, limits, justSaved, onSaved, onRel
       <Section title="Handles">
         <ul className={`${CARD} space-y-3 text-sm`}>
           {designer.handles.map((h) => (
-            <li key={h.id}>
-              <p className="flex items-baseline gap-3">
-                <span className="font-medium">{h.label}</span>
-                <CodeOf code={h.code ?? null} />
-              </p>
-              {h.description && <p className="text-quiet">{h.description}</p>}
-              <p className="text-xs text-quiet">{drilling(h.id)}</p>
+            <li key={h.id} className="flex items-start gap-3">
+              <HandleThumb code={h.code} />
+              <div className="min-w-0">
+                <p className="flex items-baseline gap-3">
+                  <span className="font-medium">{h.label}</span>
+                  <CodeOf code={h.code ?? null} />
+                </p>
+                {h.description && <p className="text-quiet">{h.description}</p>}
+                <p className="text-xs text-quiet">{drilling(h.id)}</p>
+              </div>
             </li>
           ))}
+          {designer.handles.some((h) => handlePhotoOf(h.code, null)) && <li className="text-xs text-quiet">{PHOTOS}</li>}
         </ul>
       </Section>
     );
@@ -634,54 +658,60 @@ export function HandlesPart({ designer, owner, limits, justSaved, onSaved, onRel
         </Hint>
         <ul className="space-y-4">
           {rows.map((row, i) => (
-            <li key={row.key}>
-              <div className="flex items-start gap-2">
-                <label className="min-w-0 flex-1">
-                  <span className="sr-only">Name of handle {i + 1}</span>
+            <li key={row.key} className="flex items-start gap-3">
+              {/* Beside the row where there is room; on a phone, under it, so the name keeps its width. */}
+              <HandleThumb code={tidyCode(row.code)} className="hidden sm:block" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2">
+                  <label className="min-w-0 flex-1">
+                    <span className="sr-only">Name of handle {i + 1}</span>
+                    <input
+                      type="text"
+                      value={row.label}
+                      maxLength={limits.label + 20}
+                      placeholder="Name, such as Pull handle"
+                      onChange={(e) => list.change(row.key, { label: e.target.value })}
+                      aria-invalid={problems[i] ? true : undefined}
+                      className={`${FIELD} font-medium ${problems[i] ? 'border-bad/60' : 'border-rule'}`}
+                    />
+                  </label>
+                  <CodeField
+                    label={`CRL number for ${row.label || 'this handle'}`}
+                    value={row.code}
+                    placeholder="CRL no."
+                    invalid={codes[i] !== null}
+                    onChange={(code) => list.change(row.key, { code })}
+                    wide
+                  />
+                  <MoveUp label={row.label} disabled={i === 0} onClick={() => list.moveUp(row.key)} />
+                  <RemoveButton label={row.label} disabled={rows.length === 1} onClick={() => list.remove(row.key)} />
+                </div>
+                <label className="mt-2 block">
+                  <span className="sr-only">What your customers are told about {row.label || 'this handle'}</span>
                   <input
                     type="text"
-                    value={row.label}
-                    maxLength={limits.label + 20}
-                    placeholder="Name, such as Pull handle"
-                    onChange={(e) => list.change(row.key, { label: e.target.value })}
-                    aria-invalid={problems[i] ? true : undefined}
-                    className={`${FIELD} font-medium ${problems[i] ? 'border-bad/60' : 'border-rule'}`}
+                    value={row.description}
+                    maxLength={limits.description + 20}
+                    placeholder="A line for your customers, if you like"
+                    onChange={(e) => list.change(row.key, { description: e.target.value })}
+                    aria-invalid={long[i] ? true : undefined}
+                    className={`${FIELD} text-sm ${long[i] ? 'border-bad/60' : 'border-rule'}`}
                   />
                 </label>
-                <CodeField
-                  label={`CRL number for ${row.label || 'this handle'}`}
-                  value={row.code}
-                  placeholder="CRL no."
-                  invalid={codes[i] !== null}
-                  onChange={(code) => list.change(row.key, { code })}
-                  wide
-                />
-                <MoveUp label={row.label} disabled={i === 0} onClick={() => list.moveUp(row.key)} />
-                <RemoveButton label={row.label} disabled={rows.length === 1} onClick={() => list.remove(row.key)} />
+                <HandleThumb code={tidyCode(row.code)} className="mt-2 sm:hidden" />
+                <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-quiet">
+                  {problems[i] && <span className="text-bad">{problems[i]}</span>}
+                  {long[i] && <span className="text-bad">Keep the line to {limits.description} characters.</span>}
+                  {codes[i] && <span className="text-bad">{codes[i]}</span>}
+                  {!row.id && <span className="font-medium text-accent">New</span>}
+                  <span>{drilledAs(row)}</span>
+                  {row.id && <UsedBy count={designer.inUse.handles[row.id] ?? 0} />}
+                </p>
               </div>
-              <label className="mt-2 block">
-                <span className="sr-only">What your customers are told about {row.label || 'this handle'}</span>
-                <input
-                  type="text"
-                  value={row.description}
-                  maxLength={limits.description + 20}
-                  placeholder="A line for your customers, if you like"
-                  onChange={(e) => list.change(row.key, { description: e.target.value })}
-                  aria-invalid={long[i] ? true : undefined}
-                  className={`${FIELD} text-sm ${long[i] ? 'border-bad/60' : 'border-rule'}`}
-                />
-              </label>
-              <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-quiet">
-                {problems[i] && <span className="text-bad">{problems[i]}</span>}
-                {long[i] && <span className="text-bad">Keep the line to {limits.description} characters.</span>}
-                {codes[i] && <span className="text-bad">{codes[i]}</span>}
-                {!row.id && <span className="font-medium text-accent">New</span>}
-                <span>{drilledAs(row)}</span>
-                {row.id && <UsedBy count={designer.inUse.handles[row.id] ?? 0} />}
-              </p>
             </li>
           ))}
         </ul>
+        {rows.some((r) => handlePhotoOf(tidyCode(r.code), null)) && <p className="mt-3 text-xs text-quiet">{PHOTOS}</p>}
         {rows.length === 1 && <p className="mt-2 text-xs text-quiet">Your designer needs at least one handle.</p>}
         <Removals kind="handle" removed={list.removed} inUse={designer.inUse.handles} onKeep={list.keep} />
         {rows.length < limits.options && (
@@ -846,6 +876,60 @@ export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: Des
   );
 }
 
+/**
+ * Whether the designer offers sliding doors. Off until an owner turns it on:
+ * the sizes are CRL's own for its Serenity kit, and are not confirmed yet.
+ */
+export function SlidingPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const [on, setOn] = useState(designer.sliding);
+  const saving = useSave(onSaved);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { sliding: on, basedOn: { sliding: designer.versions.sliding } }),
+      'Sliding doors could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'Sliding doors are on CRL’s Serenity kit: one fixed panel and one sliding door, wall to wall, or with a side panel returning to the wall. SetOut cuts them to CRL’s own installation sheets. Those sizes have not been confirmed against a job yet, so sliding is off until you turn it on, and every sheet a sliding shower appears on says its sizes are to be checked before glass is ordered.';
+
+  if (!owner) {
+    return (
+      <Section title="Sliding doors">
+        <div className={`${CARD} text-sm`}>
+          <Hint>{about}</Hint>
+          <p>
+            Sliding doors are <span className="font-medium">{designer.sliding ? 'offered to your customers' : 'not offered'}</span>.
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Sliding doors">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>{about}</Hint>
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-ground px-3 py-2">
+          <input type="checkbox" checked={on} onChange={() => setOn(!on)} className="h-4 w-4" />
+          <span className="font-medium">Offer sliding doors (CRL Serenity) in this designer</span>
+        </label>
+        <SaveRow
+          label="Save sliding doors"
+          dirty={on !== designer.sliding}
+          valid
+          saving={saving}
+          onUndo={() => setOn(designer.sliding)}
+          justSaved={justSaved}
+          savedNote={designer.sliding ? 'Saved. Your designer offers sliding doors within a minute.' : 'Saved. Your designer stops offering sliding doors within a minute.'}
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
 const hingeName = (style: HingeStyle) => [style.Geneva, style.Vienna].filter(Boolean).join(', ');
 
 /** One way of hanging's hinges: which customers may choose, and the standard. */
@@ -878,6 +962,7 @@ function HingeList<T extends string>({
           <li key={id} className="flex items-start gap-3 px-3 py-2">
             <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
               <input type="checkbox" checked={offered.includes(id)} onChange={() => toggle(id)} className="mt-1 h-4 w-4 shrink-0" />
+              <HingeThumb style={styles[id]} />
               <span className="min-w-0">
                 <span className="font-medium">{styles[id].name}</span>{' '}
                 <span className="ml-1 font-mono text-xs text-quiet">{hingeName(styles[id])}</span>{' '}
@@ -895,6 +980,42 @@ function HingeList<T extends string>({
     </fieldset>
   );
 }
+
+/**
+ * CRL's photo of a part, small, beside its name. Nothing where there is no
+ * photo, or it will not load. The name beside it says what it is, so the
+ * photo says nothing to a screen reader, and a tick box keeps its own name.
+ */
+function Thumb({ file, className = '' }: { file: string | undefined; className?: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!file || failed === file) return null;
+  return (
+    <img
+      src={crlPhotoSrc(file)}
+      alt=""
+      width={40}
+      height={40}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(file)}
+      className={`h-10 w-10 shrink-0 rounded border border-rule bg-white object-contain p-0.5 ${className}`}
+    />
+  );
+}
+
+/** A hinge style's photo: Geneva's, or Vienna's where only Vienna makes it. */
+function HingeThumb({ style }: { style: HingeStyle }) {
+  const photo = hingePhotoOf(style, null, null);
+  return <Thumb file={photo?.file} />;
+}
+
+/** A handle's photo, once it has a CRL number CRL shows a photo for. */
+function HandleThumb({ code, className }: { code: string | undefined; className?: string }) {
+  const photo = handlePhotoOf(code, null);
+  return <Thumb file={photo?.file} className={className} />;
+}
+
+const PHOTOS = 'Photos: C.R. Laurence. Each shows the part’s shape, in whichever finish CRL photographed it.';
 
 export function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
   const [hinges, setHinges] = useState(designer.hinges);
@@ -922,18 +1043,32 @@ export function HingesPart({ designer, owner, justSaved, onSaved, onReload }: De
     'Which of CRL’s hinges your customers can choose, where a door hangs from a wall and where it hangs from the glass beside it. A new design starts with the standard one. Staff can choose any for a shower. Each range has its own cut-out (Vienna’s is bigger than Geneva’s); a hinge whose cut-out has not been checked against CRL’s drawing of it is marked on the glass order to check against the template in its box. Bellagio makes one of each (BEL344 to the wall, BEL380 in line), and every range one hinge for a corner.';
 
   if (!owner) {
-    const listed = <T extends string>(offered: T[], styles: Record<T, HingeStyle>, standard: T) =>
-      offered.map((id) => `${styles[id].name}${id === standard ? ' (standard)' : ''}`).join(', ');
+    const listed = <T extends string>(offered: T[], styles: Record<T, HingeStyle>, standard: T) => (
+      <ul className="mt-1 space-y-1">
+        {offered.map((id) => (
+          <li key={id} className="flex items-center gap-3">
+            <HingeThumb style={styles[id]} />
+            <span className="font-medium">
+              {styles[id].name}
+              {id === standard ? ' (standard)' : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
     return (
       <Section title="Hinges">
         <div className={`${CARD} space-y-1 text-sm`}>
           <Hint>{about}</Hint>
-          <p>
-            To the wall: <span className="font-medium">{listed(designer.hinges.wall.offered, WALL_HINGE_STYLES, designer.hinges.wall.standard)}</span>
-          </p>
-          <p>
-            In line: <span className="font-medium">{listed(designer.hinges.inLine.offered, IN_LINE_HINGE_STYLES, designer.hinges.inLine.standard)}</span>
-          </p>
+          <div>
+            To the wall:
+            {listed(designer.hinges.wall.offered, WALL_HINGE_STYLES, designer.hinges.wall.standard)}
+          </div>
+          <div>
+            In line:
+            {listed(designer.hinges.inLine.offered, IN_LINE_HINGE_STYLES, designer.hinges.inLine.standard)}
+          </div>
+          <p className="text-xs text-quiet">{PHOTOS}</p>
           <p>
             Vienna cut-out: <span className="font-medium">{designer.hinges.viennaCutout === 'rectangular' ? 'Rectangular' : 'Mouse ear'}</span>
           </p>
@@ -967,6 +1102,7 @@ export function HingesPart({ designer, owner, justSaved, onSaved, onReload }: De
           onChange={(offered, standard) => setHinges({ ...hinges, inLine: { offered, standard } })}
           name={`in-line-${designer.id}`}
         />
+        <p className="mt-2 text-xs text-quiet">{PHOTOS}</p>
         <fieldset className="mt-4">
           <legend className="text-sm font-semibold">How a Vienna hinge’s cut-out is made</legend>
           <p className="text-xs text-quiet">Both are CRL’s, 76mm by 46mm. Staff can choose the other for a shower.</p>
@@ -1611,6 +1747,8 @@ function describe(item: SettingsChangeItem, by: string): string {
       const names = (ids: string[]) => listed(ids.map((id) => styles[id]?.words ?? id));
       return `${by} offered customers ${names(item.to)} hinges ${item.field === 'wallHingesOffered' ? 'to the wall' : 'in line'}, from ${names(item.from)}.`;
     }
+    case 'slidingDoors':
+      return item.to ? `${by} started offering customers sliding doors.` : `${by} stopped offering customers sliding doors.`;
     case 'bellagioFit':
       return `${by} made Bellagio fitted ${item.to === 'without-seals' ? 'without' : 'with'} seals as standard, from ${item.from === 'without-seals' ? 'without' : 'with'}.`;
     case 'viennaCutout':

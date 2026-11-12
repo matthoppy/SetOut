@@ -133,10 +133,22 @@ glass, wall to glass and glass to glass, and as a 1,200mm round 12mm set.
 
 Deluxe SER78: 8 to 10mm glass, door at most 762mm wide or 40kg; holes in the
 door and the fixed panel; a 46 to 50mm hole for the through-glass pull.
-Senior SRSER78 is 12mm only. SetOut does not design sliding doors yet.
+Senior SRSER78 is 12mm only.
+
+SetOut designs the Deluxe kit, behind a setting that is off until Matt has
+confirmed it (`packages/engine/src/sliding.ts`, `docs/sliding-plan.md`). The
+cut sizes and every hole come from CRL's installation sheets, which are public
+on CRL's document store and saved in `docs/sliding/`: each pane half the
+opening plus 22mm, the fixed panel 5mm and the door 8mm short of the height,
+four Ø16 roller holes and the pull's hole in the door, two Ø12 holes in the
+fixed panel, one Ø13 hole in a return panel. The kit is SER78 + finish (PS, BS,
+MBL, BBRZ; brushed brass only as AUSER78BB) and the return kit SER90 + finish
+(PS, MBL; BS and BB only as AUSER90). PCSER78 is a clear polycarbonate U with a
+31mm fin for 10mm glass, which SetOut does not use yet.
 
 ## Not in the data
 
 - Trade prices: only after signing in to the Smart Glazier account.
 - Bellagio cut-out sizes: only on the template in the box.
-- Serenity roller and track-holder hole sizes: on CRL's install sheet AVDB3149.
+- Serenity roller and track-holder hole sizes are not in the catalogue, but
+  are on CRL's install sheets, now saved in `docs/sliding/`.

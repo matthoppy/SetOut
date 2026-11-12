@@ -220,6 +220,10 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRul
 }
 
 export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): PaneShape[] {
+  // [UNCONFIRMED] Sliding glass is cut square, to its maker's formula. See sliding.ts.
+  if (spec.sliding) {
+    return spec.panels.map((p) => ({ id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 }));
+  }
   const { placed } = place(state, spec, fixed);
   return spec.panels.map((p, i) => {
     const at0 = placed[i];
@@ -259,6 +263,11 @@ export type SideMeets = 'wall' | 'glass' | 'corner' | 'open';
 
 export interface SideGap {
   meets: SideMeets;
+  /**
+   * Set where a sliding door laps the fixed panel beside it: how far. The two
+   * gaps below are then minus this, the panes crossing instead of meeting.
+   */
+  overlapMm?: number;
   /**
    * Straight across from the pane's bottom and top corners on this side to
    * the wall or the next pane, in whole mm. Null at a corner, where the glass
@@ -354,6 +363,8 @@ export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed
     };
   });
 
+  if (spec.sliding) return { runs, panes: slidingPanes(spec, frames) };
+
   const panes = spec.panels.map((panel, i): PaneSetOut => {
     const p = placed[i];
     if (!p) {
@@ -400,4 +411,58 @@ export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed
 
 function square(w: number, h: number): PaneShape['corners'] {
   return { bottomLeft: { x: 0, y: 0 }, bottomRight: { x: w, y: 0 }, topRight: { x: w, y: h }, topLeft: { x: 0, y: h } };
+}
+
+/**
+ * A sliding shower's panes where they stand: square, at the places its spec
+ * gives them, the door lapping the fixed panel. Gaps are still measured to
+ * the floor and walls as they were read.
+ */
+function slidingPanes(spec: ConfiguratorSpec, frames: Frame[]): PaneSetOut[] {
+  const none: SideGap = { meets: 'open', bottomMm: null, topMm: null };
+  return spec.panels.map((panel, i): PaneSetOut => {
+    const r = frames.findIndex((f) => f.indices.includes(i));
+    const at = panel.sliding;
+    const f = frames[r];
+    if (!at || !f) {
+      return { id: panel.id, run: Math.max(r, 0), fromMm: 0, toMm: panel.tightWidthMm, corners: square(panel.cutWidthMm, panel.cutHeightMm), floorGap: { left: 0, right: 0 }, ceilingGap: null, left: none, right: none };
+    }
+    const bottom = panel.deductions.vertical.bottom;
+    const top = bottom + panel.cutHeightMm;
+    const corners: Corners = {
+      bottomLeft: { x: at.fromMm, y: bottom },
+      bottomRight: { x: at.toMm, y: bottom },
+      topRight: { x: at.toMm, y: top },
+      topLeft: { x: at.fromMm, y: top },
+    };
+    const floorAt = (x: number) => f.floor.m + f.floor.n * x;
+    const other = f.indices.map((n) => spec.panels[n]).find((p) => p !== panel && p.sliding)?.sliding;
+    const firstRun = r === 0;
+    const lastRun = r === frames.length - 1;
+    // What is beside it: the pane it laps, a wall, or the corner.
+    const beside = (edge: 'left' | 'right'): SideGap => {
+      const x = edge === 'left' ? at.fromMm : at.toMm;
+      if (other && (edge === 'left' ? other.fromMm < x : other.toMm > x)) {
+        const lap = edge === 'left' ? other.toMm - x : x - other.fromMm;
+        return { meets: 'glass', bottomMm: whole(-lap), topMm: whole(-lap), overlapMm: whole(lap) };
+      }
+      const wall = edge === 'left' ? f.startWall : f.endWall;
+      if (wall) {
+        const gap = (y: number) => whole(edge === 'left' ? x - wallX(wall, y) : wallX(wall, y) - x);
+        return { meets: 'wall', bottomMm: gap(bottom), topMm: gap(top) };
+      }
+      return { meets: (edge === 'left' ? firstRun : lastRun) ? 'open' : 'corner', bottomMm: null, topMm: null };
+    };
+    return {
+      id: panel.id,
+      run: r,
+      fromMm: at.fromMm,
+      toMm: at.toMm,
+      corners,
+      floorGap: { left: whole(bottom - floorAt(at.fromMm)), right: whole(bottom - floorAt(at.toMm)) },
+      ceilingGap: null,
+      left: beside('left'),
+      right: beside('right'),
+    };
+  });
 }

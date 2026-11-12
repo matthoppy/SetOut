@@ -5,6 +5,7 @@
  *
  * The tests run in order, each building on the settings the last one left.
  */
+import { handlePhotoOf } from '@setout/engine';
 import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { addMember } from '../src/db/auth';
@@ -33,9 +34,10 @@ interface DesignerBody {
   handles: Handle[];
   glass: { offered: number[]; standard: number };
   hinges: Hinges;
+  sliding: boolean;
   notifyEmails: string[];
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; hinges: string; notifyEmails: string };
+  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string };
 }
 interface Hinges {
   wall: { offered: string[]; standard: string };
@@ -68,6 +70,7 @@ interface PublicConfig {
   glassThicknessMm: number;
   glassThicknesses: number[];
   hinges: Hinges;
+  sliding: boolean;
   intro?: string;
 }
 
@@ -567,10 +570,11 @@ describe('CRL codes for the sheets', () => {
     );
     expect(designer.finishes[0]).toEqual({ ...finish, code: 'BSC' });
     expect(designer.handles[0]).toEqual({ ...handle, code: 'SQ8X8' });
-    // They are for the company's own sheets, not its customers.
+    // They are for the company's own sheets, not its customers, who are sent
+    // only which of CRL's photos to show for the handle.
     const config = await publicConfig(shop);
     expect(config.finishes[0]).toEqual(finish);
-    expect(config.handles[0]).toEqual(handle);
+    expect(config.handles[0]).toEqual({ ...handle, photo: handlePhotoOf('SQ8X8', null)!.file });
     expect(JSON.stringify(config)).not.toContain('SQ8X8');
     const labels = await labelsOnJob();
     expect(labels.finishes[0]).toEqual({ id: finish.id, label: finish.label, code: 'BSC' });
@@ -738,5 +742,55 @@ describe('the hinges a designer offers', () => {
     expect(editor.config.hinges.wall.standard).toBe('full');
     expect(editor.config.hinges.inLine.offered).toEqual(['standard', 'adjustable', 'positive-close']);
     expect(editor.config.hinges.viennaCutout).toBe('rectangular');
+  });
+});
+
+describe('sliding doors', () => {
+  test('are off until an owner turns them on', async () => {
+    expect((await ours()).sliding).toBe(false);
+    expect((await publicConfig(shop)).sliding).toBe(false);
+    expect((await publicConfig(other)).sliding).toBe(false);
+  });
+
+  test('an owner turns them on, the designer offers them at once, and it is on record', async () => {
+    const before = await publicConfig(shop);
+    const { designer } = await saved(await changeDesigner({ sliding: true }));
+    expect(designer.sliding).toBe(true);
+    const config = await publicConfig(shop);
+    expect(config.sliding).toBe(true);
+    // Nothing else the designer offers changes, and no other company's does.
+    expect({ ...config, sliding: false }).toEqual(before);
+    expect((await publicConfig(other)).sliding).toBe(false);
+    expect((await read()).changes?.[0].data.changes).toEqual([{ field: 'slidingDoors', from: false, to: true }]);
+  });
+
+  test('saving them as they are changes nothing', async () => {
+    const response = await saved(await changeDesigner({ sliding: true }));
+    expect(response.changed).toBe(false);
+  });
+
+  test('and turns them off again', async () => {
+    const { designer } = await saved(await changeDesigner({ sliding: false }));
+    expect(designer.sliding).toBe(false);
+    expect((await publicConfig(shop)).sliding).toBe(false);
+    expect((await read()).changes?.[0].data.changes).toEqual([{ field: 'slidingDoors', from: true, to: false }]);
+  });
+
+  test.each([['yes'], [1], [null], [{ system: 'serenity' }]])('%j is not on or off, and nothing changes', async (sliding) => {
+    const before = await ours();
+    expect(await errorOf(await changeDesigner({ sliding }))).toEqual([400, 'invalid_sliding']);
+    expect(await ours()).toEqual(before);
+  });
+
+  test('staff cannot turn them on', async () => {
+    expect((await changeDesigner({ sliding: true }, staff)).status).toBe(403);
+    expect((await ours()).sliding).toBe(false);
+  });
+
+  test('a change made from an older copy is refused', async () => {
+    const old = await ours();
+    await saved(await changeDesigner({ sliding: true }));
+    expect(await errorOf(await patch(`/settings/designers/${old.id}`, { sliding: true, basedOn: old.versions }))).toEqual([409, 'stale']);
+    await saved(await changeDesigner({ sliding: false }));
   });
 });

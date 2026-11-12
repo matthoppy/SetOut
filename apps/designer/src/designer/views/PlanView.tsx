@@ -29,6 +29,8 @@ interface PlanViewProps {
   highlightPanelIds?: string[] | null;
   /** Measuring: the wall being checked right now. */
   highlightWall?: 'left' | 'right' | null;
+  /** A sliding door: drawn with no swing, since it has none. */
+  sliding?: boolean;
 }
 
 const GLASS_STROKE = 7;
@@ -47,6 +49,7 @@ export function PlanView({
   accent = '#2563eb',
   highlightPanelIds = null,
   highlightWall = null,
+  sliding = false,
 }: PlanViewProps) {
   // Every hook runs unconditionally — an empty or door-less run is valid and
   // must not short-circuit before this point.
@@ -57,7 +60,7 @@ export function PlanView({
     // It sits outside the panel bounding box, so fold it in before scaling —
     // otherwise the arc is drawn clipped off the bottom of the viewport.
     const door = panels[trace.anchorIndex];
-    const swingReach = door?.kind === 'door' ? door.width_mm : 0;
+    const swingReach = door?.kind === 'door' && !sliding ? door.width_mm : 0;
 
     const minX = trace.minX;
     const maxX = trace.maxX;
@@ -72,7 +75,7 @@ export function PlanView({
       offsetX: width / 2 - (minX + contentW / 2) * s,
       offsetY: height / 2 - (minY + contentH / 2) * s,
     };
-  }, [trace, panels, width, height]);
+  }, [trace, panels, sliding, width, height]);
 
   if (panels.length === 0) return null;
 
@@ -81,7 +84,7 @@ export function PlanView({
 
   const doorSeg = trace.segments[trace.anchorIndex];
   const doorPanel = panels[trace.anchorIndex];
-  const hasDoor = doorPanel?.kind === 'door';
+  const hasDoor = doorPanel?.kind === 'door' && !sliding;
   const ends = runEnds(trace, panels.length);
   const measuring = highlightPanelIds !== null || highlightWall !== null;
   const isLit = (id: string) => !!highlightPanelIds?.includes(id);

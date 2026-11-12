@@ -75,7 +75,8 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
     const coating = design.glassCoating === 'easy-clean' ? ', easy-clean coated' : '';
     const glassKey = `glass:${spec.glassThicknessMm}:${design.glassType}${design.glassCoating === 'easy-clean' ? ':easy-clean' : ''}`;
     // Priced by the rectangle each pane is cut from, as a toughener prices it.
-    for (const pane of panesOf(design, spec, DEFAULT_RULESET.fixed)) {
+    const panes = panesOf(design, spec, DEFAULT_RULESET.fixed, labels.hinges);
+    for (const pane of panes) {
       line(
         glassKey,
         `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
@@ -83,6 +84,18 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
         'm2'
       );
     }
+    // The toughener charges for each notch cut and each hole drilled: a
+    // mouse-ear hinge notch is a notch and two holes (Matt, 12 November 2026).
+    let notches = 0;
+    let holes = 0;
+    for (const f of panes.flatMap((p) => p.features)) {
+      if (f.kind === 'hole') holes += 1;
+      else notches += 1;
+      if (f.kind === 'notch' && f.ears) holes += 2;
+    }
+    line('cutout:notch', `${prefix}Notches cut in the glass`, notches, 'each');
+    line('cutout:hole', `${prefix}Holes drilled in the glass`, holes, 'each');
+
     const styles = hingeStylesOf(design, labels.hinges ?? STANDARD_HINGES);
     for (const [i, panel] of spec.panels.entries()) {
       if (!panel.door) continue;
@@ -94,6 +107,13 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       const key = `hinge:${(series ?? brand).toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${design.finishId}`;
       line(key, `${prefix}${panel.label} hinges: ${what}, ${finish}`, panel.door.hingeCount, 'each');
       line(`handle:${design.handleId}:${design.finishId}`, `${prefix}${panel.label} handle: ${named(labels.handles, design.handleId)}, ${finish}`, 1, 'each');
+    }
+    // A sliding door's kit, in place of hinges and a handle. Unpriced until the company prices one.
+    if (spec.sliding) {
+      line(`sliding-kit:${spec.sliding.kit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity sliding door kit (CRL ${spec.sliding.kit}), ${finish}`, 1, 'each');
+      if (spec.sliding.returnKit) {
+        line(`sliding-kit:${spec.sliding.returnKit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity 90° return kit (CRL ${spec.sliding.returnKit}), ${finish}`, 1, 'each');
+      }
     }
     if (spec.mounting === 'channel') {
       line(`channel:${design.finishId}`, `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');

@@ -562,7 +562,7 @@ function Between({ gap, from, to, base, top }: { gap: SideGap; from: number; to:
       <line x1={from} y1={base + 16} x2={from} y2={base + 28} stroke={DIM} strokeWidth="0.8" />
       <line x1={to} y1={base + 16} x2={to} y2={base + 28} stroke={DIM} strokeWidth="0.8" />
       <text x={mid} y={base + 40} fontSize="12" fontWeight="600" textAnchor="middle" fill={INK}>
-        {gap.bottomMm}
+        {gap.overlapMm !== undefined ? `laps ${gap.overlapMm}` : gap.bottomMm}
       </text>
       {differs && (
         <text x={mid} y={top + 12} fontSize="12" fontWeight="600" textAnchor="middle" fill={INK}>

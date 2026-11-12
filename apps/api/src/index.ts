@@ -1,8 +1,8 @@
 /**
  * The SetOut API.
  *
- * One Worker. It answers /api and serves the built designer and workspace,
- * so all three ship together with the same engine. See site.ts for which
+ * One Worker. It answers /api and serves the built designer, workspace and
+ * SetOut's own site, so they all ship together with the same engine. See site.ts for which
  * address serves which app.
  *
  * Routes arrive with the steps that need them: the designer's, the
@@ -16,6 +16,7 @@ import { designer } from './routes/designer';
 import { platform } from './routes/platform';
 import { quote } from './routes/quote';
 import { stripeWebhook } from './routes/stripe-webhook';
+import { siteRoutes } from './routes/site-enquiries';
 import { workspace } from './routes/workspace';
 import { serveSite, surfaceFor } from './site';
 
@@ -50,8 +51,10 @@ app.get('/api/health', async (c) => {
 // The designer's routes answer on the designer's address, and nowhere a staff
 // sign-in lives. The workspace's routes are the reverse: nothing running in
 // the public designer can reach them.
+// SetOut's own site has one route of its own and none of anyone else's.
 app.use('/api/designer/*', async (c, next) => {
-  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'workspace') {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'workspace' || surface === 'site') {
     return c.json({ error: 'not_found' }, 404);
   }
   await next();
@@ -61,7 +64,8 @@ app.route('/api/designer', designer);
 // A customer's quote is read and accepted on the designer's address, the
 // public one, too.
 app.use('/api/quote/*', async (c, next) => {
-  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'workspace') {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'workspace' || surface === 'site') {
     return c.json({ error: 'not_found' }, 404);
   }
   await next();
@@ -69,34 +73,42 @@ app.use('/api/quote/*', async (c, next) => {
 app.route('/api/quote', quote);
 
 app.use('/api/workspace/*', async (c, next) => {
-  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'designer') {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'designer' || surface === 'site') {
     return c.json({ error: 'not_found' }, 404);
   }
   await next();
 });
 app.route('/api/workspace', workspace);
 
-// SetOut's own staff, and Stripe's webhook, answer on the workspace's address
-// too, and never on the public designer's.
-app.use('/api/platform/*', async (c, next) => {
-  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'designer') {
+// The get-started form on SetOut's own site. It answers on the site's address
+// and where everything shares one, never on the designer's or the workspace's.
+app.use('/api/site/*', async (c, next) => {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'designer' || surface === 'workspace') {
     return c.json({ error: 'not_found' }, 404);
   }
   await next();
 });
-app.route('/api/platform', platform);
+app.route('/api/site', siteRoutes);
 
-app.use('/api/stripe/*', async (c, next) => {
-  if (surfaceFor(c.env, new URL(c.req.url).hostname) === 'designer') {
-    return c.json({ error: 'not_found' }, 404);
-  }
-  await next();
-});
+// SetOut's own staff, and Stripe's webhook, answer on the workspace's address
+// and where everything shares one, never on the designer's or the site's.
+for (const path of ['/api/platform/*', '/api/stripe/*']) {
+  app.use(path, async (c, next) => {
+    const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+    if (surface !== 'workspace' && surface !== 'both') {
+      return c.json({ error: 'not_found' }, 404);
+    }
+    await next();
+  });
+}
+app.route('/api/platform', platform);
 app.route('/api/stripe', stripeWebhook);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 
-// Everything else is one of the two apps.
+// Everything else is one of the apps, or the site.
 app.all('*', serveSite);
 
 app.onError((error, c) => {

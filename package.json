@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "npm run build && npm run dev -w @setout/api",
-    "build": "npm run build -w @setout/workspace && npm run build -w @setout/designer",
+    "build": "npm run build -w @setout/workspace && npm run build -w @setout/designer && npm run build -w @setout/site",
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

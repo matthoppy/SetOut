@@ -93,7 +93,7 @@ export function summarise(design: ConfiguratorState, spec: ConfiguratorSpec, lab
     ['Corners', String(spec.cornerCount)],
     ['Fixing', design.mounting === 'channel' ? 'U-channel' : 'Glass clamps'],
     ['Finish', labelOf(labels.finishes, design.finishId)],
-    ['Handle', labelOf(labels.handles, design.handleId)],
+    ['Handle', spec.sliding ? 'Through-glass pull, in the Serenity sliding kit' : labelOf(labels.handles, design.handleId)],
     ['Glass', `${design.glassThicknessMm}mm toughened`],
     ['Glass type', glassType],
     ['Coating', design.glassCoating === 'easy-clean' ? 'Easy-clean' : 'None'],
@@ -123,6 +123,13 @@ function panelSchedule(spec: ConfiguratorSpec, design: ConfiguratorState, labels
         );
         if (p.door.hingeHeightsMm.length) {
           detail.push(`hinge centres ${p.door.hingeHeightsMm.map(esc).join(' / ')}mm from the bottom`);
+        }
+      }
+      // A sliding shower's pane: what it is, and each hole as CRL places it.
+      if (p.sliding) {
+        if (p.sliding.role === 'door' && spec.sliding) detail.push(`slides on CRL Serenity, closes to the ${esc(spec.sliding.doorCloses)}`);
+        for (const h of p.sliding.holes) {
+          detail.push(`Ø${esc(h.diameterMm)} ${esc(h.part.replace('-', ' '))} hole ${esc(h.insetMm)}mm in from the ${esc(h.side)} edge, ${esc(h.downMm)}mm down`);
         }
       }
       for (const n of p.notches) detail.push(`notch ${esc(n.corner)} ${esc(n.widthMm)}×${esc(n.heightMm)}mm`);

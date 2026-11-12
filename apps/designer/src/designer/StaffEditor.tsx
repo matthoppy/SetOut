@@ -239,6 +239,7 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
                 <PlanView
                   panels={state.panels}
                   junctions={state.junctions}
+                  sliding={Boolean(state.sliding)}
                   leftWall={state.leftWall}
                   rightWall={state.rightWall}
                   width={drawingWidth}
@@ -260,6 +261,7 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
                 <ElevationView
                   panels={state.panels}
                   junctions={state.junctions}
+                  sliding={Boolean(state.sliding)}
                   heightMm={state.heightMm}
                   handleId={state.handleId}
                   mounting={state.mounting}

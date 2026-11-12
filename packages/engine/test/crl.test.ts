@@ -20,6 +20,7 @@ import {
   DEFAULT_RULESET,
   fittingsOf,
   inCrlCatalogue,
+  stockLengthsFor,
   TEMPLATES,
   type Fitting,
   type HingeMount,
@@ -162,6 +163,13 @@ describe('seals, channel and handles', () => {
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toBeNull();
   });
 
+  test('the wipe under a door is clear, by the glass it snaps onto', () => {
+    const wipe: Fitting = { kind: 'bottom-seal', pane: 0, lengthMm: 700 };
+    expect(crlPartOf(wipe, choices('MBL'))).toEqual({ status: 'found', code: 'P990WS' });
+    expect(crlPartOf(wipe, choices('CH', 12))).toEqual({ status: 'found', code: 'P912WS' });
+    expect(crlPartOf(wipe, choices('CH', 8))).toEqual({ status: 'found', code: 'P956WS' });
+  });
+
   test('the channel is deep U-channel, brite anodised with chrome hardware', () => {
     const channel: Fitting = { kind: 'channel', lengthMm: 1800 };
     expect(crlPartOf(channel, choices('CH'))).toEqual({ status: 'found', code: 'SDCD38BA' });
@@ -187,6 +195,19 @@ describe('seals, channel and handles', () => {
   });
 });
 
+describe('stock lengths', () => {
+  test('pieces are cut from 2.41m lengths, as many from each as fit', () => {
+    expect(stockLengthsFor([])).toBe(0);
+    expect(stockLengthsFor([700])).toBe(1);
+    expect(stockLengthsFor([700, 700, 700])).toBe(1);
+    expect(stockLengthsFor([700, 700, 700, 700])).toBe(2);
+    expect(stockLengthsFor([1950, 1950])).toBe(2);
+    expect(stockLengthsFor([1950, 400, 1900, 450])).toBe(2);
+    // Longer than a length: whole lengths joined.
+    expect(stockLengthsFor([3000])).toBe(2);
+  });
+});
+
 describe('every known design', () => {
   const context = { rules: DEFAULT_RULESET, companyName: GOLDEN_COMPANY };
   test.each(GOLDENS.map((g) => [g.name, g] as const))('%s: every number named in chrome is in the catalogue', (_name, g) => {
@@ -209,7 +230,7 @@ describe('every known design', () => {
       return part?.status === 'found' ? part.code : null;
     });
     const brand = spec.panels[1].door!.hingeBrand;
-    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PC1090', 'SDCD38MBL']);
+    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PC1090', 'P990WS', 'SDCD38MBL']);
   });
 });
 

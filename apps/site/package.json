@@ -1,0 +1,11 @@
+{
+  "name": "@setout/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SetOut's own public site: what SetOut is, pricing and getting started. Plain pages, written at build time.",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/build.test.mjs"
+  }
+}

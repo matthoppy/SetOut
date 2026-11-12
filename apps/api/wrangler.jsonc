@@ -31,8 +31,16 @@
     // One address locally, so both apps are served from it by path.
     "DESIGNER_HOST": "",
     "APP_HOST": "",
+    // SetOut's own site. With no address of its own it is served under /site/.
+    "SITE_HOST": "",
     // The address emails are sent from. Empty means nothing is emailed.
     "EMAIL_FROM": "",
+    // Where a get-started enquiry from the site is emailed. Empty means it
+    // is saved and nobody is emailed.
+    "SITE_NOTIFY_EMAIL": "",
+    // The bot check widget's public key for the site's form. Empty means the
+    // form has no bot check.
+    "SITE_TURNSTILE_SITE_KEY": "",
     // Whether a company may open its own account: "open" or "closed".
     "SIGNUPS": "open",
     // Billing through Stripe: "on" or "off". Off everywhere until prices and
@@ -67,9 +75,16 @@
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer-staging.setoutglass.com",
         "APP_HOST": "app-staging.setoutglass.com",
+        // Staging's site has no address of its own. It is under /site/ on the
+        // workers.dev name.
+        "SITE_HOST": "",
         // setoutglass.com is a verified sending domain in Resend. The mail key
         // is a secret on the Worker, set in Cloudflare, never here.
         "EMAIL_FROM": "hello@setoutglass.com",
+        // Resend's test inbox, so trying the form never lands in a real one.
+        "SITE_NOTIFY_EMAIL": "delivered@resend.dev",
+        // To be set: see docs/deploying.md.
+        "SITE_TURNSTILE_SITE_KEY": "",
         "SIGNUPS": "open",
         "BILLING": "off",
         "TRIAL_DAYS": "14"
@@ -101,7 +116,15 @@
         "COMMIT": "unknown",
         "DESIGNER_HOST": "designer.setoutglass.com",
         "APP_HOST": "app.setoutglass.com",
+        // The site's address, without www. It does nothing until
+        // setoutglass.com and www.setoutglass.com are added to the routes
+        // above, which is Matt's call: see docs/deploying.md.
+        "SITE_HOST": "setoutglass.com",
         "EMAIL_FROM": "hello@setoutglass.com",
+        // Enquiries go to Custom Showers' sales inbox (Matt, 12 November 2026).
+        // The bot check's key is still to be set: see docs/deploying.md.
+        "SITE_NOTIFY_EMAIL": "sales@customshowers.uk",
+        "SITE_TURNSTILE_SITE_KEY": "",
         // Closed until Matt says to open it: with billing off, anyone who
         // signed up here would use SetOut for nothing.
         "SIGNUPS": "closed",

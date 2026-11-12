@@ -1,0 +1,5 @@
+{
+  "pages": ["/", "/how-it-works/", "/pricing/", "/get-started/", "/privacy/"],
+  "notFound": "/not-found/",
+  "files": ["/robots.txt", "/sitemap.xml", "/favicon.svg"]
+}

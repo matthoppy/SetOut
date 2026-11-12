@@ -13,7 +13,7 @@ import { api, signInAgain, SignedOut, type DesignerSettings, type Me, type Setti
 import { useLoad } from '../lib/load';
 import { go, Link } from '../lib/router';
 import { Problem } from './parts';
-import { BrandingPart, EmailsPart, FinishesPart, GlassPart, HandlesPart, HingesPart, NamePart, UnsavedContext, WebsitesPart } from './Settings';
+import { BrandingPart, EmailsPart, FinishesPart, GlassPart, HandlesPart, HingesPart, NamePart, SlidingPart, UnsavedContext, WebsitesPart } from './Settings';
 
 interface Step {
   id: string;
@@ -30,6 +30,7 @@ const STEPS: Step[] = [
   { id: 'handles', name: 'Handles', title: 'The handles you offer', about: 'Your customers choose one of these for their door.' },
   { id: 'glass', name: 'Glass', title: 'The glass you offer', about: 'Most companies offer 10mm alone. Offer others only if you make showers in them.' },
   { id: 'hinges', name: 'Hinges', title: 'The hinges you offer', about: 'One standard hinge for each way of hanging a door is enough to start. Offer more styles if your customers should choose.' },
+  { id: 'sliding', name: 'Sliding doors', title: 'Sliding doors', about: 'Off unless you make them. Turn it on and your customers are offered the sliding layouts too.' },
   { id: 'emails', name: 'Who is emailed', title: 'Who hears about each design', about: 'A design that arrives is in your inbox here at once. These addresses are emailed it too.' },
   { id: 'websites', name: 'Your website', title: 'Your website’s address', about: 'Tell us where the designer will go. It will show there and nowhere else.' },
   { id: 'embed', name: 'Add it to your website', title: 'Add the designer to your website', about: 'Two lines to paste into the page where customers should design their shower.' },
@@ -140,6 +141,7 @@ export function SetUp({ me, onChanged }: { me: Me; onChanged: () => void }) {
           {designer && current.id === 'handles' && <HandlesPart key={designer.versions.handles} designer={designer} limits={data.limits} {...part('handles')} />}
           {designer && current.id === 'glass' && <GlassPart key={designer.versions.glass} designer={designer} limits={data.limits} {...part('glass')} />}
           {designer && current.id === 'hinges' && <HingesPart key={designer.versions.hinges} designer={designer} limits={data.limits} {...part('hinges')} />}
+          {designer && current.id === 'sliding' && <SlidingPart key={designer.versions.sliding} designer={designer} limits={data.limits} {...part('sliding')} />}
           {designer && current.id === 'emails' && <EmailsPart key={designer.versions.notifyEmails} designer={designer} limits={data.limits} {...part('emails')} />}
           {designer && current.id === 'websites' && <WebsitesPart key={designer.versions.websites} designer={designer} limits={data.limits} {...part('websites')} />}
           {designer && current.id === 'embed' && <Embed designer={designer} script={data.embedScript} onWebsites={() => moveTo(STEPS.findIndex((s) => s.id === 'websites'))} />}

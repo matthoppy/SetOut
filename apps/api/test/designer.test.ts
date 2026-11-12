@@ -2,12 +2,13 @@
  * The designer's routes: what a designer is told about its company, and what
  * happens when a customer sends a design.
  */
-import { createDocument, designFromTemplate, DOCUMENT_FORMAT, ENGINE_VERSION } from '@setout/engine';
+import { createDocument, designFromTemplate, DOCUMENT_FORMAT, ENGINE_VERSION, handlePhotoOf } from '@setout/engine';
 import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { companyDb, type CompanyDb, type CompanyRecord } from '../src/db/company-db';
 import { createCompany, newSiteKey, resolveDesigner } from '../src/db/platform';
 import { TABLES, type TableName } from '../src/db/tables';
+import { handlePhotos } from '../src/lib/designer-config';
 import { checkBot, MAX_FILES } from '../src/lib/enquiry';
 
 const ORIGIN = 'https://setout.test';
@@ -136,6 +137,38 @@ describe('what a designer is told about its company', () => {
     expect(body.brand.name).toBe('Brennan Glass');
     expect(body.rules).toEqual({ version: 0, overrides: {} });
     expect(body.finishes).toHaveLength(4);
+  });
+
+  test('which of CRL’s photos to show for a handle with a CRL number, and never the number', async () => {
+    const coded = await company('Coded Glass', 'CG', {
+      finishes: [{ id: 'gold', label: 'Brushed gold', swatch: '#c0a062', code: 'SB' }],
+      handles: [
+        { id: 'pull', label: 'Pull handle', description: 'Back to back.', code: 'BM8X8' },
+        { id: 'knob', label: 'Knob', description: 'Round.' },
+        { id: 'bar', label: 'Bar', description: 'Not one of CRL’s.', code: 'NOSUCH' },
+      ],
+    });
+    const response = await config(coded.siteKey);
+    const body = (await response.clone().json()) as { handles: Record<string, unknown>[]; finishes: Record<string, unknown>[] };
+    expect(body.handles[0]).toEqual({ id: 'pull', label: 'Pull handle', description: 'Back to back.', photo: handlePhotoOf('BM8X8', 'CH')!.file });
+    expect(body.handles[1]).toEqual({ id: 'knob', label: 'Knob', description: 'Round.' });
+    expect(body.handles[2]).toEqual({ id: 'bar', label: 'Bar', description: 'Not one of CRL’s.' });
+    expect(body.finishes).toEqual([{ id: 'gold', label: 'Brushed gold', swatch: '#c0a062' }]);
+    const text = await response.text();
+    for (const code of ['BM8X8', 'NOSUCH', '"code"']) expect(text, code).not.toContain(code);
+  });
+
+  test('a handle’s photo in a finish, where CRL shows a different one for it', () => {
+    const finishes = [
+      { id: 'chrome', label: 'Polished chrome', swatch: '#ddd' },
+      { id: 'gold', label: 'Brushed gold', swatch: '#c0a062', code: 'SB' },
+      { id: 'pink', label: 'Pink', swatch: '#f0f' },
+    ];
+    const pull = { id: 'pull', label: 'Pull', description: '', code: 'BM8X8' };
+    const chrome = handlePhotoOf('BM8X8', 'CH')!.file;
+    // CRL shows one photo for every finish of this handle, so there is only the one to send.
+    expect(handlePhotos(pull, finishes)).toEqual({ photo: chrome });
+    expect(handlePhotos({ ...pull, code: undefined }, finishes)).toEqual({});
   });
 
   test('a designer that has been switched off stops answering', async () => {
@@ -355,5 +388,53 @@ describe('the bot check', () => {
       url: 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       body: 'secret=s3cret&response=tok&remoteip=203.0.113.9',
     });
+  });
+});
+
+describe('a sliding door', () => {
+  const sliding = (siteKey: string) =>
+    enquiry(siteKey, { document: createDocument(designFromTemplate('sliding-alcove')), templateId: 'sliding-alcove' });
+
+  test('is not offered, and not taken, until the company turns sliding doors on', async () => {
+    const shop = await company('Hidden Sliders', 'HS');
+    const told = (await (await config(shop.siteKey)).json()) as { sliding: boolean };
+    expect(told.sliding).toBe(false);
+    const before = await counts(shop.db);
+    const response = await send(sliding(shop.siteKey));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: string }).error).toBe('sliding_not_offered');
+    expect(await counts(shop.db)).toEqual(before);
+    // Its hinged designs are taken as ever.
+    expect((await send(enquiry(shop.siteKey))).status).toBe(201);
+  });
+
+  test('is taken once it is on, cut to CRL’s formula, and says its sizes are not confirmed', async () => {
+    const shop = await company('Open Sliders', 'OS', { slidingDoors: true });
+    const told = (await (await config(shop.siteKey)).json()) as { sliding: boolean };
+    expect(told.sliding).toBe(true);
+    expect((await send(sliding(shop.siteKey))).status).toBe(201);
+    const [revision] = await shop.db.find('design_revisions', { limit: 1 });
+    const computed = revision.computed as unknown as {
+      panels: { cutWidthMm: number; cutHeightMm: number; door?: unknown }[];
+      warnings: string[];
+      sliding?: { kit: string; overlapMm: number };
+    };
+    // A 1200 opening: 600 + 22 each, the fixed panel 5 and the door 8 short of 2000.
+    expect(computed.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual([
+      [622, 1995],
+      [622, 1992],
+    ]);
+    expect(computed.panels.some((p) => p.door)).toBe(false);
+    expect(computed.sliding).toMatchObject({ kit: 'SER78', overlapMm: 50 });
+    expect(computed.warnings[0]).toMatch(/^Sliding door: .*not confirmed yet\. Open Sliders will check every size/);
+    expect((revision.document as unknown as { design: { sliding: unknown } }).design.sliding).toEqual({ system: 'serenity' });
+  });
+
+  test('anything else called sliding is refused as a design that cannot be read', async () => {
+    const shop = await company('Odd Sliders', 'DS', { slidingDoors: true });
+    const document = createDocument({ ...designFromTemplate('sliding-alcove'), sliding: { system: 'other' as 'serenity' } });
+    const response = await send(enquiry(shop.siteKey, { document }));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: string }).error).toBe('invalid_design');
   });
 });

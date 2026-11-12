@@ -21,6 +21,7 @@ import { describeFeature, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { Problem, PrintedPage as Page } from './parts';
 import { lettersFor, PaneDrawing, TemplateDrawing } from './PaneDrawing';
+import { SLIDING_UNCONFIRMED } from './Sliding';
 
 const GLASS: Record<string, string> = { clear: 'Clear', 'low-iron': 'Low-iron', satin: 'Satin', bronze: 'Bronze tint', grey: 'Grey tint' };
 const EDGEWORK = 'FP';
@@ -34,6 +35,8 @@ interface Sheet {
   reference: string;
   pane: Pane;
   marks: string;
+  /** A pane of a sliding shower, whose sizes are not confirmed yet. */
+  sliding: boolean;
 }
 
 /** Every pane of a job's checked showers, and the showers left out because they are not checked. */
@@ -60,6 +63,7 @@ function sheetsOf(detail: JobDetail): { sheets: Sheet[]; unchecked: string[] } {
         reference: `Revision ${revision.number}, checked`,
         pane,
         marks: `${name ? `${name}, ` : ''}${pane.label}`,
+        sliding: Boolean(revision.computed.sliding),
       });
     }
   });
@@ -210,6 +214,12 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
         <p className="mt-2 text-right text-sm font-semibold">
           {sheets.length === 1 ? '1 pane' : `${sheets.length} panes`}, {area.toFixed(2)}m², {Math.round(weight)}kg
         </p>
+        {sheets.some((s) => s.sliding) && (
+          <p role="note" className="mt-2 border-2 border-black p-2 text-[12px]">
+            <span className="font-bold uppercase">Sliding door glass on this order: sizes not confirmed. </span>
+            {SLIDING_UNCONFIRMED} Pages {sheets.flatMap((s, i) => (s.sliding ? [i + 2] : [])).join(', ')}.
+          </p>
+        )}
       </Page>
 
       {/* A page for each pane. */}
@@ -237,6 +247,12 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
                 {s.pane.widthMm} x {s.pane.heightMm} ({Math.round(s.pane.weightKg * 10) / 10}kg)
               </span>
             </div>
+            {s.sliding && (
+              <p role="note" className="mt-2 border-2 border-black p-2 text-[12px]">
+                <span className="font-bold uppercase">Sliding door, CRL Serenity: sizes not confirmed. </span>
+                {SLIDING_UNCONFIRMED}
+              </p>
+            )}
             <div className="mt-2">
               <PaneDrawing pane={s.pane} letters={letters} edgework={EDGEWORK} />
             </div>

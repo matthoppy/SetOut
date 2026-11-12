@@ -9,3 +9,8 @@
 # The designer is made to be shown in a frame on a company's own website.
 /designer/*
   ! X-Frame-Options
+
+# CRL's product photos (scripts/crl-photos.mjs). Each is named by a fingerprint
+# of the photo, so a changed photo is a new file and these never go stale.
+/designer/assets/crl/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -8,6 +8,8 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      // Agents' git worktrees: copies of the repository, each linted where it is.
+      '.claude/**',
       '**/.wrangler/**',
       '**/worker-configuration.d.ts',
       '**/test/goldens/**',
@@ -69,7 +71,14 @@ export default tseslint.config(
 
   // The browser apps.
   {
-    files: ['apps/designer/src/**', 'apps/designer/public/**', 'apps/workspace/src/**', 'packages/ui/src/**'],
+    files: [
+      'apps/designer/src/**',
+      'apps/designer/public/**',
+      'apps/workspace/src/**',
+      'packages/ui/src/**',
+      // The one script SetOut's own site runs in a browser.
+      'apps/site/src/client/**',
+    ],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,

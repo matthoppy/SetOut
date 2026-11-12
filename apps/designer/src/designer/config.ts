@@ -31,6 +31,10 @@ export interface HandleOption {
   id: string;
   label: string;
   description: string;
+  /** CRL's photo of it, where the company has set the handle's CRL number: the file's name, as the engine lists it. */
+  photo?: string;
+  /** The photo in a finish CRL shows a different one for, by the finish's id. */
+  photoIn?: Record<string, string>;
 }
 
 export interface DesignerBrand {
@@ -55,6 +59,11 @@ export interface DesignerConfig {
   glassThicknesses?: GlassThickness[];
   /** The hinge styles the customer may choose for a door hung from a wall and one hung in line, and the standard of each. */
   hinges?: DesignerHinges;
+  /**
+   * Whether the company offers the sliding door layouts (CRL Serenity). Off
+   * unless it has turned them on: their sizes are not confirmed yet.
+   */
+  sliding?: boolean;
   /**
    * Shown on the review step and repeated to the company. Spells out who is
    * responsible for the measurements being right, which matters when glass is

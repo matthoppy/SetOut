@@ -232,7 +232,8 @@ export async function usersByIds(
 /**
  * What a designer row's config column holds. None of it is secret, and the
  * public designer is sent all of it but the CRL codes, which only the
- * company's own sheets need.
+ * company's own sheets need: for a handle with a code it is sent which of
+ * CRL's photos to show instead.
  */
 export interface DesignerSettings {
   finishes?: { id: string; label: string; swatch: string; code?: string }[];
@@ -248,6 +249,11 @@ export interface DesignerSettings {
     viennaCutout?: string;
     bellagioFit?: string;
   };
+  /**
+   * Whether customers are offered the sliding door layouts (CRL Serenity).
+   * Off unless an owner has turned it on: the sliding sizes are not confirmed yet.
+   */
+  slidingDoors?: boolean;
   measurementDisclaimer?: string;
   intro?: string;
   turnstileSiteKey?: string;

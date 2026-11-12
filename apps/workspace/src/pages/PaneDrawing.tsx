@@ -271,7 +271,9 @@ export function placing(edgeLengthMm: number, f: Cut): { from: 'top' | 'bottom';
     const atMm = fromTop ? f.centreMm + half : f.centreMm - half;
     return { from: fromTop ? 'top' : 'bottom', to: 'edge', distanceMm: round(fromTop ? edgeLengthMm - atMm : atMm), atMm };
   }
-  if (f.role === 'panel-hinge' && fromTop) return { from: 'top', to: 'centre', distanceMm: round(edgeLengthMm - f.centreMm), atMm: f.centreMm };
+  // A sliding shower's holes are placed as CRL prints them, down from the top.
+  const sliding = f.role === 'roller' || f.role === 'track-holder' || f.role === 'return-fitting';
+  if ((f.role === 'panel-hinge' || sliding) && fromTop) return { from: 'top', to: 'centre', distanceMm: round(edgeLengthMm - f.centreMm), atMm: f.centreMm };
   return { from: 'bottom', to: 'centre', distanceMm: round(f.centreMm), atMm: f.centreMm };
 }
 
@@ -483,12 +485,13 @@ export function TemplateDrawing({ letter, feature }: { letter: string; feature: 
   const pair = feature.apartMm !== null;
   const apart = feature.apartMm ?? 0;
   const k = pair ? Math.min(s, 180 / Math.max(apart, 1)) : s;
-  const W = E + feature.insetMm * k + 120;
-  const H = (pair ? apart * k : 0) + 110;
-  const cx = E + feature.insetMm * k;
-  const y1 = 55;
-  const y2 = y1 + apart * k;
   const r = Math.max((feature.diameterMm / 2) * k, 3);
+  // Room for a big hole, such as a sliding door's pull: the usual ones fit as they always did.
+  const y1 = Math.max(55, r + 30);
+  const W = E + feature.insetMm * k + 120;
+  const H = (pair ? apart * k : 0) + y1 + Math.max(55, r + 30);
+  const cx = E + feature.insetMm * k;
+  const y2 = y1 + apart * k;
   return (
     <figure className="break-inside-avoid">
       {caption}
