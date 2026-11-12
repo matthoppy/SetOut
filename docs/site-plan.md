@@ -37,7 +37,7 @@ Plain British English, short sentences, concrete and true, as in `docs/architect
 
 ## Pictures
 
-Real screenshots of SetOut where they could be made by running it locally with made-up customers, and drawings made by the product itself. Where a picture could not be made, the page shows a box that says what belongs there. Nothing is mocked up to look like a screenshot. Every picture and every placeholder is listed in `apps/site/README.md`.
+Real screenshots of SetOut, made by running it locally with a made-up company, "Demo Showers", and made-up customers. The design in them was sent through the designer as a customer would send it. Nothing is mocked up to look like a screenshot. The quote in two of them has made-up prices, which are a shower company's prices to its customer and not SetOut's, and the caption says so (question 12). Every picture and every placeholder is listed in `apps/site/README.md`.
 
 ## Pricing
 
@@ -70,11 +70,11 @@ It posts JSON to a new route, `POST /api/site/enquiries`, which:
 
 Nothing is emailed to the person who filled the form in. A public form that emails whatever address is typed into it is a way to send junk through SetOut (question 7).
 
-The form works with a keyboard and a screen reader: real labels, errors written beside the form and announced, the answer announced when it arrives. It needs JavaScript, and says so when there is none.
+The form works with a keyboard and a screen reader: real labels, errors written beside the form and announced, the answer announced when it arrives. It needs JavaScript, and says so when there is none. The form finds the bot check's public key by asking `GET /api/site/config`, so the pages themselves stay the same in every environment.
 
 ## How it is built
 
-A new workspace package, `apps/site`. It has no framework and no dependencies of its own: `build.mjs` is a short Node script that writes each page from a template into `dist/site/site/`, beside the workspace and the designer, with one stylesheet and one small script for the form. Their file names carry a hash of their contents, so they can be cached for good.
+A new workspace package, `apps/site`. It has no framework and no dependencies of its own: `build.mjs` is a short Node script that writes each page from a template into `dist/site/site/`, beside the workspace and the designer, with one stylesheet and one small script for the form. Their file names carry a hash of their contents, so they can be cached for good. The build lists every placeholder still on a page, and its tests fail if a page names a price, promises a trial, or links somewhere that is not there.
 
 - **Look.** The stylesheet uses the workspace's own colour tokens (`--ground`, `--surface`, `--ink`, `--quiet`, `--rule`, `--accent` and the rest), light and dark from the device, and the same system type. The build reads the tokens from `apps/workspace/src/index.css`, so the two cannot drift.
 - **Links are relative.** Every link and file reference in a page is relative to that page, so the same files work under `/site/` and at the root of `setoutglass.com`.
@@ -130,3 +130,4 @@ No new secret. The route uses the two the Worker already has, `TURNSTILE_SECRET_
 9. **A contact address on the site.** There is none, only the form. Should `hello@setoutglass.com` be shown, and does it reach an inbox?
 10. **Staging's address.** Should staging have a name of its own for the site, such as `site-staging.setoutglass.com`, or is `/site/` on its workers.dev name enough?
 11. **Going live.** When the copy, prices and legal details are settled, the route change in `docs/deploying.md` puts the site on `setoutglass.com`. Does anything else already use that name or `www`?
+12. **The screenshots.** They show a made-up company, "Demo Showers", made-up customers, and a quote with made-up prices for glass and hinges. Are those all right to publish, or should the quote's prices be Custom Showers' real ones, or the quote pictures be left out?

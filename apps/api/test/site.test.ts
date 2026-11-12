@@ -1,16 +1,18 @@
 /**
- * Two addresses, one Worker: which app each address serves, and who may
- * show the designer in a frame.
+ * Three addresses, one Worker: which app each address serves, who may show
+ * the designer in a frame, and SetOut's own site.
  */
 import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { companyDb } from '../src/db/company-db';
 import { createCompany, newSiteKey } from '../src/db/platform';
-import { frameAncestors, surfaceFor } from '../src/site';
+import { frameAncestors, SITE_CSP, surfaceFor } from '../src/site';
 
 const DESIGNER = 'https://designer.test';
 const APP = 'https://app.test';
 const BOTH = 'https://setout-staging.example.workers.dev';
+const SITE = 'https://site.test';
+const WWW = 'https://www.site.test';
 
 const get = (url: string, init?: RequestInit) => exports.default.fetch(url, init);
 const title = async (response: Response) => /<title>(\w+)<\/title>/.exec(await response.text())?.[1] ?? null;
@@ -44,6 +46,19 @@ describe('which app an address serves', () => {
     expect(surfaceFor(hosts, 'app.test')).toBe('workspace');
     expect(surfaceFor(hosts, 'setout-staging.example.workers.dev')).toBe('both');
     expect(surfaceFor(hosts, 'evil-designer.test')).toBe('both');
+  });
+
+  test('the site by its name, with www or without', () => {
+    const hosts = { DESIGNER_HOST: 'designer.test', APP_HOST: 'app.test', SITE_HOST: 'site.test' };
+    expect(surfaceFor(hosts, 'site.test')).toBe('site');
+    expect(surfaceFor(hosts, 'WWW.Site.Test')).toBe('site');
+    expect(surfaceFor(hosts, 'designer.test')).toBe('designer');
+    expect(surfaceFor(hosts, 'app.test')).toBe('workspace');
+    expect(surfaceFor(hosts, 'other.site.test')).toBe('both');
+    expect(surfaceFor(hosts, 'notsite.test')).toBe('both');
+    // With no address of its own the site is only ever under /site/.
+    expect(surfaceFor({ ...hosts, SITE_HOST: '' }, 'site.test')).toBe('both');
+    expect(surfaceFor({ ...hosts, SITE_HOST: '' }, 'www.')).toBe('both');
   });
 
   test('with no addresses set, everything is served from the one there is', () => {
@@ -147,6 +162,140 @@ describe('one address for both, as on staging', () => {
     expect((await get(`${BOTH}/designer/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/embed.js`)).headers.get('content-type')).toContain('text/javascript');
     expect((await get(`${BOTH}/api/designer/config?key=${testKey}`)).status).toBe(200);
+  });
+});
+
+describe('SetOut’s own site, on its own address', () => {
+  test('serves its pages at the root, for search engines to read', async () => {
+    for (const [path, page] of [['/', 'site'], ['/pricing/', 'pricing']]) {
+      const response = await get(SITE + path);
+      expect(response.status, path).toBe(200);
+      expect(await title(response), path).toBe(page);
+      expect(response.headers.get('content-type'), path).toContain('text/html');
+      expect(response.headers.get('x-robots-tag'), path).toBeNull();
+      expect(response.headers.get('cache-control'), path).toBe('no-cache');
+    }
+  });
+
+  test('can never be framed, and loads nothing but its own files and the bot check', async () => {
+    const response = await get(`${SITE}/`);
+    expect(response.headers.get('content-security-policy')).toBe(SITE_CSP);
+    expect(SITE_CSP).toContain("frame-ancestors 'none'");
+    expect(SITE_CSP).toContain("default-src 'none'");
+    expect(SITE_CSP).toContain("script-src 'self' https://challenges.cloudflare.com");
+    expect(SITE_CSP).not.toContain('unsafe');
+    expect(response.headers.get('x-frame-options')).toBe('DENY');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(response.headers.get('set-cookie')).toBeNull();
+  });
+
+  test('sends a page asked for without its last slash to the one with it', async () => {
+    const response = await get(`${SITE}/pricing?from=email`, { redirect: 'manual' });
+    expect(response.status).toBe(301);
+    expect(response.headers.get('location')).toBe('/pricing/?from=email');
+  });
+
+  test('answers a page it does not have with its own not-found page, never the workspace', async () => {
+    for (const path of ['/nothing-here', '/jobs/12', '/sign-in', '/designer/', '/site/', '/site/pricing/', '/embed.js', '/edit/job_1/dsg_1', '/q/qt_abcdefghijkmnpqrstuvwxyz23456789', '/pricing/extra', '/index.html', '/not-found/']) {
+      const response = await get(SITE + path);
+      expect(response.status, path).toBe(404);
+      expect(await title(response), path).toBe('missing');
+      expect(response.headers.get('cache-control'), path).toBe('no-store');
+      expect(response.headers.get('content-security-policy'), path).toBe(SITE_CSP);
+    }
+  });
+
+  test('the not-found page’s links start at the root, however deep the address', async () => {
+    const response = await get(`${SITE}/a/b/c`);
+    expect(await response.text()).toContain('<a href="/pricing/">Pricing</a>');
+    const head = await get(`${SITE}/a/b/c`, { method: 'HEAD' });
+    expect(head.status).toBe(404);
+    expect(await head.text()).toBe('');
+  });
+
+  test('serves its stylesheet for good, and its other files for an hour', async () => {
+    const style = await get(`${SITE}/assets/site.abc123.css`);
+    expect(style.status).toBe(200);
+    expect(await style.text()).toBe('/* site */\n');
+    expect(style.headers.get('content-type')).toContain('text/css');
+    expect(style.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(style.headers.get('x-content-type-options')).toBe('nosniff');
+
+    const robots = await get(`${SITE}/robots.txt`);
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain('User-agent: *');
+    expect(robots.headers.get('cache-control')).toBe('public, max-age=3600');
+  });
+
+  test('a file it does not have is not found, not the workspace’s page', async () => {
+    for (const path of ['/assets/gone.css', '/sitemap.xml', '/favicon.svg', '/favicon.ico']) {
+      const response = await get(SITE + path);
+      expect(response.status, path).toBe(404);
+      expect(await title(response), path).toBe('missing');
+    }
+  });
+
+  test('www is sent to the address without it, path and all', async () => {
+    for (const [path, to] of [['/', '/'], ['/pricing/?a=1', '/pricing/?a=1'], ['/anything', '/anything']]) {
+      const response = await get(WWW + path, { redirect: 'manual' });
+      expect(response.status, path).toBe(301);
+      expect(response.headers.get('location'), path).toBe(`https://site.test${to}`);
+    }
+  });
+
+  test('takes nothing but a read', async () => {
+    const response = await get(`${SITE}/get-started/`, { method: 'POST' });
+    expect(response.status).toBe(405);
+  });
+});
+
+describe('SetOut’s own site, where everything shares one address', () => {
+  test('is under /site/, and is never for search engines there', async () => {
+    for (const [path, page] of [['/site/', 'site'], ['/site/pricing/', 'pricing']]) {
+      const response = await get(BOTH + path);
+      expect(response.status, path).toBe(200);
+      expect(await title(response), path).toBe(page);
+      expect(response.headers.get('x-robots-tag'), path).toBe('noindex');
+      expect(response.headers.get('content-security-policy'), path).toBe(SITE_CSP);
+    }
+    const style = await get(`${BOTH}/site/assets/site.abc123.css`);
+    expect(style.headers.get('content-type')).toContain('text/css');
+    expect(style.headers.get('x-robots-tag')).toBe('noindex');
+  });
+
+  test('keeps its redirects and its not-found page under /site/', async () => {
+    for (const [path, to] of [['/site', '/site/'], ['/site/pricing', '/site/pricing/']]) {
+      const response = await get(BOTH + path, { redirect: 'manual' });
+      expect(response.status, path).toBe(301);
+      expect(response.headers.get('location'), path).toBe(to);
+    }
+    const missing = await get(`${BOTH}/site/nothing-here/at/all`);
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get('x-robots-tag')).toBe('noindex');
+    // Its links are to the site under /site/, however deep the address that was asked for.
+    expect(await missing.text()).toContain('<title>missing</title><a href="/site/pricing/">Pricing</a>');
+  });
+
+  test('leaves the workspace and the designer where they were', async () => {
+    expect(await title(await get(`${BOTH}/`))).toBe('workspace');
+    expect(await title(await get(`${BOTH}/sites`))).toBe('workspace');
+    expect(await title(await get(`${BOTH}/designer/`))).toBe('designer');
+  });
+});
+
+describe('the other two addresses and the site', () => {
+  test('the workspace’s address has no site', async () => {
+    for (const path of ['/site', '/site/', '/site/pricing/', '/site/assets/site.abc123.css']) {
+      const response = await get(APP + path);
+      expect(response.status, path).toBe(404);
+      expect(await response.text(), path).toBe('Not found');
+    }
+  });
+
+  test('nor has the designer’s', async () => {
+    for (const path of ['/site/', '/site/pricing/']) {
+      expect(await title(await get(DESIGNER + path)), path).toBe('designer');
+    }
   });
 });
 

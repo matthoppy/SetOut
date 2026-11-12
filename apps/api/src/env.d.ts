@@ -4,7 +4,7 @@
  * declared here, all optional: the code says what it does without each one.
  */
 interface SetOutSecrets {
-  /** Checks the bot check's token. Without it, enquiries are flagged as unchecked. */
+  /** Checks the bot check's token. Without it, designs and enquiries are flagged as unchecked. */
   TURNSTILE_SECRET_KEY?: string;
   /** Sends email. Without it, nothing is emailed and the job says so. */
   RESEND_API_KEY?: string;

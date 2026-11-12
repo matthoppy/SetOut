@@ -2,11 +2,12 @@
 
 Software for frameless shower companies. A company's customer designs and measures a shower once, on the company's own website, and the company prices, quotes and makes it from that same design.
 
-There are two apps and one engine:
+There are two apps, one engine and SetOut's own public site:
 
 - **The designer** is embedded on a company's website. The customer picks a layout, chooses glass and hardware, follows the measuring cards and sends the design.
 - **The workspace** is where the company's staff receive each design as a job, check it, edit it, quote it and print what the toughener and the fitter need.
 - **The engine** sits under both and under the API between them. It owns the design document, the measuring sequence, the checks, the cut sizes and the hardware. All three run the same copy, so they cannot disagree about a size.
+- **The site** is the public pages for `setoutglass.com`: what SetOut is, what a subscription includes, and a form for a shower company to ask to start. It is plain HTML written at build time. See [apps/site/README.md](apps/site/README.md) and [docs/site-plan.md](docs/site-plan.md).
 
 ## Where it stands
 
@@ -24,7 +25,8 @@ The plan, the data model and the decisions behind them are in [docs/architecture
 | `packages/ui` | Screens and parts shared by the two apps. |
 | `apps/designer` | The customer's app and its embed script, served at `designer.setoutglass.com`. |
 | `apps/workspace` | The trade workspace, served at `app.setoutglass.com`. |
-| `apps/api` | The Cloudflare Worker, the database schema and its migrations. Serves `/api` and both built apps. |
+| `apps/site` | SetOut's own public site, for `setoutglass.com`. Plain pages written at build time. |
+| `apps/api` | The Cloudflare Worker, the database schema and its migrations. Serves `/api`, both built apps and the site. |
 | `scripts` | Deploying, and checking a deploy is healthy. |
 | `docs` | The architecture and decisions, and how deploys work. |
 
@@ -37,7 +39,7 @@ npm install
 npm run dev
 ```
 
-That builds both apps, creates a local database, and starts the Worker at http://localhost:8787. The workspace is at `/`, the designer at `/designer/`, and the health check at `/api/health`.
+That builds both apps, creates a local database, and starts the Worker at http://localhost:8787. The workspace is at `/`, the designer at `/designer/`, SetOut's own site at `/site/`, and the health check at `/api/health`.
 
 With no site key the designer is a preview: everything works except sending. To send designs locally, add a company to the local database and open the designer with its key:
 
