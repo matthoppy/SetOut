@@ -12,6 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     // The API runs beside it with `npm run dev -w @setout/api`.
-    proxy: { '/api': 'http://127.0.0.1:8787' },
+    // CRL's product photos are among the designer's files, which the API serves too.
+    proxy: { '/api': 'http://127.0.0.1:8787', '/designer/assets/crl': 'http://127.0.0.1:8787' },
   },
 });

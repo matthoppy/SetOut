@@ -5,3 +5,4 @@
  * so both apps draw a shower with the same components.
  */
 export { SystemStatus } from './SystemStatus';
+export { crlPhotoSrc } from './crlPhoto';

@@ -5,6 +5,7 @@
  *
  * The tests run in order, each building on the settings the last one left.
  */
+import { handlePhotoOf } from '@setout/engine';
 import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { addMember } from '../src/db/auth';
@@ -567,10 +568,11 @@ describe('CRL codes for the sheets', () => {
     );
     expect(designer.finishes[0]).toEqual({ ...finish, code: 'BSC' });
     expect(designer.handles[0]).toEqual({ ...handle, code: 'SQ8X8' });
-    // They are for the company's own sheets, not its customers.
+    // They are for the company's own sheets, not its customers, who are sent
+    // only which of CRL's photos to show for the handle.
     const config = await publicConfig(shop);
     expect(config.finishes[0]).toEqual(finish);
-    expect(config.handles[0]).toEqual(handle);
+    expect(config.handles[0]).toEqual({ ...handle, photo: handlePhotoOf('SQ8X8', null)!.file });
     expect(JSON.stringify(config)).not.toContain('SQ8X8');
     const labels = await labelsOnJob();
     expect(labels.finishes[0]).toEqual({ id: finish.id, label: finish.label, code: 'BSC' });
