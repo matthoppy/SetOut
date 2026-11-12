@@ -54,6 +54,8 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
 
   const settings = row.config as DesignerSettings;
   const branding = company.branding;
+  // The CRL codes are for the company's own sheets, not its customers.
+  const { finishes, handles } = offeredOptions(settings);
   return {
     id: row.id,
     siteKey: row.site_key,
@@ -63,7 +65,8 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
       primary: text(branding.primary, BRANDING_DEFAULTS.primary),
       primaryForeground: text(branding.primaryForeground, BRANDING_DEFAULTS.primaryForeground),
     },
-    ...offeredOptions(settings),
+    finishes: finishes.map(({ id, label, swatch }) => ({ id, label, swatch })),
+    handles: handles.map(({ id, label, description }) => ({ id, label, description })),
     glassThicknessMm: settings.glassThicknessMm ?? DEFAULT_SETTINGS.glassThicknessMm,
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
@@ -72,15 +75,15 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
   };
 }
 
-/** What a company calls its finishes and handles, from the designer a job came from. */
+/** What a company calls its finishes and handles, and their CRL codes, from the designer a job came from. */
 export interface OptionLabels {
-  finishes: { id: string; label: string }[];
-  handles: { id: string; label: string }[];
+  finishes: { id: string; label: string; code?: string }[];
+  handles: { id: string; label: string; code?: string }[];
 }
 
 export async function optionLabelsFor(db: CompanyDb, job: Row<'jobs'>): Promise<OptionLabels> {
   const designer = job.designer_id ? await db.get('designers', job.designer_id) : (await db.find('designers', { limit: 1 }))[0];
   const { finishes, handles } = offeredOptions((designer?.config ?? {}) as DesignerSettings);
-  const pick = (list: { id: string; label: string }[]) => list.map(({ id, label }) => ({ id, label }));
+  const pick = (list: { id: string; label: string; code?: string }[]) => list.map(({ id, label, code }) => ({ id, label, ...(code ? { code } : {}) }));
   return { finishes: pick(finishes), handles: pick(handles) };
 }

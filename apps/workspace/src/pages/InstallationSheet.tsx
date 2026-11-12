@@ -14,8 +14,8 @@
  * job's own, and are written here.
  */
 
-import type { ConfiguratorSpec, ConfiguratorState, Fitting, HingeMount } from '@setout/engine';
-import { useState, type FormEvent } from 'react';
+import { crlFinishCode, crlPartOf, type ConfiguratorSpec, type ConfiguratorState, type CrlPart, type Fitting, type HingeMount } from '@setout/engine';
+import { Fragment, useState, type FormEvent } from 'react';
 import { api, ApiError, signInAgain, SignedOut, type JobDetail, type OptionLabel, type Revision } from '../lib/api';
 import { humanise, layoutName } from '../lib/format';
 import { useLoad } from '../lib/load';
@@ -265,17 +265,28 @@ function Sheet({
         <section className="border-b border-black px-2 py-1.5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-[13px] font-bold uppercase">Shower fittings</h2>
-            <p className="text-[11px] font-semibold">Sizes in mm</p>
+            <p className="text-[11px] font-semibold">Sizes in mm, CRL catalogue numbers on the right</p>
           </div>
           <table className="mt-1 w-full border-collapse text-left text-[12px]">
             <tbody>
               {rows.map((row, i) => (
-                <tr key={i} className="align-top">
-                  <td className="w-10 py-0.5 pr-2 text-right tabular-nums">{row.qty}</td>
-                  <td className="py-0.5 pr-3 font-semibold">{row.item}</td>
-                  <td className="py-0.5 pr-3">{row.where}</td>
-                  <td className="py-0.5">{row.finish}</td>
-                </tr>
+                <Fragment key={i}>
+                  <tr className="align-top">
+                    <td className="w-10 py-0.5 pr-2 text-right tabular-nums">{row.qty}</td>
+                    <td className="py-0.5 pr-3 font-semibold">{row.item}</td>
+                    <td className="py-0.5 pr-3">{row.where}</td>
+                    <td className="py-0.5 pr-3">{row.finish}</td>
+                    <td className="whitespace-nowrap py-0.5 text-right font-mono font-semibold">{row.code}</td>
+                  </tr>
+                  {row.note && (
+                    <tr>
+                      <td />
+                      <td colSpan={4} className="pb-1 text-[10.5px] italic">
+                        {row.note}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -295,28 +306,62 @@ interface Row {
   item: string;
   where: string;
   finish: string;
+  /** CRL's catalogue number for it, or as much of the number as is known. */
+  code: string;
+  /** Why the number is short or missing, for the office. Each is said once. */
+  note: string | null;
 }
 
-/** The fittings in the words the fitters use, with the company's own names for its finishes and handles. */
+/**
+ * The fittings in the words the fitters use, with the company's own names
+ * for its finishes and handles, and CRL's catalogue number for each.
+ */
 function fittingRows(fittings: Fitting[], spec: ConfiguratorSpec, design: ConfiguratorState, labels: JobDetail['labels']): Row[] {
+  const option = labels.finishes.find((o) => o.id === design.finishId);
   const finish = named(labels.finishes, design.finishId);
+  const finishCode = crlFinishCode(option ?? { label: finish });
   const door = (pane: number) => `${paneName(spec.panels[pane]?.label ?? '')} door`;
+  const said = new Set<string>();
   return fittings.map((f): Row => {
-    switch (f.kind) {
-      case 'hinges':
-        return { qty: String(f.count), item: `${f.brand} hinge`, where: `${door(f.pane)}, ${MOUNTS[f.mount]}`, finish };
-      case 'handle':
-        return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
-      case 'seal':
-        return { qty: '1', item: capitalised(f.seal), where: `${door(f.pane)}, latch edge, ${f.lengthMm}mm`, finish: '' };
-      case 'channel':
-        return { qty: `${(f.lengthMm / 1000).toFixed(2)}m`, item: 'U-channel', where: 'In all, cut on site', finish };
-      case 'clamps':
-        return { qty: '', item: 'Glass clamps', where: 'For the fixed glass', finish };
-      case 'support-bar':
-        return { qty: '1', item: 'Support bar', where: f.reason ?? '', finish };
-      case 'support-panel':
-        return { qty: '1', item: 'Support panel', where: f.reason ?? '', finish: '' };
-    }
+    const row = wordsFor(f, door, finish, labels);
+    const handleCode = f.kind === 'handle' ? (labels.handles.find((o) => o.id === f.handleId)?.code ?? null) : null;
+    const { code, note } = crlColumns(crlPartOf(f, { glassMm: spec.glassThicknessMm, finishCode, handleCode }), row.item, finish);
+    const fresh = note !== null && !said.has(note);
+    if (note) said.add(note);
+    return { ...row, code, note: fresh ? note : null };
   });
+}
+
+function wordsFor(f: Fitting, door: (pane: number) => string, finish: string, labels: JobDetail['labels']): Omit<Row, 'code' | 'note'> {
+  switch (f.kind) {
+    case 'hinges':
+      return { qty: String(f.count), item: `${f.brand} hinge`, where: `${door(f.pane)}, ${MOUNTS[f.mount]}`, finish };
+    case 'handle':
+      return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
+    case 'seal':
+      return { qty: '1', item: capitalised(f.seal), where: `${door(f.pane)}, latch edge, ${f.lengthMm}mm`, finish: '' };
+    case 'channel':
+      return { qty: `${(f.lengthMm / 1000).toFixed(2)}m`, item: 'U-channel', where: 'In all, cut on site', finish };
+    case 'clamps':
+      return { qty: '', item: 'Glass clamps', where: 'For the fixed glass', finish };
+    case 'support-bar':
+      return { qty: '1', item: 'Support bar', where: f.reason ?? '', finish };
+    case 'support-panel':
+      return { qty: '1', item: 'Support panel', where: f.reason ?? '', finish: '' };
+  }
+}
+
+/** CRL's number for a fitting, and what the office still has to sort out about it. */
+function crlColumns(part: CrlPart | null, item: string, finish: string): { code: string; note: string | null } {
+  if (!part) return { code: '', note: null };
+  switch (part.status) {
+    case 'found':
+      return { code: part.code, note: null };
+    case 'no-finish-code':
+      return { code: `${part.series} + ?`, note: `${finish} has no CRL finish code yet. Add it in Settings, under Finishes.` };
+    case 'not-in-finish':
+      return { code: part.series, note: `Not in CRL's catalogue in ${finish.toLowerCase()}: ${part.code}. Check with CRL, or change the finish.` };
+    case 'no-handle-code':
+      return { code: '', note: `${item} has no CRL number yet. Add it in Settings, under Handles.` };
+  }
 }

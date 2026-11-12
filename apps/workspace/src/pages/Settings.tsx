@@ -9,6 +9,7 @@
  * save over each other unawares.
  */
 
+import { CRL_CODE, crlFinishCode } from '@setout/engine';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   api,
@@ -250,15 +251,23 @@ interface Row {
   label: string;
   swatch: string;
   description: string;
+  /** CRL's code, as typed. */
+  code: string;
 }
 
-const rowOf = (option: { id: string; label: string; swatch?: string; description?: string }): Row => ({
+const rowOf = (option: { id: string; label: string; swatch?: string; description?: string; code?: string }): Row => ({
   key: option.id,
   id: option.id,
   label: option.label,
   swatch: option.swatch ?? '#cccccc',
   description: option.description ?? '',
+  code: option.code ?? '',
 });
+
+/** A CRL code as the server keeps it: capitals and digits, no spaces. */
+const tidyCode = (code: string) => code.replace(/\s+/g, '').toUpperCase();
+const codeProblem = (code: string, example: string) =>
+  !tidyCode(code) || CRL_CODE.test(tidyCode(code)) ? null : `Letters and numbers only, up to 12, such as ${example}.`;
 
 /** What is wrong with each row's name, if anything. */
 function nameProblems(rows: Row[], limits: Limits): (string | null)[] {
@@ -408,16 +417,17 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
   const { rows } = list;
   const problems = nameProblems(rows, limits);
   const colours = rows.map((r) => COLOUR.test(r.swatch));
-  const shape = (r: Row) => ({ id: r.id, label: tidy(r.label), swatch: r.swatch.toLowerCase() });
+  const codes = rows.map((r) => codeProblem(r.code, 'MBL'));
+  const shape = (r: Row) => ({ id: r.id, label: tidy(r.label), swatch: r.swatch.toLowerCase(), code: tidyCode(r.code) });
   const dirty = JSON.stringify(rows.map(shape)) !== JSON.stringify(original.map(shape));
-  const valid = rows.length > 0 && rows.length <= limits.options && problems.every((p) => !p) && colours.every(Boolean);
+  const valid = rows.length > 0 && rows.length <= limits.options && problems.every((p) => !p) && colours.every(Boolean) && codes.every((p) => !p);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void saving.save(
       () =>
         api.saveDesignerSettings(designer.id, {
-          finishes: rows.map((r) => ({ ...(r.id ? { id: r.id } : {}), label: tidy(r.label), swatch: r.swatch.toLowerCase() })),
+          finishes: rows.map((r) => ({ ...(r.id ? { id: r.id } : {}), label: tidy(r.label), swatch: r.swatch.toLowerCase(), code: tidyCode(r.code) })),
           basedOn: { finishes: designer.versions.finishes },
         }),
       'The finishes could not be saved. Please try again.'
@@ -432,6 +442,7 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
             <li key={f.id} className="flex items-center gap-3 text-sm">
               <Swatch colour={f.swatch} />
               <span className="font-medium">{f.label}</span>
+              <CodeOf code={crlFinishCode(f)} />
             </li>
           ))}
         </ul>
@@ -442,7 +453,11 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
   return (
     <Section title="Finishes" aside={<span className="text-xs text-quiet">{plural(rows.length, 'offered', 'offered')}</span>}>
       <form onSubmit={submit} className={CARD}>
-        <Hint>Your customers choose from these in your designer, in this order. A new design starts with the first one.</Hint>
+        <Hint>
+          Your customers choose from these in your designer, in this order. A new design starts with the first one. The CRL code goes on the
+          end of each part&rsquo;s number on your installation sheets, as in GEN044<b>CH</b>; leave it empty to use CRL&rsquo;s code for a
+          finish of the same name, shown faintly.
+        </Hint>
         <ul className="space-y-3">
           {rows.map((row, i) => (
             <li key={row.key}>
@@ -468,11 +483,19 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
                     className={`${FIELD} ${problems[i] ? 'border-bad/60' : 'border-rule'}`}
                   />
                 </label>
+                <CodeField
+                  label={`CRL code for ${row.label || 'this finish'}`}
+                  value={row.code}
+                  placeholder={crlFinishCode({ label: tidy(row.label) }) ?? 'CRL'}
+                  invalid={codes[i] !== null}
+                  onChange={(code) => list.change(row.key, { code })}
+                />
                 <MoveUp label={row.label} disabled={i === 0} onClick={() => list.moveUp(row.key)} />
                 <RemoveButton label={row.label} disabled={rows.length === 1} onClick={() => list.remove(row.key)} />
               </div>
               <p className="ml-12 mt-1 flex flex-wrap gap-x-3 text-xs text-quiet sm:ml-14">
                 {problems[i] && <span className="text-bad">{problems[i]}</span>}
+                {codes[i] && <span className="text-bad">{codes[i]}</span>}
                 {!row.id && <span className="font-medium text-accent">New</span>}
                 {row.id && <UsedBy count={designer.inUse.finishes[row.id] ?? 0} />}
               </p>
@@ -484,7 +507,7 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
         {rows.length < limits.options && (
           <button
             type="button"
-            onClick={() => list.add({ label: '', swatch: '#cccccc', description: '' })}
+            onClick={() => list.add({ label: '', swatch: '#cccccc', description: '', code: '' })}
             className="mt-3 h-10 rounded-md border border-rule bg-surface px-3 text-sm font-medium"
           >
             Add a finish
@@ -515,9 +538,10 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
   const { rows } = list;
   const problems = nameProblems(rows, limits);
   const long = rows.map((r) => tidy(r.description).length > limits.description);
-  const shape = (r: Row) => ({ id: r.id, label: tidy(r.label), description: tidy(r.description) });
+  const codes = rows.map((r) => codeProblem(r.code, 'BM8X8'));
+  const shape = (r: Row) => ({ id: r.id, label: tidy(r.label), description: tidy(r.description), code: tidyCode(r.code) });
   const dirty = JSON.stringify(rows.map(shape)) !== JSON.stringify(original.map(shape));
-  const valid = rows.length > 0 && rows.length <= limits.options && problems.every((p) => !p) && !long.some(Boolean);
+  const valid = rows.length > 0 && rows.length <= limits.options && problems.every((p) => !p) && !long.some(Boolean) && codes.every((p) => !p);
   // A new handle is drilled as a pull handle, unless it takes the knob's place.
   const drilledAs = (row: Row) => drilling(row.id ?? (idFrom(row.label) === 'knob' && !rows.some((r) => r.id === 'knob') ? 'knob' : 'new'));
 
@@ -526,7 +550,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
     void saving.save(
       () =>
         api.saveDesignerSettings(designer.id, {
-          handles: rows.map((r) => ({ ...(r.id ? { id: r.id } : {}), label: tidy(r.label), description: tidy(r.description) })),
+          handles: rows.map((r) => ({ ...(r.id ? { id: r.id } : {}), label: tidy(r.label), description: tidy(r.description), code: tidyCode(r.code) })),
           basedOn: { handles: designer.versions.handles },
         }),
       'The handles could not be saved. Please try again.'
@@ -534,6 +558,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
   };
 
   const about = 'SetOut decides how the glass is drilled for each: two holes 203mm apart for a pull handle, and one hole 950mm up for the knob. A handle you add is drilled as a pull handle.';
+  const crl = 'Give each its CRL number without the finish, such as BM8X8, and your installation sheets add the finish code.';
 
   if (!owner) {
     return (
@@ -541,7 +566,10 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
         <ul className={`${CARD} space-y-3 text-sm`}>
           {designer.handles.map((h) => (
             <li key={h.id}>
-              <p className="font-medium">{h.label}</p>
+              <p className="flex items-baseline gap-3">
+                <span className="font-medium">{h.label}</span>
+                <CodeOf code={h.code ?? null} />
+              </p>
               {h.description && <p className="text-quiet">{h.description}</p>}
               <p className="text-xs text-quiet">{drilling(h.id)}</p>
             </li>
@@ -555,7 +583,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
     <Section title="Handles" aside={<span className="text-xs text-quiet">{plural(rows.length, 'offered', 'offered')}</span>}>
       <form onSubmit={submit} className={CARD}>
         <Hint>
-          Your customers choose from these, in this order, and a new design starts with the first. {about}
+          Your customers choose from these, in this order, and a new design starts with the first. {about} {crl}
         </Hint>
         <ul className="space-y-4">
           {rows.map((row, i) => (
@@ -573,6 +601,14 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
                     className={`${FIELD} font-medium ${problems[i] ? 'border-bad/60' : 'border-rule'}`}
                   />
                 </label>
+                <CodeField
+                  label={`CRL number for ${row.label || 'this handle'}`}
+                  value={row.code}
+                  placeholder="CRL no."
+                  invalid={codes[i] !== null}
+                  onChange={(code) => list.change(row.key, { code })}
+                  wide
+                />
                 <MoveUp label={row.label} disabled={i === 0} onClick={() => list.moveUp(row.key)} />
                 <RemoveButton label={row.label} disabled={rows.length === 1} onClick={() => list.remove(row.key)} />
               </div>
@@ -591,6 +627,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
               <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-quiet">
                 {problems[i] && <span className="text-bad">{problems[i]}</span>}
                 {long[i] && <span className="text-bad">Keep the line to {limits.description} characters.</span>}
+                {codes[i] && <span className="text-bad">{codes[i]}</span>}
                 {!row.id && <span className="font-medium text-accent">New</span>}
                 <span>{drilledAs(row)}</span>
                 {row.id && <UsedBy count={designer.inUse.handles[row.id] ?? 0} />}
@@ -603,7 +640,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
         {rows.length < limits.options && (
           <button
             type="button"
-            onClick={() => list.add({ label: '', swatch: '', description: '' })}
+            onClick={() => list.add({ label: '', swatch: '', description: '', code: '' })}
             className="mt-3 h-10 rounded-md border border-rule bg-surface px-3 text-sm font-medium"
           >
             Add a handle
@@ -626,6 +663,44 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
 
 function Swatch({ colour }: { colour: string }) {
   return <span className="h-6 w-6 shrink-0 rounded-full border border-rule" style={{ background: colour }} aria-hidden />;
+}
+
+/** A CRL code, typed in capitals. */
+function CodeField({
+  label,
+  value,
+  placeholder,
+  invalid,
+  onChange,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  invalid: boolean;
+  onChange: (code: string) => void;
+  wide?: boolean;
+}) {
+  return (
+    <label className={`shrink-0 ${wide ? 'w-28' : 'w-20'}`}>
+      <span className="sr-only">{label}</span>
+      <input
+        type="text"
+        value={value}
+        maxLength={20}
+        placeholder={placeholder}
+        autoCapitalize="characters"
+        spellCheck={false}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        aria-invalid={invalid ? true : undefined}
+        className={`${FIELD} font-mono uppercase placeholder:normal-case ${invalid ? 'border-bad/60' : 'border-rule'}`}
+      />
+    </label>
+  );
+}
+
+function CodeOf({ code }: { code: string | null }) {
+  return code ? <span className="font-mono text-xs text-quiet">CRL {code}</span> : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1118,6 +1193,10 @@ function describe(item: SettingsChangeItem, by: string): string {
           return `${by} changed the colour of the finish “${item.label}”.`;
         case 'described':
           return `${by} changed what customers are told about the handle “${item.label}”.`;
+        case 'coded':
+          return !item.to
+            ? `${by} took the CRL code off the ${kind} “${item.label}”.`
+            : `${by} set the CRL code of the ${kind} “${item.label}” to ${item.to}${item.from ? `, from ${item.from}` : ''}.`;
         case 'reordered':
           return `${by} changed the order of the ${kind === 'finish' ? 'finishes' : 'handles'}.`;
       }

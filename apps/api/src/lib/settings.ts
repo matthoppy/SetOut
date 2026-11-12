@@ -12,6 +12,7 @@
  * security setting, and the making rules, which change cut sizes.
  */
 
+import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
 import { BRANDING_DEFAULTS, offeredOptions } from './designer-config';
@@ -21,12 +22,16 @@ export interface Finish {
   id: string;
   label: string;
   swatch: string;
+  /** CRL's code for the finish, such as MBL, where the company has set one. */
+  code?: string;
 }
 
 export interface Handle {
   id: string;
   label: string;
   description: string;
+  /** CRL's number for the handle without its finish, such as BM8X8, where the company has set one. */
+  code?: string;
 }
 
 export interface Branding {
@@ -344,13 +349,28 @@ function withIds<T extends { id: string | null }>(kind: Kind, options: (T & { la
   });
 }
 
+/** A CRL code as an owner typed it: capitals and digits, spaces taken out, or none at all. */
+function readCode(kind: Kind, item: Record<string, unknown>, label: string): string | undefined {
+  if (item.code === undefined || item.code === null) return undefined;
+  const example = kind === 'finish' ? 'MBL' : 'BM8X8';
+  if (typeof item.code !== 'string') throw new RequestError(400, WORDS[kind].code, `The CRL code of “${label}” must be written like ${example}.`);
+  const code = item.code.replace(/\s+/g, '').toUpperCase();
+  if (!code) return undefined;
+  if (!CRL_CODE.test(code)) {
+    throw new RequestError(400, WORDS[kind].code, `The CRL code of “${label}” can only be letters and numbers, up to 12 of them, such as ${example}.`);
+  }
+  return code;
+}
+
+const withCode = (code: string | undefined) => (code ? { code } : {});
+
 export function readFinishes(input: unknown, offered: readonly Finish[]): Finish[] {
   const read = readList('finish', input, offered).map(({ id, label, item }) => {
     const swatch = typeof item.swatch === 'string' ? item.swatch.trim().toLowerCase() : '';
     if (!COLOUR.test(swatch)) throw new RequestError(400, 'invalid_finishes', `The colour of “${label}” must be written like #d4d8db.`);
-    return { id, label, swatch };
+    return { id, label, swatch, code: readCode('finish', item, label) };
   });
-  return withIds('finish', read).map(({ id, label, swatch }) => ({ id, label, swatch }));
+  return withIds('finish', read).map(({ id, label, swatch, code }) => ({ id, label, swatch, ...withCode(code) }));
 }
 
 export function readHandles(input: unknown, offered: readonly Handle[]): Handle[] {
@@ -362,9 +382,9 @@ export function readHandles(input: unknown, offered: readonly Handle[]): Handle[
     if (description.length > LIMITS.description) {
       throw new RequestError(400, 'invalid_handles', `Keep the description of “${label}” to ${LIMITS.description} characters.`);
     }
-    return { id, label, description };
+    return { id, label, description, code: readCode('handle', item, label) };
   });
-  return withIds('handle', read).map(({ id, label, description }) => ({ id, label, description }));
+  return withIds('handle', read).map(({ id, label, description, code }) => ({ id, label, description, ...withCode(code) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +399,7 @@ export type SettingsChange =
   | { field: 'vatRateBp' | 'quoteValidDays'; from: number; to: number }
   | {
       field: Kind;
-      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described';
+      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described' | 'coded';
       id: string;
       label: string;
       from?: string;
@@ -388,7 +408,7 @@ export type SettingsChange =
   | { field: Kind; change: 'reordered' }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
-type Option = { id: string; label: string; swatch?: string; description?: string };
+type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
 
 export function optionChanges(kind: Kind, before: readonly Option[], after: readonly Option[]): SettingsChange[] {
   const changes: SettingsChange[] = [];
@@ -406,6 +426,9 @@ export function optionChanges(kind: Kind, before: readonly Option[], after: read
     }
     if (kind === 'handle' && (old.description ?? '') !== (option.description ?? '')) {
       changes.push({ field: kind, change: 'described', id: option.id, label: option.label, from: old.description, to: option.description });
+    }
+    if ((old.code ?? '') !== (option.code ?? '')) {
+      changes.push({ field: kind, change: 'coded', id: option.id, label: option.label, from: old.code, to: option.code });
     }
   }
   for (const option of before) {

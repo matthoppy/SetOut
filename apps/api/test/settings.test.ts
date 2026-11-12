@@ -17,11 +17,13 @@ interface Finish {
   id: string;
   label: string;
   swatch: string;
+  code?: string;
 }
 interface Handle {
   id: string;
   label: string;
   description: string;
+  code?: string;
 }
 interface DesignerBody {
   id: string;
@@ -89,9 +91,9 @@ const firstJob = async () => {
   const { jobs } = await json<{ jobs: { id: string }[] }>(await api('/jobs', { cookie: owner }));
   return jobs[0].id;
 };
+type Label = { id: string; label: string; code?: string };
 const labelsOnJob = async () =>
-  (await json<{ labels: { finishes: { id: string; label: string }[]; handles: { id: string; label: string }[] } }>(await api(`/jobs/${await firstJob()}`, { cookie: owner })))
-    .labels;
+  (await json<{ labels: { finishes: Label[]; handles: Label[] } }>(await api(`/jobs/${await firstJob()}`, { cookie: owner }))).labels;
 
 beforeAll(async () => {
   shop = await company('Settings Showers', 'SS');
@@ -534,5 +536,56 @@ describe('the record of changes', () => {
   test('the team’s own record does not list them', async () => {
     const team = await json<{ changes: { action: string }[] }>(await api('/team', { cookie: owner }));
     expect(team.changes.every((c) => c.action !== 'settings_changed')).toBe(true);
+  });
+});
+
+describe('CRL codes for the sheets', () => {
+  test('are saved tidied and reach the job, and the public designer is not sent them', async () => {
+    const before = await ours();
+    const [finish] = before.finishes;
+    const [handle] = before.handles;
+    const { designer } = await saved(
+      await changeDesigner({
+        finishes: before.finishes.map((f) => (f.id === finish.id ? { ...f, code: ' bsc ' } : f)),
+        handles: before.handles.map((h) => (h.id === handle.id ? { ...h, code: 'sq 8x8' } : h)),
+      })
+    );
+    expect(designer.finishes[0]).toEqual({ ...finish, code: 'BSC' });
+    expect(designer.handles[0]).toEqual({ ...handle, code: 'SQ8X8' });
+    // They are for the company's own sheets, not its customers.
+    const config = await publicConfig(shop);
+    expect(config.finishes[0]).toEqual(finish);
+    expect(config.handles[0]).toEqual(handle);
+    expect(JSON.stringify(config)).not.toContain('SQ8X8');
+    const labels = await labelsOnJob();
+    expect(labels.finishes[0]).toEqual({ id: finish.id, label: finish.label, code: 'BSC' });
+    expect(labels.handles[0]).toEqual({ id: handle.id, label: handle.label, code: 'SQ8X8' });
+    // On record, as a change of code.
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([
+      { field: 'finish', change: 'coded', id: finish.id, label: finish.label, to: 'BSC' },
+      { field: 'handle', change: 'coded', id: handle.id, label: handle.label, to: 'SQ8X8' },
+    ]);
+  });
+
+  test.each([
+    ['a code with other marks in it', 'M-BL'],
+    ['a code too long', 'A'.repeat(13)],
+    ['a code that is not text', 7],
+  ])('%s is refused, and nothing changes', async (_, code) => {
+    const before = await ours();
+    const finishes = before.finishes.map((f, i) => (i === 0 ? { ...f, code } : f));
+    expect(await errorOf(await changeDesigner({ finishes }))).toEqual([400, 'invalid_finishes']);
+    const handles = before.handles.map((h, i) => (i === 0 ? { ...h, code } : h));
+    expect(await errorOf(await changeDesigner({ handles }))).toEqual([400, 'invalid_handles']);
+    expect(await ours()).toEqual(before);
+  });
+
+  test('a code taken out leaves none', async () => {
+    const before = await ours();
+    const { designer } = await saved(await changeDesigner({ finishes: before.finishes.map((f) => ({ ...f, code: '' })) }));
+    expect(designer.finishes.some((f) => 'code' in f)).toBe(false);
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([{ field: 'finish', change: 'coded', id: before.finishes[0].id, label: before.finishes[0].label, from: 'BSC' }]);
   });
 });

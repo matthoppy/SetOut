@@ -69,6 +69,30 @@ matte black Geneva 90° glass-to-glass hinge.
 | BAB | Brushed antique brass (Bellagio) |
 | GP | Gold plated |
 
+## What SetOut names on the installation sheet
+
+Each fitting gets its CRL number (`packages/engine/src/crl.ts`), looked up in
+every catalogue number from this folder (`crl-catalogue.ts`, written by
+`scripts/crl-catalogue.mjs`):
+
+| Fitting | Number | Why |
+| --- | --- | --- |
+| Hinges to the wall | GEN044, V1E044, BEL344 + finish | The offset back plate, as Custom Showers' own site sold them |
+| Hinges glass to glass, in line | GEN180, V1E180, BEL380 + finish | |
+| Hinges glass to glass, at a corner | GEN092, V1E092, BEL392 + finish | |
+| Bubble seal | PCR8, PCR10, PCR12 | By glass thickness; clear, so no finish |
+| 90° stopper seal | PC0890, PC1090 | None for 12mm yet. Matt to confirm it is the seal he fits |
+| U-channel | SDCD38 (10mm), SDCD12 (12mm) + finish | Deep U-channel in 2.41m lengths, as Custom Showers' own site listed it. Chrome hardware takes brite anodised (BA) channel |
+| Handle | The company's number for it + finish | Set in Settings; nothing until then |
+| Clamps, support bar or panel | — | SetOut does not choose the model |
+
+Finishes CRL does not make a part in are common: of Custom Showers' 14
+finishes, a Geneva 90° hinge comes in only seven (chrome, brushed nickel,
+matte black, polished and satin brass, antique brass, oil rubbed bronze),
+and a Bellagio in none of oil rubbed bronze, polished or satin nickel, satin
+chrome or unlacquered brass. "Brushed gold" has no CRL code at all. The sheet
+says so beside the part.
+
 ## Seals for 10mm glass
 
 | What SetOut calls it | CRL | Length |

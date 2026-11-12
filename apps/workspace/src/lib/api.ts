@@ -174,6 +174,8 @@ export interface QuoteDetail {
 export interface OptionLabel {
   id: string;
   label: string;
+  /** CRL's code for it, where the company has set one: a finish's, such as MBL, or a handle's number before its finish. */
+  code?: string;
 }
 
 export interface JobDetail {
@@ -228,12 +230,16 @@ export interface Finish {
   label: string;
   /** The colour shown beside it in the designer, as #rrggbb. */
   swatch: string;
+  /** CRL's code for the finish, such as MBL, where the company has set one. */
+  code?: string;
 }
 
 export interface Handle {
   id: string;
   label: string;
   description: string;
+  /** CRL's number for the handle without its finish, such as BM8X8, where the company has set one. */
+  code?: string;
 }
 
 /** A finish or handle as it is sent to be saved: one without an id is new. */
@@ -278,7 +284,7 @@ export type SettingsChangeItem =
   | { field: 'vatRateBp' | 'quoteValidDays'; from: number; to: number }
   | {
       field: 'finish' | 'handle';
-      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described' | 'reordered';
+      change: 'added' | 'removed' | 'renamed' | 'recoloured' | 'described' | 'coded' | 'reordered';
       id?: string;
       label?: string;
       from?: string;

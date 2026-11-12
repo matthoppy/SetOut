@@ -229,10 +229,14 @@ export async function usersByIds(
   return Object.fromEntries(rows.results.map((u) => [u.id, { name: u.name, email: u.email }]));
 }
 
-/** What a designer row's config column holds. All of it is public. */
+/**
+ * What a designer row's config column holds. None of it is secret, and the
+ * public designer is sent all of it but the CRL codes, which only the
+ * company's own sheets need.
+ */
 export interface DesignerSettings {
-  finishes?: { id: string; label: string; swatch: string }[];
-  handles?: { id: string; label: string; description: string }[];
+  finishes?: { id: string; label: string; swatch: string; code?: string }[];
+  handles?: { id: string; label: string; description: string; code?: string }[];
   glassThicknessMm?: number;
   measurementDisclaimer?: string;
   intro?: string;
