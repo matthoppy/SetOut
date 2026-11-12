@@ -153,6 +153,74 @@ All colors MUST be HSL.
   --measure-accent: 199 45% 63%;
 }
 
+/* The measuring pictures: one room, one light, three measuring colours.
+   The room is pale stone and white, so the laser's red, the tape's yellow
+   and the accent the measurement is drawn in are the only colours in it. */
+.mw-iso {
+  --iso-paper: #ffffff;
+  --iso-backdrop: #f4f4f2;
+  --iso-floor: #e8e6e2;
+  --iso-floor-joint: #d5d2cc;
+  --iso-wall-lit: #f6f5f2;
+  --iso-wall-shade: #ecebe7;
+  --iso-wall-foot: #dedbd5;
+  --iso-wall-joint: #dcd9d3;
+  --iso-wall-end: #e2dfda;
+  --iso-cut: #fbfaf8;
+  --iso-cut-edge: #c2beb7;
+  --iso-ceiling: #f2f0ec;
+  --iso-edge: #b8b4ad;
+  --iso-tray: #ffffff;
+  --iso-tray-lit: #eceae7;
+  --iso-tray-shade: #dbd8d3;
+  --iso-tray-dish: #f7f6f4;
+  --iso-glass: #b9dfe3;
+  --iso-glass-edge: #7fb2b8;
+  --iso-metal: #d5d9dd;
+  --iso-metal-dark: #7f8892;
+  --iso-shadow: #3a332b;
+  --iso-ink: hsl(var(--measure-accent));
+  --iso-ink-text: #ffffff;
+  --iso-laser: #ef1d45;
+  --iso-laser-hot: #ffd9e0;
+  --iso-tape: #f7c52b;
+  --iso-tape-edge: #c3940a;
+  --iso-tape-ink: #2a2a2a;
+  --iso-mask: #93c3ec;
+  --iso-mask-edge: #5d98cf;
+  --iso-pencil: #1e2227;
+}
+.dark .mw-iso {
+  /* The room stays light on a dark page, on its own light ground, so its
+     measuring marks stay navy. */
+  --iso-ink: hsl(210 50% 23%);
+  --iso-backdrop: #e6e4e0;
+}
+/* Lines keep their weight on the screen however much of the room is shown. */
+.mw-iso line,
+.mw-iso polygon,
+.mw-iso polyline,
+.mw-iso path,
+.mw-iso circle,
+.mw-iso rect {
+  vector-effect: non-scaling-stroke;
+}
+@keyframes mw-pulse {
+  0%, 100% { opacity: 0.1; transform: scale(0.85); }
+  50% { opacity: 0.3; transform: scale(1.15); }
+}
+.mw-pulse {
+  animation: mw-pulse 1.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mw-pulse,
+  .mw-glow {
+    animation: none;
+  }
+}
+
 /* Measuring cards: each picture shows its one action, holds, and goes
    round again every four seconds. The resting state is the finished
    picture, so with animations off it still reads. */
