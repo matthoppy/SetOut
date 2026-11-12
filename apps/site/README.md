@@ -37,7 +37,7 @@ Anything only Matt can settle is written with `placeholder(name, text)`. It show
 | Page | Placeholder | Waiting for |
 | --- | --- | --- |
 | Pricing | `prices` | What SetOut costs: not until it goes live (Matt, 12 November 2026) |
-| Privacy | `legal-details` | Custom Showers' registered name and number, registered address and ICO registration. Custom Showers is the company behind SetOut (Matt, 12 November 2026) |
+| Privacy | `legal-details` | Custom Showers' name exactly as registered, its registered office address and ICO registration. Custom Showers, company number 16892739, is the company behind SetOut (Matt, 12 November 2026); Matt is sorting a UK address for its registered office now he lives in New Zealand |
 | Privacy | `enquiry-retention` | How long an enquiry is kept |
 
 Settled by Matt on 12 November 2026: the home page may name Custom Showers ("yeah thats fine"), enquiries go to sales@customshowers.uk, which is also the address on the privacy page, and the site may name CRL ("yes").

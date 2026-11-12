@@ -124,7 +124,7 @@ Answered by Matt on 12 November 2026:
 - **Prices** (1): "dont worry about price for now until it goes live". The placeholder stays until then.
 - **Naming Custom Showers** (2): "yeah thats fine". The home page's line stands, with no placeholder.
 - **Where enquiries go** (3): sales@customshowers.uk, set as `SITE_NOTIFY_EMAIL` for production. It is also the address on the privacy page.
-- **Who runs SetOut** (4): "Custom Showers can be the company behind set out as thats a company". The privacy page says so. Its registered name and number, registered address and ICO registration are still a placeholder.
+- **Who runs SetOut** (4): "Custom Showers can be the company behind set out as thats a company". It is a limited company, number 16892739, registered in England and Wales. The privacy page says so. Its name exactly as registered, its registered office and its ICO registration are still a placeholder: Matt has moved back to New Zealand and is sorting a UK address for the registered office.
 - **Naming CRL** (8): "yes".
 
 The rest are still open:

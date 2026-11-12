@@ -12,8 +12,8 @@ export const privacy = ({ to }) => `
     <section class="band">
       <div class="wrap narrow prose">
         <h2>Who we are</h2>
-        <p>SetOut is run by Custom Showers, a frameless shower company in the UK, which built it for its own customers and its own workshop. For what you send through the get-started form on this website, Custom Showers is the controller: it decides what it is used for, and answers for it.</p>
-        ${placeholder('legal-details', 'Custom Showers’ registered company name and number, its registered address, and its ICO registration number if it has one.')}
+        <p>SetOut is run by Custom Showers, a frameless shower company in the UK, which built it for its own customers and its own workshop. For what you send through the get-started form on this website, Custom Showers is the controller: it decides what it is used for, and answers for it. Custom Showers is a limited company registered in England and Wales, company number 16892739.</p>
+        ${placeholder('legal-details', 'Custom Showers’ name exactly as registered at Companies House, its registered office address, and its ICO registration number if it has one.')}
 
         <h2>This website</h2>
         <h3>No tracking</h3>
