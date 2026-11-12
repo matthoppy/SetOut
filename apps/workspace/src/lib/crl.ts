@@ -61,6 +61,10 @@ export function showerParts(design: ConfiguratorState, spec: ConfiguratorSpec, l
         return { fitting, part, what: 'Support bar', finish };
       case 'support-panel':
         return { fitting, part, what: 'Support panel', finish: null };
+      case 'sliding-kit':
+        return { fitting, part, what: 'Serenity sliding door kit', finish };
+      case 'sliding-return-kit':
+        return { fitting, part, what: 'Serenity 90° return kit', finish };
     }
   });
 }

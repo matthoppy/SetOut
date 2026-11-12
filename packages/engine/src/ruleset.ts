@@ -22,6 +22,10 @@
  *   [CONFIRMED]    read back from a live CRL Smart Glazier recalculation
  *   [MANUFACTURER] CRL's published catalogue or installation manual
  *   [OURS]         installer practice, a decision that can be changed
+ *   [UNCONFIRMED]  SetOut's own stand-in, not yet agreed with Matt or checked
+ *                  against a job. Only the sliding door rules carry it, and
+ *                  sliding stays hidden from customers until they are settled.
+ *                  Each is a question in docs/sliding-plan.md.
  */
 
 // ---------------------------------------------------------------------------
@@ -148,6 +152,74 @@ export interface HingeCutouts {
   withoutSeals?: { door: CutoutTemplate };
 }
 
+/**
+ * CRL's Deluxe Serenity sliding door kit (SER78), for 8 or 10mm glass: one
+ * sliding door and one fixed panel, hung from a header bar.
+ *
+ * [MANUFACTURER] rules are from CRL's installation sheets, saved in
+ * docs/sliding/: 11M0347 (CRL North America, 2023), AVDB3149 (CRL Europe) and
+ * AVDB3176 (with the SER90 kit for a 90° return). No job has been cut from
+ * them through SetOut yet, so a sliding shower says on every sheet that its
+ * sizes are not confirmed.
+ */
+export interface SerenityRules {
+  /** [MANUFACTURER] The glass the Deluxe kit takes. 12mm takes the Senior kit, which SetOut does not design. */
+  glassMm: number[];
+  /** [MANUFACTURER] "Do not exceed either 30 inches (762mm) wide or 88 pounds (40kg)." */
+  maxDoorWidthMm: number;
+  maxDoorWeightKg: number;
+  /**
+   * [MANUFACTURER] "Sliding door and fixed panel width: overall width divided
+   * by 2, plus 7/8 inch (22mm)."
+   */
+  halfWidthPlusMm: number;
+  /**
+   * [MANUFACTURER] "Standard gap between wall and fixed and/or sliding glass
+   * is 1/8 inch (3mm)." With the formula's widths this leaves the door
+   * lapping the fixed panel by 50mm, which CRL calls 2 inches (51mm).
+   * [UNCONFIRMED] One drawing in 11M0347 shows 6mm at the door's wall, for the
+   * L-seal. Matt to say which he leaves.
+   */
+  wallGapMm: number;
+  /** [MANUFACTURER] "Fixed panel height: overall height minus 3/16 inch (5mm)", for clamps or U-channel and a setting block. */
+  fixedBottomGapMm: number;
+  /** [MANUFACTURER] "Sliding door height: overall height minus 5/16 inch (8mm)." The tops of the two are level. */
+  doorBottomGapMm: number;
+  header: {
+    /** [MANUFACTURER] "Track is cut 1 inch (25mm) less than opening width and centred in opening." */
+    shorterThanOpeningMm: number;
+    /** [MANUFACTURER] Its centre line is 3 inches (76mm) below the top of the glass. */
+    centreBelowGlassTopMm: number;
+    /** [MANUFACTURER] The kit's header bar is 78-3/4 inches (2m) long. */
+    stockLengthMm: number;
+    /** [MANUFACTURER] Holes through the header for the fixed panel's fittings, in line with the panel's own. */
+    holeDiameterMm: number;
+  };
+  /** [MANUFACTURER] Four holes in the door for its rollers: a pair near each side, one above the header and one below. */
+  rollerHoles: { diameterMm: number; inMm: number; downMm: [number, number] };
+  /**
+   * [MANUFACTURER] Two holes in the fixed panel for its track holder fittings.
+   * [UNCONFIRMED] 11M0347 prints the half inch hole as 12mm; AVDB3149 and
+   * AVDB3176 as 13mm.
+   */
+  fixedPanelHoles: { diameterMm: number; inMm: number; downMm: number };
+  /** [MANUFACTURER] One hole in a 90° return panel for the SER90 fitting, in from its edge at the corner (AVDB3176). */
+  returnPanelHole: { diameterMm: number; inMm: number; downMm: number };
+  /**
+   * [MANUFACTURER] The through-glass pull is 2-1/2 inches (64mm) in from the
+   * door's closing edge and, as CRL suggests, half way up.
+   * [UNCONFIRMED] CRL gives its hole as 47 to 50mm (46 to 50 on the European
+   * sheet). SetOut drills the largest; Matt to say the size and the height.
+   */
+  pullHole: { diameterMm: number; inMm: number };
+  /**
+   * [UNCONFIRMED] How far the channel under the fixed panel stops short of
+   * the panel's free end, for the bottom door guide. CRL gives 19mm when the
+   * guide caps the end of the panel and 24mm when it sits under it.
+   */
+  channelShortOfPanelEndMm: number;
+}
+
 export interface FixedRules {
   /** [CONFIRMED] Toughened glass density. 10mm glass weighs 25 kg/m². */
   glassDensityKgPerM2PerMm: number;
@@ -217,6 +289,8 @@ export interface FixedRules {
     /** Through-hole for a wall clamp. */
     clampHole: { diameterMm: number; insetMm: number };
   };
+  /** Sliding door systems, by system. See sliding.ts. */
+  sliding: { serenity: SerenityRules };
 }
 
 export interface Ruleset {
@@ -426,6 +500,23 @@ export const FIXED_RULES: FixedRules = {
     doorHingeNotch: { widthMm: 58, heightMm: 47, radiusMm: 8 },
     fixedHingeNotch: { widthMm: 52, heightMm: 33, radiusMm: 8 },
     clampHole: { diameterMm: 16, insetMm: 25 },
+  },
+  sliding: {
+    serenity: {
+      glassMm: [8, 10],
+      maxDoorWidthMm: 762,
+      maxDoorWeightKg: 40,
+      halfWidthPlusMm: 22,
+      wallGapMm: 3,
+      fixedBottomGapMm: 5,
+      doorBottomGapMm: 8,
+      header: { shorterThanOpeningMm: 25, centreBelowGlassTopMm: 76, stockLengthMm: 2000, holeDiameterMm: 6 },
+      rollerHoles: { diameterMm: 16, inMm: 89, downMm: [44, 106] },
+      fixedPanelHoles: { diameterMm: 12, inMm: 89, downMm: 76 },
+      returnPanelHole: { diameterMm: 13, inMm: 22, downMm: 76 },
+      pullHole: { diameterMm: 50, inMm: 64 },
+      channelShortOfPanelEndMm: 19,
+    },
   },
 };
 

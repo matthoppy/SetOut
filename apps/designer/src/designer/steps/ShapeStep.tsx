@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Check, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ceilingChoice, hasTransom, TEMPLATES, type ShowerTemplate } from '@setout/engine';
+import { ceilingChoice, hasTransom, templatesFor, type ShowerTemplate } from '@setout/engine';
 import { useEngine } from '../engine';
 import { TemplateThumbnail } from '../views/TemplateThumbnail';
 import type { StepProps } from './types';
@@ -31,7 +31,8 @@ export function ShapeStep({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        {TEMPLATES.map((t) => {
+        {/* The sliding layouts are there only once the company has turned them on. */}
+        {templatesFor({ sliding: config.sliding }).map((t) => {
           const selected = t.id === selectedTemplateId;
           return (
             <button
@@ -49,6 +50,7 @@ export function ShapeStep({
                 <TemplateThumbnail
                   panels={t.panels}
                   junctions={t.junctions}
+                  sliding={Boolean(t.sliding)}
                   accent={config.brand.primary}
                 />
               </span>

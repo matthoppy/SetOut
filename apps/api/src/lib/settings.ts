@@ -16,7 +16,7 @@ import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
 import { BELLAGIO_FITS, IN_LINE_HINGES, VIENNA_CUTOUTS, WALL_HINGES, type BellagioFit, type ViennaCutout } from '@setout/engine';
-import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, hingesOf, isThickness, offeredOptions, type Glass, type Hinges } from './designer-config';
+import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, hingesOf, isThickness, offeredOptions, slidingOf, type Glass, type Hinges } from './designer-config';
 import { RequestError } from './enquiry';
 
 export interface Finish {
@@ -141,6 +141,8 @@ export interface DesignerView {
   handles: Handle[];
   glass: Glass;
   hinges: Hinges;
+  /** Whether customers are offered the sliding door layouts. Off until an owner turns it on. */
+  sliding: boolean;
   notifyEmails: string[];
 }
 
@@ -155,6 +157,7 @@ export function designerView(stored: { id: string; name: string; status: string;
     handles,
     glass: glassOf(config),
     hinges: hingesOf(config),
+    sliding: slidingOf(config),
     notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
   };
 }
@@ -175,14 +178,15 @@ export async function companyVersions(company: CompanyView) {
 }
 
 export async function designerVersions(designer: DesignerView) {
-  const [finishes, handles, glass, hinges, notifyEmails] = await Promise.all([
+  const [finishes, handles, glass, hinges, sliding, notifyEmails] = await Promise.all([
     versionOf(designer.finishes),
     versionOf(designer.handles),
     versionOf(designer.glass),
     versionOf(designer.hinges),
+    versionOf(designer.sliding),
     versionOf(designer.notifyEmails),
   ]);
-  return { finishes, handles, glass, hinges, notifyEmails };
+  return { finishes, handles, glass, hinges, sliding, notifyEmails };
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +299,12 @@ export function readGlass(input: unknown): Glass {
     throw new RequestError(400, 'invalid_glass', 'A new design must start at a thickness you offer.');
   }
   return { offered, standard: g.standard };
+}
+
+/** Whether a designer offers sliding doors, as an owner sent it: on or off, nothing else. */
+export function readSliding(input: unknown): boolean {
+  if (typeof input !== 'boolean') throw new RequestError(400, 'invalid_sliding', 'Sliding doors are on or off.');
+  return input;
 }
 
 /** One way of hanging's hinges, as an owner sent them: styles SetOut knows, at least one, and the standard among them. */
@@ -472,6 +482,7 @@ export type SettingsChange =
   | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
+  | { field: 'slidingDoors'; from: boolean; to: boolean }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
@@ -524,6 +535,10 @@ export function hingeChanges(before: Hinges, after: Hinges): SettingsChange[] {
   return changes;
 }
 
+export function slidingChanges(before: boolean, after: boolean): SettingsChange[] {
+  return before === after ? [] : [{ field: 'slidingDoors', from: before, to: after }];
+}
+
 export function emailChanges(before: readonly string[], after: readonly string[]): SettingsChange[] {
   const added = after.filter((e) => !before.includes(e));
   const removed = before.filter((e) => !after.includes(e));
@@ -570,7 +585,7 @@ export function storedSettings(text: string, before: QuoteSettings, after: Quote
 }
 
 /** The designer's config with new lists of finishes or handles, or new glass, and everything else it holds kept. */
-export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass; hinges?: Hinges }): string {
+export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass; hinges?: Hinges; sliding?: boolean }): string {
   const stored = parsed(text);
   if (changes.finishes) stored.finishes = changes.finishes;
   if (changes.handles) stored.handles = changes.handles;
@@ -579,5 +594,6 @@ export function storedConfig(text: string, changes: { finishes?: Finish[]; handl
     stored.glassThicknessMm = changes.glass.standard;
   }
   if (changes.hinges) stored.hinges = changes.hinges;
+  if (changes.sliding !== undefined) stored.slidingDoors = changes.sliding;
   return JSON.stringify(stored);
 }

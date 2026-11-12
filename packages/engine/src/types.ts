@@ -93,6 +93,13 @@ export type ViennaCutout = (typeof VIENNA_CUTOUTS)[number];
 export const BELLAGIO_FITS = ['with-seals', 'without-seals'] as const;
 export type BellagioFit = (typeof BELLAGIO_FITS)[number];
 
+/**
+ * The sliding door systems SetOut designs: CRL's Serenity, the only one
+ * Custom Showers fits. See sliding.ts.
+ */
+export const SLIDING_SYSTEMS = ['serenity'] as const;
+export type SlidingSystem = (typeof SLIDING_SYSTEMS)[number];
+
 export interface ConfiguratorState {
   panels: ConfiguratorPanel[];
   junctions: ConfiguratorJunction[];
@@ -125,6 +132,13 @@ export interface ConfiguratorState {
   viennaCutout?: ViennaCutout;
   /** How a Bellagio hinge is fitted, where staff chose it for this shower. */
   bellagioFit?: BellagioFit;
+  /**
+   * Set when the shower's door slides: the run with the door in it is one
+   * fixed panel and one sliding door on this system, cut to its maker's
+   * formula, with no hinges. The door panel's own hinge side and swing are
+   * then not read. Left out, every door is hinged, as it always was.
+   */
+  sliding?: { system: SlidingSystem };
   /** Keys into the company's hardware catalogue. */
   finishId: string;
   handleId: string;

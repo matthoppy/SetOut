@@ -32,6 +32,7 @@ import { fittings, hingeStyle, panes as panesFor, setOut as setOutFor } from '..
 import { Link } from '../lib/router';
 import { Elevation, OutOfSquare, paneName, SetOutBand } from './InstallDrawings';
 import { Problem, PrintedPage } from './parts';
+import { SlidingNotice } from './Sliding';
 
 const GLASS: Record<string, string> = { clear: 'Clear', 'low-iron': 'Low-iron', satin: 'Satin', bronze: 'Bronze tint', grey: 'Grey tint' };
 const MOUNTS: Record<HingeMount, string> = {
@@ -231,6 +232,8 @@ function Sheet({
           <p className="text-right text-[17px] font-bold">{detail.job.reference}</p>
         </header>
 
+        <SlidingNotice spec={spec} detail questions className="border-0 border-b" />
+
         <div className="grid grid-cols-[1.12fr_1fr] border-b border-black">
           <div className="border-r border-black p-1">
             <Elevation setOut={setOut} panes={panes} spec={spec} />
@@ -372,6 +375,15 @@ function wordsFor(
       return { qty: '1', item: 'Support bar', where: f.reason ?? '', finish };
     case 'support-panel':
       return { qty: '1', item: 'Support panel', where: f.reason ?? '', finish: '' };
+    case 'sliding-kit':
+      return {
+        qty: '1',
+        item: 'Serenity sliding door kit',
+        where: `${door(f.pane)}: 2m header bar to cut to ${f.headerLengthMm}mm, four rollers, stopper, two wall track holders, two fixed panel fittings, through-glass pull, door guide, L-seal`,
+        finish,
+      };
+    case 'sliding-return-kit':
+      return { qty: '1', item: 'Serenity 90° return kit', where: 'Fixes the header’s wall track holder to the return panel', finish };
   }
 }
 

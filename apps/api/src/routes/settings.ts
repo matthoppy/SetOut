@@ -28,6 +28,7 @@ import {
   emailChanges,
   glassChanges,
   hingeChanges,
+  slidingChanges,
   LIMITS,
   optionChanges,
   readBranding,
@@ -36,6 +37,7 @@ import {
   readGlass,
   readHandles,
   readHinges,
+  readSliding,
   readNotifyEmails,
   readQuoteSettings,
   storedBranding,
@@ -172,14 +174,14 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
   const session = c.get('session');
   try {
     const body = await bodyOf(c);
-    const sent = (['finishes', 'handles', 'glass', 'hinges', 'notifyEmails'] as const).filter((part) => body[part] !== undefined);
+    const sent = (['finishes', 'handles', 'glass', 'hinges', 'sliding', 'notifyEmails'] as const).filter((part) => body[part] !== undefined);
     const basedOn = basedOnOf(body);
     const answer = await withRetry(async () => {
       const stored = await readSettings(c.env, session.companyId);
       const index = stored?.designers.findIndex((d) => d.id === c.req.param('id')) ?? -1;
       if (!stored || index < 0) return c.json(NO_DESIGNER, 404, PRIVATE);
       if (sent.length === 0) {
-        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass, the hinges or the addresses to email.' }, 400, PRIVATE);
+        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass, the hinges, sliding doors on or off, or the addresses to email.' }, 400, PRIVATE);
       }
       const row = stored.designers[index];
       const first = index === 0;
@@ -193,6 +195,7 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         handles: body.handles === undefined ? before.handles : readHandles(body.handles, before.handles),
         glass: body.glass === undefined ? before.glass : readGlass(body.glass),
         hinges: body.hinges === undefined ? before.hinges : readHinges(body.hinges, before.hinges),
+        sliding: body.sliding === undefined ? before.sliding : readSliding(body.sliding),
         notifyEmails: body.notifyEmails === undefined ? before.notifyEmails : readNotifyEmails(body.notifyEmails),
       };
       const changes = [
@@ -200,6 +203,7 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...optionChanges('handle', before.handles, after.handles),
         ...glassChanges(before.glass, after.glass),
         ...hingeChanges(before.hinges, after.hinges),
+        ...slidingChanges(before.sliding, after.sliding),
         ...emailChanges(before.notifyEmails, after.notifyEmails),
       ];
       if (changes.length === 0) {
@@ -211,9 +215,10 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...(changes.some((ch) => ch.field === 'handle') ? { handles: after.handles } : {}),
         ...(changes.some((ch) => ch.field === 'glassOffered' || ch.field === 'glassStandard') ? { glass: after.glass } : {}),
         ...(changes.some((ch) => HINGE_FIELDS.includes(ch.field)) ? { hinges: after.hinges } : {}),
+        ...(changes.some((ch) => ch.field === 'slidingDoors') ? { sliding: after.sliding } : {}),
       };
       const columns = {
-        ...(options.finishes || options.handles || options.glass || options.hinges
+        ...(options.finishes || options.handles || options.glass || options.hinges || options.sliding !== undefined
           ? { config: { was: row.config, now: storedConfig(row.config, options) } }
           : {}),
         ...(changes.some((ch) => ch.field === 'notifyEmails')

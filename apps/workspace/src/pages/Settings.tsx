@@ -134,6 +134,15 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 onSaved={() => onSaved(`hinges:${designer.id}`)}
                 onReload={settings.reload}
               />
+              <SlidingPart
+                key={designer.versions.sliding}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `sliding:${designer.id}`}
+                onSaved={() => onSaved(`sliding:${designer.id}`)}
+                onReload={settings.reload}
+              />
               <EmailsPart
                 key={designer.versions.notifyEmails}
                 designer={designer}
@@ -831,6 +840,60 @@ function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPa
           onUndo={undo}
           justSaved={justSaved}
           savedNote="Saved. Your designer offers these within a minute."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
+/**
+ * Whether the designer offers sliding doors. Off until an owner turns it on:
+ * the sizes are CRL's own for its Serenity kit, and are not confirmed yet.
+ */
+function SlidingPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const [on, setOn] = useState(designer.sliding);
+  const saving = useSave(onSaved);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { sliding: on, basedOn: { sliding: designer.versions.sliding } }),
+      'Sliding doors could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'Sliding doors are on CRL’s Serenity kit: one fixed panel and one sliding door, wall to wall, or with a side panel returning to the wall. SetOut cuts them to CRL’s own installation sheets. Those sizes have not been confirmed against a job yet, so sliding is off until you turn it on, and every sheet a sliding shower appears on says its sizes are to be checked before glass is ordered.';
+
+  if (!owner) {
+    return (
+      <Section title="Sliding doors">
+        <div className={`${CARD} text-sm`}>
+          <Hint>{about}</Hint>
+          <p>
+            Sliding doors are <span className="font-medium">{designer.sliding ? 'offered to your customers' : 'not offered'}</span>.
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Sliding doors">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>{about}</Hint>
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-ground px-3 py-2">
+          <input type="checkbox" checked={on} onChange={() => setOn(!on)} className="h-4 w-4" />
+          <span className="font-medium">Offer sliding doors (CRL Serenity) in this designer</span>
+        </label>
+        <SaveRow
+          label="Save sliding doors"
+          dirty={on !== designer.sliding}
+          valid
+          saving={saving}
+          onUndo={() => setOn(designer.sliding)}
+          justSaved={justSaved}
+          savedNote={designer.sliding ? 'Saved. Your designer offers sliding doors within a minute.' : 'Saved. Your designer stops offering sliding doors within a minute.'}
           onReload={onReload}
         />
       </form>
@@ -1541,6 +1604,8 @@ function describe(item: SettingsChangeItem, by: string): string {
       const names = (ids: string[]) => listed(ids.map((id) => styles[id]?.words ?? id));
       return `${by} offered customers ${names(item.to)} hinges ${item.field === 'wallHingesOffered' ? 'to the wall' : 'in line'}, from ${names(item.from)}.`;
     }
+    case 'slidingDoors':
+      return item.to ? `${by} started offering customers sliding doors.` : `${by} stopped offering customers sliding doors.`;
     case 'bellagioFit':
       return `${by} made Bellagio fitted ${item.to === 'without-seals' ? 'without' : 'with'} seals as standard, from ${item.from === 'without-seals' ? 'without' : 'with'}.`;
     case 'viennaCutout':

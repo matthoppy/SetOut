@@ -294,7 +294,9 @@ export function ReviewStep({
         <div className="border-b bg-muted/40 px-4 py-3">
           <h3 className="text-sm font-semibold">Panel schedule</h3>
           <p className="text-xs text-muted-foreground">
-            Cut sizes shown after {state.mounting === 'channel' ? 'channel' : 'clamp'} deductions.
+            {spec.sliding
+              ? 'Sliding door sizes, worked out from the whole opening. They are checked by hand before any glass is ordered.'
+              : `Cut sizes shown after ${state.mounting === 'channel' ? 'channel' : 'clamp'} deductions.`}
           </p>
         </div>
         <div className="divide-y">
@@ -347,6 +349,23 @@ export function ReviewStep({
                 </div>
               )}
 
+              {p.sliding?.role === 'door' && spec.sliding && (
+                <div className="mt-2 rounded bg-muted/50 px-3 py-2 text-xs">
+                  <div className="flex justify-between">
+                    <span>Sliding kit</span>
+                    <span className="font-medium">CRL Serenity, with its own pull</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Closes to the</span>
+                    <span className="capitalize">{spec.sliding.doorCloses}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Way in, door slid back</span>
+                    <span className="font-mono">about {spec.sliding.clearOpeningMm}mm</span>
+                  </div>
+                </div>
+              )}
+
               {p.notches.length > 0 && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Notches:{' '}
@@ -390,7 +409,7 @@ export function ReviewStep({
           ['Total weight', `${spec.totalGlassWeightKg}kg`],
           ['Fixing', state.mounting === 'channel' ? 'U-channel' : 'Glass clamps'],
           ['Finish', finishLabel(config, state.finishId)],
-          ['Handle', handleLabel(config, state.handleId)],
+          ['Handle', spec.sliding ? 'Through-glass pull, with the sliding kit' : handleLabel(config, state.handleId)],
         ].map(([label, value]) => (
           // Borders on the cells rather than a gap-px grid, so an odd number
           // of entries doesn't leave a bare grey square in the last slot.

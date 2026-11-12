@@ -778,6 +778,7 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
                     <PlanView
                       panels={state.panels}
                       junctions={state.junctions}
+                      sliding={Boolean(state.sliding)}
                       leftWall={state.leftWall}
                       rightWall={state.rightWall}
                       width={Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 80 : 560)}
@@ -806,6 +807,7 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
                     <ElevationView
                       panels={state.panels}
                       junctions={state.junctions}
+                      sliding={Boolean(state.sliding)}
                       heightMm={state.heightMm}
                       handleId={state.handleId}
                       mounting={state.mounting}

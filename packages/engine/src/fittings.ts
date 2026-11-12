@@ -26,7 +26,15 @@ export type Fitting =
   | { kind: 'channel'; lengthMm: number }
   | { kind: 'clamps' }
   | { kind: 'support-bar'; reason: string | null }
-  | { kind: 'support-panel'; reason: string | null };
+  | { kind: 'support-panel'; reason: string | null }
+  /**
+   * A sliding door's kit, in place of hinges, a handle and a door seal: its
+   * header bar, rollers, track holders, pull, door guide and seal. `pane` is
+   * the door. `series` is CRL's number for the kit before its finish.
+   */
+  | { kind: 'sliding-kit'; pane: number; series: string; headerLengthMm: number }
+  /** The kit that fixes a sliding door's header to a 90° return panel. `pane` is the return. */
+  | { kind: 'sliding-return-kit'; pane: number; series: string };
 
 /**
  * What a door hangs from. By the same rule the spec places the mating hinge
@@ -55,6 +63,11 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     // Every door has a wipe under it, as Custom Showers always fit.
     fittings.push({ kind: 'bottom-seal', pane: i, lengthMm: Math.round(Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) });
   });
+  if (spec.sliding) {
+    const { kit, returnKit, header } = spec.sliding;
+    fittings.push({ kind: 'sliding-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'door'), series: kit, headerLengthMm: header.lengthMm });
+    if (returnKit) fittings.push({ kind: 'sliding-return-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'return'), series: returnKit });
+  }
   fittings.push(spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm } : { kind: 'clamps' });
   if (spec.support.supportBarRequired) fittings.push({ kind: 'support-bar', reason: spec.support.supportBarReason });
   if (spec.support.supportPanelRequired) fittings.push({ kind: 'support-panel', reason: spec.support.supportPanelReason });

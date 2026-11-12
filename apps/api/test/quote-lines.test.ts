@@ -1,5 +1,5 @@
 /** A quote's lines name each door's hinges as CRL makes them, and price each of CRL's hinges on its own. */
-import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, panesOf, TEMPLATES, type ConfiguratorState } from '@setout/engine';
+import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, designFromTemplate, panesOf, TEMPLATES, type ConfiguratorState } from '@setout/engine';
 import { describe, expect, test } from 'vitest';
 import { draftLines } from '../src/lib/quote-lines';
 
@@ -69,5 +69,35 @@ describe('cut-outs on a quote', () => {
     const eared = lineOf(vienna('mouse-ear'), 'cutout:hole')?.quantity ?? 0;
     const square = lineOf(vienna('rectangular'), 'cutout:hole')?.quantity ?? 0;
     expect(eared - square).toBe(2 * door.hingeCount);
+  });
+});
+
+describe('a sliding shower on a quote', () => {
+  test('has its Serenity kit in place of hinges and a handle, priced as last sent', () => {
+    const lines = draftLines([shower(designFromTemplate('sliding-alcove'))], labels, new Map([['sliding-kit:ser78:chrome', 42000]]));
+    expect(lines.some((l) => l.key?.startsWith('hinge:') || l.key?.startsWith('handle:'))).toBe(false);
+    expect(lines.find((l) => l.key === 'sliding-kit:ser78:chrome')).toEqual({
+      key: 'sliding-kit:ser78:chrome',
+      description: 'Serenity sliding door kit (CRL SER78), Polished chrome',
+      quantity: 1,
+      unit: 'each',
+      unitPricePence: 42000,
+    });
+    // Both panes at their sliding sizes, and channel for the fixed panel only.
+    expect(lines.filter((l) => l.key?.startsWith('glass:')).map((l) => l.description.match(/\d+ × \d+mm/)?.[0])).toEqual(['622 × 1995mm', '622 × 1992mm']);
+    expect(lines.find((l) => l.key === 'channel:chrome')?.quantity).toBe(0.6);
+  });
+
+  test('with a return has the return kit too', () => {
+    const keys = draftLines([shower(designFromTemplate('sliding-return'))], labels, new Map()).map((l) => l.key);
+    expect(keys).toContain('sliding-kit:ser78:chrome');
+    expect(keys).toContain('sliding-kit:ser90:chrome');
+  });
+
+  test('a hinged shower has no sliding line', () => {
+    const template = TEMPLATES.find((t) => t.id === 'alcove-panel-door');
+    if (!template) throw new Error('no template');
+    const lines = draftLines([shower(applyTemplate(createInitialState(10), template))], labels, new Map());
+    expect(lines.some((l) => l.key?.startsWith('sliding-kit:'))).toBe(false);
   });
 });

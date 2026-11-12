@@ -249,6 +249,11 @@ export interface DesignerSettings {
     viennaCutout?: string;
     bellagioFit?: string;
   };
+  /**
+   * Whether customers are offered the sliding door layouts (CRL Serenity).
+   * Off unless an owner has turned it on: the sliding sizes are not confirmed yet.
+   */
+  slidingDoors?: boolean;
   measurementDisclaimer?: string;
   intro?: string;
   turnstileSiteKey?: string;

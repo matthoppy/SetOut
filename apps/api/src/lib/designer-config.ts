@@ -28,7 +28,7 @@ import { companyDb, type CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
 import type { Row } from '../db/tables';
 
-export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey'>> = {
+export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey' | 'slidingDoors'>> = {
   finishes: [
     { id: 'chrome', label: 'Polished chrome', swatch: '#d4d8db' },
     { id: 'brushed-nickel', label: 'Brushed nickel', swatch: '#b0aaa2' },
@@ -96,6 +96,13 @@ export function hingesOf(settings: DesignerSettings): Hinges {
     bellagioFit: BELLAGIO_FITS.includes(settings.hinges?.bellagioFit as BellagioFit) ? (settings.hinges?.bellagioFit as BellagioFit) : STANDARD_HINGES.bellagioFit,
   };
 }
+
+/**
+ * Whether a designer offers the sliding door layouts. Only when an owner has
+ * turned them on: sliding doors are cut to CRL's Serenity sheets, which have
+ * not been confirmed against a job yet.
+ */
+export const slidingOf = (settings: DesignerSettings): boolean => settings.slidingDoors === true;
 
 /** Every hinge style, for staff, who may make any shower with any of them. */
 export const ALL_HINGES = (hinges: Hinges): Hinges => ({
@@ -173,6 +180,7 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     glassThicknessMm: glass.standard,
     glassThicknesses: glass.offered,
     hinges: hingesOf(settings),
+    sliding: slidingOf(settings),
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
     ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),
