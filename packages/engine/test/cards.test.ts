@@ -396,7 +396,8 @@ describe('a deck for every layout', () => {
     const readings = readingCards(deck(id));
     const at = readings.findIndex((c) => c.field?.kind === 'height');
     expect(at).toBeGreaterThan(0);
-    expect(['width', 'tray', 'cross']).toContain(readings[at - 1].field?.kind);
+    // Along the bottom: the widths, and where the glass turns a corner the floor readings taken with them.
+    expect(['width', 'tray', 'cross', 'floor']).toContain(readings[at - 1].field?.kind);
     expect(['width', 'cross']).toContain(readings[0].field?.kind);
   });
 
@@ -452,22 +453,23 @@ describe('what each layout is asked', () => {
     expect(words).not.toMatch(/\bfloor\b|\btray\b/i);
   });
 
-  test('a corner: both widths to the laser at the corner, the height, then each run in turn with the wall it ends on', () => {
+  test('a corner: each width to the laser at the corner with the floor under it, the height, then the walls', () => {
     const cards = deck('corner-door-return');
     expect(ids(cards)).toEqual([
       'marks',
       'laser-on',
-      // The laser stands over the corner for both, so they come together.
+      // The laser stands over the corner for both runs, and each run's floor
+      // is read from there straight after its width (Matt, 12 November 2026).
       'width-0',
-      'width-1',
-      // The bottom first, then the height.
-      'height',
       'floor-0-start',
       'floor-0-end',
-      'wall-start-bottom',
-      'wall-start-top',
+      'width-1',
       'floor-1-start',
       'floor-1-end',
+      // The bottom first, then the height.
+      'height',
+      'wall-start-bottom',
+      'wall-start-top',
       'wall-end-bottom',
       'wall-end-top',
       'review',
@@ -479,6 +481,27 @@ describe('what each layout is asked', () => {
     expect(side.visual).toMatchObject({ kind: 'run-width', part: 'whole', laser: 'right' });
     expect(front.visual).toMatchObject({ kind: 'run-width', part: 'whole', laser: 'left' });
     expect(side.inputLabel).toMatch(/to the laser, along the floor$/);
+  });
+
+  test('where the glass turns a corner, each run’s floor is read straight after its width, before the laser moves, and nothing is added', () => {
+    for (const id of ['corner-door-return', 'corner-panel-door-return', 'three-sided', 'walk-in-return']) {
+      for (const toCeiling of [false, true]) {
+        const cards = deck(id, toCeiling);
+        const order = ids(cards);
+        cards.forEach((card, i) => {
+          if (card.field?.kind !== 'width') return;
+          const run = card.field.run;
+          expect(order.slice(i + 1, i + 3), id).toEqual([`floor-${run}-start`, `floor-${run}-end`]);
+        });
+        // The same readings as before, only sooner: two floor readings for every run.
+        const runs = cards.filter((c) => c.field?.kind === 'width').length;
+        expect(cards.filter((c) => c.field?.kind === 'floor'), id).toHaveLength(runs * 2);
+      }
+    }
+    // The three-sided deck moves the laser once, after the front and its floor are read.
+    const three = ids(deck('three-sided'));
+    expect(three.slice(2, 11)).toEqual(['width-0', 'floor-0-start', 'floor-0-end', 'width-1', 'floor-1-start', 'floor-1-end', 'width-2', 'floor-2-start', 'floor-2-end']);
+    expect(deck('three-sided').find((c) => c.id === 'width-2')?.instruction).toMatch(/^Move the laser over the other corner mark/);
   });
 
   test('every run that meets a corner is read at the laser, which moves once at most', () => {

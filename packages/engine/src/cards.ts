@@ -436,6 +436,31 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
     };
   });
 
+  // The floor under a run, as two readings up to the level line at its two
+  // ends. A run's fall is worked out from its own two readings alone, so the
+  // laser must stay put between them, and may move between runs.
+  const sidesOf = (i: number) => {
+    const { left, right } = endsOf[i];
+    const along = multi ? names[i] : options.overBath ? 'the bath rim' : 'the glass line';
+    return [
+      ['start', 'left', left, `Turn the laser so its level line runs along ${along}. `],
+      ['end', 'right', right, ''],
+    ] as const;
+  };
+  const headingOf = (i: number) => (text: string) => (multi ? `${cap(names[i])}: ${text}` : cap(text));
+  const floorCards = (i: number, view: RunView): MeasureCardDef[] =>
+    sidesOf(i).map(([end, side, at, lead]) => ({
+      id: `floor-${i}-${end}`,
+      kind: 'reading',
+      title: headingOf(i)(`${floor} at the ${brief(at.kind, at.wall)}`),
+      instruction: `${lead}Hook the tape on the ${floor} ${foot(at.kind, at.wall)}, and read up at the level line.`,
+      visual: { kind: 'run-floor', view, side },
+      field: { kind: 'floor', run: i, end },
+      inputLabel: `${cap(floor)} up to the level line, at the ${brief(at.kind, at.wall)}`,
+      minMm: 50,
+      maxMm: 2500,
+    }));
+
   // How wide each run is, along the bottom, all taken first.
   //
   // Where the glass turns a corner the laser stands over the corner mark with
@@ -489,6 +514,11 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
         minMm: minWidth,
         maxMm: 3000,
       });
+      // The floor under it while the laser is still over the corner (Matt,
+      // 12 November 2026: the bottom readings can be taken from that spot as
+      // well, as long as nothing more has to be measured). Nothing more does:
+      // the same two readings, taken sooner, from one place.
+      cards.push(...floorCards(i, view));
     }
 
     // A walk-in screen: the whole tray gives the gap they walk through.
@@ -512,32 +542,12 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
   // The bottom first, then the height (Matt, 12 November 2026).
   if (height) cards.push(height);
 
-  // Then each run in turn: the floor under it, the ceiling where the glass
-  // reaches it, and the wall it ends on.
+  // Then each run in turn: the floor under it (where it was not taken with
+  // the width), the ceiling where the glass reaches it, and the wall it ends on.
   views.forEach((view, i) => {
-    const run = names[i];
-    const { left, right } = endsOf[i];
-    const heading = (text: string) => (multi ? `${cap(run)}: ${text}` : cap(text));
-    const along = multi ? run : options.overBath ? 'the bath rim' : 'the glass line';
-
-    // The floor, as two readings up to the level line.
-    const sides = [
-      ['start', 'left', left, `Turn the laser so its level line runs along ${along}. `],
-      ['end', 'right', right, ''],
-    ] as const;
-    for (const [end, side, at, lead] of sides) {
-      cards.push({
-        id: `floor-${i}-${end}`,
-        kind: 'reading',
-        title: heading(`${floor} at the ${brief(at.kind, at.wall)}`),
-        instruction: `${lead}Hook the tape on the ${floor} ${foot(at.kind, at.wall)}, and read up at the level line.`,
-        visual: { kind: 'run-floor', view, side },
-        field: { kind: 'floor', run: i, end },
-        inputLabel: `${cap(floor)} up to the level line, at the ${brief(at.kind, at.wall)}`,
-        minMm: 50,
-        maxMm: 2500,
-      });
-    }
+    const heading = headingOf(i);
+    const sides = sidesOf(i);
+    if (!corners) cards.push(...floorCards(i, view));
 
     // Floor to ceiling at each end, where the glass is cut to it.
     if (toCeiling) {
