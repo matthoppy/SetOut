@@ -1,6 +1,6 @@
 # Sliding doors: the plan
 
-Written 12 November 2026, before any of it was built. Matt asked for "sliding doors (Serenity)". CRL's Serenity is the only sliding system Custom Showers fits, so it is the only one SetOut will design.
+Written 12 November 2026, before any of it was built. Matt asked for sliding doors along with the rest of the list of work ("just do everything except for brennan glass"). CRL's Serenity is the only sliding system Custom Showers fits, so it is the only one SetOut will design.
 
 Nothing here changes a hinged door, a fixed panel, a size SetOut already cuts or a golden. Sliding is new work beside the old, and it stays hidden until Matt has confirmed it.
 
