@@ -16,6 +16,8 @@ import {
   STANDARD_HINGES,
   VIENNA_CUTOUTS,
   WALL_HINGES,
+  crlFinishCode,
+  handlePhotoOf,
   type BellagioFit,
   type HingeStyles,
   type InLineHinge,
@@ -127,6 +129,22 @@ export function offeredOptions(settings: DesignerSettings): { finishes: Finish[]
   };
 }
 
+/**
+ * CRL's photo of a handle, for a company that has set the handle's CRL
+ * number: the photo's file (`photo`), and the file for any finish CRL shows a
+ * different photo for (`photoIn`, by the finish's id). The designer is sent
+ * these and not the number itself.
+ */
+export function handlePhotos(handle: Handle, finishes: Finish[]): { photo?: string; photoIn?: Record<string, string> } {
+  const photo = handlePhotoOf(handle.code, null)?.file;
+  if (!photo) return {};
+  const others = finishes.flatMap((f): [string, string][] => {
+    const file = handlePhotoOf(handle.code, crlFinishCode(f))?.file;
+    return file && file !== photo ? [[f.id, file]] : [];
+  });
+  return { photo, ...(others.length ? { photoIn: Object.fromEntries(others) } : {}) };
+}
+
 const text = (v: unknown, fallback: string): string => (typeof v === 'string' && v.length > 0 ? v : fallback);
 
 /** The config for one of a company's designers, or null if there is no such designer. */
@@ -137,7 +155,8 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
 
   const settings = row.config as DesignerSettings;
   const branding = company.branding;
-  // The CRL codes are for the company's own sheets, not its customers.
+  // The CRL codes are for the company's own sheets, not its customers, who
+  // are sent only which of CRL's photos to show for a handle.
   const { finishes, handles } = offeredOptions(settings);
   const glass = glassOf(settings);
   return {
@@ -150,7 +169,7 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
       primaryForeground: text(branding.primaryForeground, BRANDING_DEFAULTS.primaryForeground),
     },
     finishes: finishes.map(({ id, label, swatch }) => ({ id, label, swatch })),
-    handles: handles.map(({ id, label, description }) => ({ id, label, description })),
+    handles: handles.map((h) => ({ id: h.id, label: h.label, description: h.description, ...handlePhotos(h, finishes) })),
     glassThicknessMm: glass.standard,
     glassThicknesses: glass.offered,
     hinges: hingesOf(settings),

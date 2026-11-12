@@ -13,6 +13,7 @@
  *   fittings     what the fitter takes: hinges, handle, seal, channel or clamps
  *   hinges       which of CRL's hinges each door hangs on: the styles, and each one's number
  *   crl          CRL's catalogue number for each of those, in the shower's finish
+ *   photos       CRL's photo of a hinge or a handle, by catalogue number
  *   measure      what the customer measured, and the checks on it
  *   geometry     the shape of the enclosure, worked out from its panels
  *   layout       keeping panel widths in step with a measured run
@@ -35,6 +36,7 @@ export * from './fittings';
 export * from './hinges';
 export * from './crl';
 export { CRL_CATALOGUE_DATE } from './crl-catalogue';
+export * from './photos';
 export * from './measure';
 export * from './geometry';
 export * from './layout';

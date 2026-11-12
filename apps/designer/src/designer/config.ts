@@ -31,6 +31,10 @@ export interface HandleOption {
   id: string;
   label: string;
   description: string;
+  /** CRL's photo of it, where the company has set the handle's CRL number: the file's name, as the engine lists it. */
+  photo?: string;
+  /** The photo in a finish CRL shows a different one for, by the finish's id. */
+  photoIn?: Record<string, string>;
 }
 
 export interface DesignerBrand {
