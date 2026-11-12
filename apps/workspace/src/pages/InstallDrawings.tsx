@@ -443,6 +443,11 @@ export function SetOutBand({ setOut, panes, glass }: { setOut: SetOut; panes: Pa
           const tl = P(i, o.topLeft);
           const at = setOut.panes[i];
           const hinge = pane.features.find((f) => f.kind === 'notch' && f.role === 'door-hinge');
+          // Where each side's hinges and holes are drawn, so its length is written clear of them.
+          const marks = (side: 'left' | 'right') =>
+            pane.features.flatMap((f) => (f.kind !== 'corner' && f.side === side ? [base - ((side === 'left' ? o.bottomLeft : o.bottomRight).y + f.centreMm) * v] : []));
+          const alongLeft = clearOf(marks('left'), tl.Y, bl.Y);
+          const alongRight = clearOf(marks('right'), tr.Y, br.Y);
           return (
             <g key={pane.id}>
               <text x={(tl.X + tr.X) / 2} y={top - 26} fontSize="11" textAnchor="middle" fill={DIM}>
@@ -480,8 +485,8 @@ export function SetOutBand({ setOut, panes, glass }: { setOut: SetOut; panes: Pa
               <text x={(bl.X + br.X) / 2} y={(bl.Y + br.Y) / 2 - 6} fontSize="12" textAnchor="middle" fill={INK}>
                 {o.bottomRight.x - o.bottomLeft.x}
               </text>
-              <SideLength x={tl.X + (bl.X - tl.X) * 0.32 + 12} y={tl.Y + (bl.Y - tl.Y) * 0.32} value={o.topLeft.y - o.bottomLeft.y} />
-              <SideLength x={tr.X + (br.X - tr.X) * 0.32 - 6} y={tr.Y + (br.Y - tr.Y) * 0.32} value={o.topRight.y - o.bottomRight.y} />
+              <SideLength x={tl.X + (bl.X - tl.X) * alongLeft + 12} y={tl.Y + (bl.Y - tl.Y) * alongLeft} value={o.topLeft.y - o.bottomLeft.y} />
+              <SideLength x={tr.X + (br.X - tr.X) * alongRight - 6} y={tr.Y + (br.Y - tr.Y) * alongRight} value={o.topRight.y - o.bottomRight.y} />
               <text x={(bl.X + br.X) / 2} y={(tl.Y + bl.Y) / 2 + 26} fontSize="13" fontWeight="700" textAnchor="middle" fill={INK}>
                 {paneName(pane.label)}
               </text>
@@ -517,6 +522,16 @@ export function SetOutBand({ setOut, panes, glass }: { setOut: SetOut; panes: Pa
       </figcaption>
     </figure>
   );
+}
+
+/**
+ * How far down a side to write its length, as a share of the side: a third
+ * of the way, or failing that the nearest place clear of the hinges and holes
+ * drawn on it (each given in drawing units down the page).
+ */
+function clearOf(marks: number[], top: number, bottom: number): number {
+  const along = [0.32, 0.5, 0.68, 0.2, 0.82];
+  return along.find((t) => marks.every((y) => Math.abs(top + (bottom - top) * t - y) > 18)) ?? along[0];
 }
 
 function SideLength({ x, y, value }: { x: number; y: number; value: number }) {
