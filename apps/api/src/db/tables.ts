@@ -182,7 +182,18 @@ export interface PriceRow {
   updated_at: string;
 }
 
-export const AUDIT_ACTIONS = ['member_added', 'member_removed', 'role_changed', 'settings_changed'] as const;
+export const AUDIT_ACTIONS = [
+  'member_added',
+  'member_removed',
+  'role_changed',
+  'settings_changed',
+  // What SetOut, or signing up, did to the company itself.
+  'company_opened',
+  'company_switched_off',
+  'company_switched_on',
+  'plan_changed',
+  'trial_started',
+] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /** Something done to the company's account: who did it, what, and to what. */
@@ -193,6 +204,35 @@ export interface AuditRow {
   target_id: string | null;
   data: JsonObject;
   created_at: string;
+}
+
+/** Where a subscription stands, in Stripe's own words. */
+export const SUBSCRIPTION_STATUSES = [
+  'trialing',
+  'active',
+  'past_due',
+  'unpaid',
+  'canceled',
+  'incomplete',
+  'incomplete_expired',
+  'paused',
+] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+/** A company's plan and where it stands with Stripe. One per company. */
+export interface SubscriptionRow {
+  id: string;
+  plan_id: string | null;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  trial_ends_at: string | null;
+  current_period_ends_at: string | null;
+  /** 1 when it is set to stop at the end of the period. */
+  cancel_at_period_end: number;
+  payment_failed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface JobEventRow {
@@ -233,6 +273,7 @@ export interface Tables {
   audit_log: { row: AuditRow; required: 'action' };
   quotes: { row: QuoteRow; required: 'job_id' | 'number' };
   price_list: { row: PriceRow; required: 'key' | 'unit' | 'unit_price_pence' };
+  subscriptions: { row: SubscriptionRow; required: 'status' };
 }
 
 export type TableName = keyof Tables;
@@ -336,6 +377,15 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: [],
     tracksUpdates: true,
   },
+  subscriptions: {
+    id: 'subscription',
+    columns: [
+      'id', 'plan_id', 'status', 'stripe_customer_id', 'stripe_subscription_id', 'trial_ends_at',
+      'current_period_ends_at', 'cancel_at_period_end', 'payment_failed_at', 'created_at', 'updated_at',
+    ],
+    json: [],
+    tracksUpdates: true,
+  },
 };
 
 /**
@@ -351,4 +401,5 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   audit_log: { action: AUDIT_ACTIONS },
   quotes: { status: QUOTE_STATUSES },
   price_list: { unit: QUOTE_UNITS },
+  subscriptions: { status: SUBSCRIPTION_STATUSES },
 };

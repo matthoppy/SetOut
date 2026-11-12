@@ -32,6 +32,7 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   audit_log: { data: { tampered: true } },
   quotes: { note: 'tampered' },
   price_list: { unit_price_pence: 1 },
+  subscriptions: { status: 'active', plan_id: 'free' },
 };
 
 let ours: Seeded;
@@ -219,9 +220,23 @@ describe('a company’s settings', () => {
     expect((await ours.db.company())?.name).toBe('Custom Showers');
   });
 
-  test('never write which websites may show a designer, or anything else beyond the settings', async () => {
+  test('the websites that may show a designer cannot be written to another company’s', async () => {
+    const stored = await readSettings(env, theirs.company.id);
+    const target = stored?.designers[0];
+    if (!target) throw new Error('no designer');
+    const write: SettingsWrite = {
+      table: 'designers',
+      id: target.id,
+      columns: { allowed_origins: { was: target.allowed_origins, now: '["https://evil.example"]' } },
+    };
+    expect(await saveSettings(env, ours.company.id, 'usr_attacker', write, { changes: [] })).toBe(false);
+    expect(await theirs.db.get('designers', target.id)).toEqual(theirs.rows.designers);
+    expect(await theirs.db.count('audit_log')).toBe(1);
+  });
+
+  test('never write a designer’s site key, or anything else beyond the settings', async () => {
     const attempts = [
-      { table: 'designers', id: ours.rows.designers.id, columns: { allowed_origins: { was: '[]', now: '["https://evil.example"]' } } },
+      { table: 'designers', id: ours.rows.designers.id, columns: { site_key: { was: ours.rows.designers.site_key, now: theirs.rows.designers.site_key } } },
       { table: 'designers', id: ours.rows.designers.id, columns: { status: { was: 'active', now: 'paused' } } },
       { table: 'designers', id: ours.rows.designers.id, columns: { company_id: { was: ours.company.id, now: theirs.company.id } } },
       { table: 'companies', columns: { status: { was: 'active', now: 'paused' } } },

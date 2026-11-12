@@ -2,8 +2,9 @@
  * Signing in to the workspace.
  *
  * Staff sign in with a link emailed to them. There are no passwords to leak,
- * guess or reset. Nobody signs up: a person is added to a company first, and
- * only then can they ask for a link.
+ * guess or reset. A person must be on a company's team before they can ask
+ * for a link: an owner adds them, or they opened the company themselves by
+ * signing up (see onboarding.ts).
  *
  * A link and a session are each a long random secret. Neither is ever stored.
  * Only their SHA-256 hashes are, so a copy of the database signs nobody in.
@@ -43,7 +44,7 @@ export function normaliseEmail(raw: unknown): string | null {
 }
 
 /** 32 random characters with a prefix that says what the secret is for. 160 bits. */
-function newSecret(prefix: 'lt' | 'ss'): string {
+export function newSecret(prefix: 'lt' | 'ss' | 'st'): string {
   let secret = '';
   for (const byte of crypto.getRandomValues(new Uint8Array(32))) secret += SECRET_ALPHABET[byte & 31];
   return `${prefix}_${secret}`;
@@ -133,16 +134,25 @@ export async function redeemSignInLink(env: Env_, token: unknown, now = new Date
     .first<{ userId: string; companyId: string }>();
   if (!first) return null;
 
+  return openSession(env, first.userId, first.companyId, now);
+}
+
+/**
+ * Sign a browser in as this person, working in this company. The caller has
+ * already proved who they are, with a sign-in link or a sign-up link.
+ */
+export async function openSession(env: Env_, userId: string, companyId: string, now = new Date()): Promise<NewSession> {
+  const at = now.toISOString();
   const session = newSecret('ss');
   const expiresAt = later(now, SESSION_DAYS * 86_400_000);
   await env.DB.batch([
     env.DB.prepare(
       'INSERT INTO sessions (token_hash, user_id, company_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(await sha256(session), first.userId, first.companyId, at, expiresAt, at),
-    env.DB.prepare('UPDATE users SET last_signed_in_at = ?, updated_at = ? WHERE id = ?').bind(at, at, first.userId),
-    env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < ?').bind(first.userId, at),
+    ).bind(await sha256(session), userId, companyId, at, expiresAt, at),
+    env.DB.prepare('UPDATE users SET last_signed_in_at = ?, updated_at = ? WHERE id = ?').bind(at, at, userId),
+    env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < ?').bind(userId, at),
   ]);
-  return { token: session, userId: first.userId, companyId: first.companyId, expiresAt };
+  return { token: session, userId, companyId, expiresAt };
 }
 
 // ---------------------------------------------------------------------------

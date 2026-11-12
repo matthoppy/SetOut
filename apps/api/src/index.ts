@@ -5,15 +5,17 @@
  * SetOut's own site, so they all ship together with the same engine. See site.ts for which
  * address serves which app.
  *
- * Routes arrive with the steps that need them: the designer's, and the
- * workspace's. The health check is what a deploy is judged by.
+ * Routes arrive with the steps that need them: the designer's, the
+ * workspace's, the platform admin's and Stripe's webhook. The health check is what a deploy is judged by.
  */
 
 import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
 import { designer } from './routes/designer';
+import { platform } from './routes/platform';
 import { quote } from './routes/quote';
+import { stripeWebhook } from './routes/stripe-webhook';
 import { siteRoutes } from './routes/site-enquiries';
 import { workspace } from './routes/workspace';
 import { serveSite, surfaceFor } from './site';
@@ -89,6 +91,20 @@ app.use('/api/site/*', async (c, next) => {
   await next();
 });
 app.route('/api/site', siteRoutes);
+
+// SetOut's own staff, and Stripe's webhook, answer on the workspace's address
+// and where everything shares one, never on the designer's or the site's.
+for (const path of ['/api/platform/*', '/api/stripe/*']) {
+  app.use(path, async (c, next) => {
+    const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+    if (surface !== 'workspace' && surface !== 'both') {
+      return c.json({ error: 'not_found' }, 404);
+    }
+    await next();
+  });
+}
+app.route('/api/platform', platform);
+app.route('/api/stripe', stripeWebhook);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 

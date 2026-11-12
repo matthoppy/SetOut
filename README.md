@@ -15,6 +15,8 @@ Step 0 of six is done: the foundations. The engine has moved across from the Cus
 
 Step 1, the designer, is under way. The designer's screens run in `apps/designer`, take everything about a company from the API by site key, and send a design that the server checks, works out again with that company's rules and stores. The embed script puts it on any page, inline or behind a button. The designer and the workspace are served on two addresses by the one Worker, and each designer can be framed only by its own company's websites. When a design arrives the company is emailed the whole job and the customer a copy, once a sending address is set. Still to come in step 1: the card decks for every layout and the final dimensioned drawing.
 
+Step 4, onboarding and billing, is built: a shower company can open its own account at `/sign-up`, is walked through its settings and given the code for its website, and SetOut's own staff look after every company at `/platform`. Sign-ups are closed in production and billing is switched off everywhere until prices are set. The plan and the open questions are in [docs/signup-plan.md](docs/signup-plan.md).
+
 The plan, the data model and the decisions behind them are in [docs/architecture.md](docs/architecture.md).
 
 ## What is in the repository

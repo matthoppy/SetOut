@@ -104,7 +104,7 @@ Every layout has its deck when it is measured with a laser. Measuring with a tap
 
 ## The workspace
 
-Staff sign in with a link emailed to them. There are no passwords to leak, guess or reset. Nobody signs up: a person is added to a company first, and only then can they ask for a link. A link works once, for fifteen minutes, on any device, and an address is sent no more than five an hour. Asking for one gets the same answer whether or not the address has an account, so the answer never says who has one.
+Staff sign in with a link emailed to them. There are no passwords to leak, guess or reset. A person must be on a company's team before they can ask for a link: an owner added them, or they opened the company themselves by signing up (see [Signing up](#signing-up)). A link works once, for fifteen minutes, on any device, and an address is sent no more than five an hour. Asking for one gets the same answer whether or not the address has an account, so the answer never says who has one.
 
 Using the link signs that browser in for thirty days, with a cookie that only the workspace's address is sent, that no script on the page can read, and that another website cannot make the browser send with a change. Every change must also come from the workspace's own pages. Neither the link nor the session is ever stored, only its SHA-256 hash, so a copy of the database signs nobody in.
 
@@ -138,7 +138,8 @@ A person is one user, whatever companies they belong to. A membership says which
 | `DELETE /api/workspace/team/:id` | An owner takes someone off the team. They are signed out of it at once |
 | `GET /api/workspace/settings` | The company's settings: its name, colours and logo, how a new quote starts, and each designer's finishes, handles and who it emails, with how many showers use each option. Owners also get the latest changes to them |
 | `PATCH /api/workspace/settings/company` | An owner changes the company's name, its colours and logo, or the VAT and how many days a new quote stands for |
-| `PATCH /api/workspace/settings/designers/:id` | An owner changes the finishes, handles and glass a designer offers, or who it emails when a design arrives |
+| `PATCH /api/workspace/settings/designers/:id` | An owner changes the finishes, handles and glass a designer offers, who it emails when a design arrives, or the websites that may show it |
+| `POST /api/workspace/set-up` | An owner's place in the set-up wizard, or that they have finished it |
 
 These answer on the workspace's address only. Nothing running in the public designer can reach them.
 
@@ -159,9 +160,9 @@ Owners run their own team. Adding someone needs only their address: they are ema
 
 Owners also keep the company's settings, so nobody edits the database by hand. On the settings page they rename, re-colour, add, remove and reorder the finishes and handles each designer offers. An option keeps its id for good, because designs, quotes and the price list name it by its id, as in `handle:pull:chrome`. A new one gets an id made from its name, so Gunmetal grey is `gunmetal-grey`. A designer always offers at least one finish and one handle, and a new design starts with the first of each. An option that showers already use can still be removed, and the page says how many use it. Those showers keep it, and their sheets and quotes then name it from its id. How the glass is drilled for a handle is fixed by SetOut, by its id: no holes for the knob, and two holes 203mm apart for every other handle, including one an owner adds. The page says so beside each handle. The page also sets the glass each designer offers: which of the thicknesses SetOut makes (8, 10 and 12mm, those CRL's Geneva hinges take) customers may choose, and the one a new design starts at. A designer offers 10mm alone, and starts there, until an owner chooses otherwise (Matt, 12 November 2026: other thicknesses can be offered, 10mm the default). Staff changing a shower may choose any of the three, whatever customers are offered. Each owner can also give a finish CRL's code for it and a handle its CRL number, for the installation sheet. And the page sets the hinges (Matt, 12 November 2026: "add everything and add it to the designer"): which of CRL's hinge styles customers may choose for a door hung from a wall (offset, full or short back plate, either plate 5° pre-set or adjustable, the H wall plate, or Vienna's positive close) and for a door hung in line from the glass (standard, adjustable, or Vienna's positive close), and the standard of each. A designer offers the offset back plate and the standard in-line hinge alone until an owner chooses more. The designer's hardware step offers the choice wherever the shower has such a door; staff may choose any style for a shower. A shower's own choice is kept in its design document (`wallHinge`, `inLineHinge`); without one it takes the company's standard. The engine's `hinges.ts` names every style and its CRL number in each range; Bellagio makes one hinge for each way of hanging (BEL344, BEL380) and every range one for a corner (GEN092, V1E092, BEL392), so those are never a choice. Each range has its own cut-out, Vienna's bigger than Geneva's. Within a range, a style whose cut-out has been checked against CRL's drawing of it (`drawn` in `hinges.ts`; the drawings are in `docs/hinge-templates/`) is cut to it as it is; any other is cut to its range's cut-out but named for itself on the glass order and marked to check against the template in its box. A Vienna hinge can be cut two ways, both CRL's (Matt, 12 November 2026): mouse ears, which are two more holes to drill, or rectangular, which means taking two screws out of the hinge; the company sets its standard in Settings, staff can choose the other for a shower (`viennaCutout`), and the installation sheet tells the fitters about the screws. Bellagio is cut to CRL Europe's drawings: the door 58 high by 47 deep fitted with seals, as usual, or, fitted without seals, as a bigger shower often is (Matt, 12 November 2026), 58 by 52 deep set in a rebate 6 deep and 84 high; the panel in line 52 by 33, both with 6mm corners, and two 16mm holes in a corner panel, 33 in and 50 apart. The company sets which is standard in Settings and staff choose for a shower (`bellagioFit`); the installation sheet says when it is fitted without seals. The job page, making sheet, installation sheet, quotes and the new-design email all name the style, and a quote prices each of CRL's hinges on its own (`hinge:gen037:chrome`).
 
-Owners also choose who is emailed when a design arrives: one to five addresses, the first of which gets customers' replies. They set the colours of the designer and of the quotes customers open, as `#rrggbb`, and a logo for those quotes, as an `https` link to a picture on their own website. They set the VAT and how many days a new quote stands for, kept in the company's settings as `vatRateBp` and `quoteValidDays`. Every new quote starts with these, and staff can still change them on it. And they set the company's name. Everything is checked on the server, and a request with one thing wrong changes nothing. Each part says which version of it a change was made from, so a change made from an older copy is refused rather than saved over someone else's. Each change goes in the audit log in the same batch, only if it was made, with what changed and who changed it. Staff can see the settings but change none of them. Which websites may show a designer is a security setting, and the making rules change cut sizes, so neither is on the page.
+Owners also choose who is emailed when a design arrives: one to five addresses, the first of which gets customers' replies. They set the colours of the designer and of the quotes customers open, as `#rrggbb`, and a logo for those quotes, as an `https` link to a picture on their own website. They set the VAT and how many days a new quote stands for, kept in the company's settings as `vatRateBp` and `quoteValidDays`. Every new quote starts with these, and staff can still change them on it. And they set the company's name. Everything is checked on the server, and a request with one thing wrong changes nothing. Each part says which version of it a change was made from, so a change made from an older copy is refused rather than saved over someone else's. Each change goes in the audit log in the same batch, only if it was made, with what changed and who changed it. Staff can see the settings but change none of them. The making rules change cut sizes, so they are not on the page. Which websites may show a designer is a security setting, and since 12 November 2026 an owner sets it for their own designer: up to ten, each an `https` address tidied to the site's own address with nothing after it, never a pattern, a number or anything but a real host name. It is checked as strictly as the page's framing rule reads it, and each change is in the audit log.
 
-The workspace's pages are few: `/sign-in`, the inbox at `/jobs`, a job at `/jobs/:id`, a quote at `/jobs/:id/quotes/:quoteId`, a job's making sheets at `/jobs/:id/making`, its installation sheets at `/jobs/:id/installation`, a glass order at `/glass`, a CRL order at `/crl`, the team at `/team`, and the company's settings at `/settings`.
+The workspace's pages are few: `/sign-in`, the inbox at `/jobs`, a job at `/jobs/:id`, a quote at `/jobs/:id/quotes/:quoteId`, a job's making sheets at `/jobs/:id/making`, its installation sheets at `/jobs/:id/installation`, a glass order at `/glass`, a CRL order at `/crl`, the team at `/team`, the company's settings at `/settings`, signing up at `/sign-up`, the set-up wizard at `/set-up`, billing at `/billing` where billing is switched on, and the platform admin at `/platform` for SetOut's own staff.
 
 A CRL order lists what to order from CRL for the checked showers on the jobs chosen (those at Ordered, or one job from its page): every part by its catalogue number, added up across the jobs, how many, and which jobs it is for. Seals, wipes and channel come in CRL's 2.41m lengths, so each is counted as the lengths its pieces are cut from, as many from each as fit (the engine's `stockLengthsFor`); channel is a piece for each run. Anything SetOut cannot number (a finish or handle with no code yet, a part CRL does not make in the finish, a part SetOut does not choose) is listed after it, with why, for the office. Every door also has a bottom wipe with a drip rail along its bottom edge, as Custom Showers always fit (P990WS on 10mm glass, P912WS on 12mm, P956WS on 8mm), on the installation sheet and the CRL order.
 
@@ -181,13 +182,79 @@ Sliding doors are on CRL's Serenity, the only sliding system Custom Showers fits
 
 A making sheet is one printed A4 page per shower, for the workshop and the toughener, and only a checked shower has one. Everything on it comes from the revision that was checked, as the server worked it out: each pane's cut size beside what was measured, its notches, holes and cut-outs with their heights, the hinge centres and handle holes on each door, the glass, the fixings, any support the run needs, the notes from measuring, and the plan and elevation of that revision, with who checked it and when. A job's page shows what the server worked out and the customer agreed to, never anything a browser added up: the drawings from the last card, each panel's cut size beside what was measured, the hardware and glass, every reading in the order it was taken, the photos and the timeline. Signing in, signing out and moving to another company each load the page afresh, so nothing one person or company could see is left in the page for the next.
 
+## Signing up
+
+Built on 12 November 2026 (Matt: "self-serve sign-up and billing"). The plan it was built to, and the questions still open, are in [signup-plan.md](signup-plan.md).
+
+A shower company opens its own account at `/sign-up` on the workspace's address. Someone types the company's name, their own and their email address, and is emailed a link. Nothing is made until the link is used: no company, no user. What was typed waits in `signups`. The link opens the page with a button, and pressing the button is what uses it, because mail scanners open links. A link works once, for 24 hours, and only its hash is stored. Using it opens the company and signs that browser in as its owner.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/workspace/sign-up` | Whether sign-ups are open, and the bot check's public key where the check is set up |
+| `POST /api/workspace/sign-up` | Ask to open a company. The person is emailed a link |
+| `POST /api/workspace/sign-up/verify` | Use a link. The company is opened and the browser signed in |
+
+`SIGNUPS` opens or closes it: `open` locally and on staging, `closed` in production. Closed, the page says so and both routes refuse.
+
+Asking answers the same whoever the address belongs to, so it never says who has an account. A hidden field no person fills is answered as if it worked and nothing is kept. Where the bot check is set up, with both `TURNSTILE_SECRET_KEY` and `TURNSTILE_SITE_KEY`, a sign-up without a passed check is refused: stricter than the designer, because nobody loses their measuring by trying again. Sign-up emails an address a stranger typed, so it is limited three ways, counted from the pending sign-ups: three links an hour to one address, ten sign-ups an hour from one network address, of which only a hash is kept, and two hundred a day in all.
+
+A company is made in one place, `openCompany` in `apps/api/src/db/onboarding.ts`, whoever asks: someone signing up, or SetOut in the platform admin. In one batch it writes the company, with a reference prefix worked out from its name (Brennan Glass gives `BG`, and `BG2` if that is taken); its first designer, with a new site key, `pk_live_` in production and `pk_test_` anywhere else, no websites, the owner as the one emailed, and the bot check's key; the owner's user, if they have none, and their membership; and the audit log's first entries. The designer's finishes, handles, glass and hinges are SetOut's defaults until the owner changes them, and so are the making rules. The seed scripts stay for one job: the first company in an empty database, before anyone can sign in.
+
+A sign-up link is the third way a request comes to belong to a company, after a site key and a sign-in. It belongs to the company it makes and to no other. `apps/api/test/signup.test.ts` tries, from a company made by sign-up, to reach an older company's jobs, files, settings, designer and team through the workspace's routes, and every table through the data layer, and the same the other way round.
+
+### Setting up
+
+A new owner lands on the set-up wizard at `/set-up`. It is the settings page taken one part at a time, with the same forms and the same checks on the server: the name, colours and logo, finishes, handles, glass, hinges, sliding doors, who is emailed, the websites the designer may appear on, and last the two lines of embed code with the company's own key, a button to copy them, where to paste them, and a link that opens the designer as customers will see it. Each part saves on its own, any step can be skipped, and the wizard will not move on with a change unsaved. Where the owner had got to is kept in the company's settings as `setUp`. Until it is finished the inbox offers it in one line. A company from before sign-up has no `setUp` and is never sent to it, but its owners can open it from the settings page.
+
+## The platform admin
+
+For SetOut's own staff, at `/platform` on the workspace's address, with routes under `/api/platform`.
+
+Who they are is `PLATFORM_ADMINS`, a list of email addresses in a secret on the Worker, read on every request. It is not in the database and no route writes it, so nothing a company does, and no fault in a company's routes, can make one of its people an admin. An admin signs in the way everyone does, by emailed link, so must be on some company's team. To anyone else the routes answer "not found".
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/platform/companies` | Every company: its status, plan, owners, designers and their websites, designs received and quotes sent this month and last, its subscription; the plans; and how the deploy is switched, saying whether each secret is set and never what it is |
+| `POST /api/platform/companies` | Add a company with its first owner, through `openCompany`, on any plan |
+| `PATCH /api/platform/companies/:id` | Switch a company off or on, or put it on another plan |
+| `POST /api/platform/companies/:id/trial` | Start a company's trial from today |
+| `PUT /api/platform/plans/:id` | Add a plan or change one |
+
+Nothing here reads a company's customers, jobs or designs. Switching a company off sets its status to `suspended`: its designer stops loading, its staff are signed out and cannot sign in, and its quote links stop opening, because everything that finds a company checks that it is active. Nothing is deleted. Whatever an admin does to a company is written to that company's audit log in the same batch, with who did it.
+
+## Billing
+
+Written, tested, and switched off in every environment. `BILLING` is `off`. Off, there is no billing page, the billing routes and the webhook answer "not found", no company is ever locked, and nothing calls Stripe.
+
+Plans are rows in `plans`, not code, so a price is set in the platform admin without a deploy: an id, a name, a monthly price in pence, the designs a month it includes, and Stripe's price id. `free` exists from the start. A company's `subscriptions` row holds its plan, its status in Stripe's own words, Stripe's customer and subscription ids, when its trial and its paid period end, and when a payment last failed. It is a company table like any other, reached through the company-scoped data layer.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/workspace/billing` | Where the company stands, what it has used this month, and the plans that can be paid for |
+| `POST /api/workspace/billing/checkout` | An owner starts paying for a plan. Answers with Stripe's Checkout page |
+| `POST /api/workspace/billing/portal` | An owner opens Stripe's own page to change the card or plan, see invoices, or cancel |
+| `POST /api/stripe/webhook` | Stripe says what happened |
+
+SetOut never sees a card: it is typed on Stripe's pages. `apps/api/src/lib/stripe.ts` talks to Stripe's HTTP API with no library, and every call takes the function that sends it, so the tests hand in a stand-in.
+
+With billing on, a company that signs up starts a trial of `TRIAL_DAYS` days, with no card asked for. Choosing a plan sends the owner to Checkout with the days left carried over. The webhook's signature is checked against `STRIPE_WEBHOOK_SECRET`, over the body exactly as it arrived and within five minutes, before a word of it is read, and a message is handled once however often it is delivered (`stripe_events`). Which company a message is about comes from the Stripe customer SetOut recorded, or, for a customer not yet recorded, from the company id SetOut itself put on the subscription when it started Checkout. A company that already has a different customer is never taken over.
+
+| Stripe says | SetOut does |
+| --- | --- |
+| `checkout.session.completed` | Ties the company to its Stripe customer and subscription |
+| `customer.subscription.created`, `.updated`, `.deleted` | Records the status, plan, trial end, period end and whether it is set to stop |
+| `invoice.payment_failed` | Records when, and emails the owners |
+| `invoice.paid` | Clears the failed payment |
+
+While a payment is failing and Stripe is trying again, nothing is locked. When Stripe gives up, the subscription is cancelled, or a trial ends with no plan chosen, the workspace is locked: staff can sign in and reach `/billing`, and every other workspace route answers 402. The designer is not touched, so a customer's design still arrives. A company on `free`, or with no subscription at all, is never locked. These rules are in `standingOf` in `apps/api/src/lib/billing.ts`, and are proposals for Matt to confirm before billing is switched on.
+
 ## The site
 
 SetOut's own public site, built on 12 November 2026 (Matt: "set up the rest of the website"). The plan it was built to, and the questions still open, are in [site-plan.md](site-plan.md).
 
 It has five pages: home at `/`, how it works at `/how-it-works/`, pricing at `/pricing/`, get started at `/get-started/` and privacy at `/privacy/`, and a not-found page for anything else. They are plain HTML, written at build time by `apps/site/build.mjs` into `dist/site/site/`, with one stylesheet and one script, for the form. The colours are the workspace's own tokens, which the build reads from the workspace's stylesheet. Every link in a page is relative, so the same files work wherever the site is served. There are no cookies, no analytics and nothing loaded from anywhere else, except Cloudflare's bot check on the get-started page.
 
-Self-serve sign-up is step 4 and is not built, so the site never offers it. A shower company fills in the get-started form instead, and is set up by hand.
+Self-serve sign-up was built after the site, on its own branch, and is closed in production, so the site does not offer it yet. A shower company fills in the get-started form instead, and is set up by hand. Once sign-ups are open the site can link to `https://app.setoutglass.com/sign-up`.
 
 | Public route | What it does |
 | --- | --- |
@@ -222,7 +289,7 @@ One database holds every company. The job is the spine: it links the customer, t
 
 Conventions, kept by every migration and checked by `apps/api/test/schema.test.ts`:
 
-- Every company table's primary key, and every index, starts with `company_id`. The only exceptions are the two keys that say which company a request belongs to: a designer's site key and a draft's resume token.
+- Every company table's primary key, and every index, starts with `company_id`. The only exceptions are the keys that say which company a request belongs to: a designer's site key, a draft's resume token, a quote's link, a member's user, and a subscription's Stripe customer.
 - A row that points at another row points at `(company_id, id)`, never at `id` alone. The database itself then refuses a link from one company to another.
 - Company data is reached only through `companyDb(env, companyId)` in `apps/api/src/db`. It adds the company to every statement. A lint rule stops any other file touching the database.
 - Ids are unguessable text with a prefix, such as `job_01KA…`. Each company also has its own readable references, such as `CS-1042`.
@@ -245,11 +312,12 @@ Tables in place:
 | `files` | Photos, measuring photos, drawings and PDFs |
 | `job_events` | The job's timeline |
 | `memberships` | Who works for the company, as owner or staff |
-| `audit_log` | What was done to the company's account and by whom: who was added to the team, taken off it or given another role, and each change to its settings |
+| `audit_log` | What was done to the company's account and by whom: who was added to the team, taken off it or given another role, each change to its settings, and what SetOut did to it: opened it, switched it off or on, changed its plan, started its trial |
 | `quotes` | Each quote on a job: its lines, the revisions it prices, what it comes to, and whether it was sent, accepted or withdrawn. Frozen once sent |
 | `price_list` | The price a company last sent for each thing it quotes, so the next quote starts from it |
+| `subscriptions` | A company's plan, where it stands with Stripe, and when its trial and its paid period end. One per company |
 
-Four tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, `sessions` for signed-in browsers, and `site_enquiries` for shower companies who have asked to start through the site's form.
+Seven tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, `sessions` for signed-in browsers, `site_enquiries` for shower companies who have asked to start through the site's form, `signups` for sign-ups waiting for their link to be used, `plans` for what SetOut charges, and `stripe_events` for Stripe's messages already handled.
 
 Still to come, with the step that uses them: `catalog_items`, `finishes`, `price_books` and `orders` in step 3. A quote's lines are kept on the quote itself, as the document it was sent as, rather than in a table of their own. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
 
@@ -263,7 +331,7 @@ Each step ends at something that can be checked on a live address.
 | 1. Designer and measuring | Card decks for every layout and for tape measuring. The final dimensioned drawing. The embed script with a site key. Designer routes, with the engine re-run on the server | Custom Showers' own site is running on the SetOut designer |
 | 2. Workspace | Email sign-in, team and roles. Job inbox and job page. Editing with revisions. Measurement sign-off. Making sheet and fitting sheet. Company settings | Brennan Glass is live as company two with no new code |
 | 3. Pricing and quotes | Catalogue and price book. Pricing in the engine. Optional estimate in the designer. Quote builder, online quote with accept, and quote to order with frozen copies | A real quote is sent and accepted |
-| 4. Onboarding and billing | Self-serve sign-up with a card and a 14-day trial. Set-up wizard. Stripe plans counted in enquiries. Free accounts. Platform admin | A company we have never spoken to signs up and embeds the designer |
+| 4. Onboarding and billing | Self-serve sign-up and a 14-day trial. Set-up wizard. Stripe plans counted in enquiries. Free accounts. Platform admin. Built on 12 November 2026, with sign-ups closed in production and billing off everywhere until Matt sets prices | A company we have never spoken to signs up and embeds the designer |
 | 5. Operations and integrations | Order board, supplier purchase orders and cut-list exports, a fitting diary, webhooks and API keys, CRM and accounts connectors | Ongoing |
 
 ## Decisions

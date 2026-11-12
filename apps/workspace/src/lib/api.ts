@@ -26,13 +26,13 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function call<T>(path: string, init: RequestInit = {}, base = '/api/workspace'): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
   let response: Response;
   try {
-    response = await fetch(`/api/workspace${path}`, { credentials: 'same-origin', ...init, headers });
+    response = await fetch(`${base}${path}`, { credentials: 'same-origin', ...init, headers });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new ApiError('The workspace could not be reached. Check your connection.', 0, 'offline');
@@ -45,6 +45,10 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const send = <T>(method: string, path: string, body: unknown) => call<T>(path, { method, body: JSON.stringify(body) });
 
+/** SetOut's own staff only. To anyone else these answer "not found". */
+const PLATFORM = '/api/platform';
+const platformSend = <T>(method: string, path: string, body: unknown) => call<T>(path, { method, body: JSON.stringify(body) }, PLATFORM);
+
 export const STAGES = ['new', 'reviewing', 'quoted', 'ordered', 'done', 'closed'] as const;
 export type Stage = (typeof STAGES)[number];
 
@@ -53,6 +57,97 @@ export interface Me {
   role: 'owner' | 'staff';
   company: { id: string; name: string; referencePrefix: string } | null;
   companies: { id: string; name: string; role: string }[];
+  /** Where the company is with its set-up wizard. Null for one that was never sent to it. */
+  setUp?: { done: boolean; step?: number } | null;
+  /** Only with billing switched on. */
+  billing?: Standing;
+  /** One of SetOut's own staff. */
+  platformAdmin?: boolean;
+  signUpsOpen?: boolean;
+}
+
+/** Where a company stands with its plan. Locked: only the billing page opens. */
+export interface Standing {
+  state: 'free' | 'none' | 'trial' | 'active' | 'past_due' | 'trial_ended' | 'ended';
+  locked: boolean;
+  trialDaysLeft?: number;
+}
+
+export interface SignUpConfig {
+  open: boolean;
+  linkHours: number;
+  /** The bot check's public key, where the check is set up. */
+  turnstileSiteKey?: string;
+}
+
+export interface PlanOffer {
+  id: string;
+  name: string;
+  monthlyPricePence: number;
+  /** Designs a month. Null means no limit. */
+  enquiriesPerMonth: number | null;
+}
+
+export interface Billing {
+  canChange: boolean;
+  standing: Standing;
+  plan: PlanOffer | null;
+  currency: string;
+  subscription: {
+    status: string;
+    trialEndsAt: string | null;
+    currentPeriodEndsAt: string | null;
+    cancelAtPeriodEnd: boolean;
+    paymentFailedAt: string | null;
+    withStripe: boolean;
+  } | null;
+  usage: { month: string; enquiries: number; quotesSent: number };
+  plans: PlanOffer[];
+}
+
+export interface PlatformPlan extends PlanOffer {
+  stripePriceId: string | null;
+  offered: boolean;
+  position: number;
+}
+
+export interface PlatformCompany {
+  id: string;
+  name: string;
+  referencePrefix: string;
+  status: string;
+  plan: string;
+  createdAt: string;
+  openedVia: 'sign_up' | 'setout' | 'seed';
+  owners: { email: string; name: string | null; lastSignedInAt: string | null }[];
+  people: number;
+  designers: { id: string; name: string; siteKey: string; status: string; websites: string[] }[];
+  usage: { month: string; enquiries: number; quotesSent: number }[];
+  setUpDone: boolean | null;
+  subscription: {
+    status: string;
+    planId: string | null;
+    trialEndsAt: string | null;
+    currentPeriodEndsAt: string | null;
+    cancelAtPeriodEnd: boolean;
+    paymentFailedAt: string | null;
+    withStripe: boolean;
+  } | null;
+}
+
+export interface Platform {
+  companies: PlatformCompany[];
+  plans: PlatformPlan[];
+  switches: {
+    environment: string;
+    signUps: boolean;
+    billing: boolean;
+    trialDays: number;
+    stripeKey: boolean;
+    stripeWebhookSecret: boolean;
+    botCheck: boolean;
+    mail: boolean;
+  };
 }
 
 export interface InboxJob {
@@ -286,9 +381,13 @@ export interface DesignerSettings {
   /** Whether customers are offered the sliding door layouts (CRL Serenity). Off until an owner turns it on. */
   sliding: boolean;
   notifyEmails: string[];
+  /** The designer's public key, which goes in the embed code. */
+  siteKey: string;
+  /** The websites that may show the designer: https://www.example.co.uk. */
+  websites: string[];
   /** How many showers on the company's jobs use each option, by id. */
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string };
+  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string; websites: string };
 }
 
 export type SettingsChangeItem =
@@ -310,7 +409,8 @@ export type SettingsChangeItem =
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
   | { field: 'slidingDoors'; from: boolean; to: boolean }
-  | { field: 'notifyEmails'; added: string[]; removed: string[] };
+  | { field: 'notifyEmails'; added: string[]; removed: string[] }
+  | { field: 'websites'; added: string[]; removed: string[] };
 
 export interface SettingsChange {
   id: string;
@@ -324,7 +424,9 @@ export interface Settings {
   canChange: boolean;
   company: CompanySettings;
   designers: DesignerSettings[];
-  limits: { options: number; label: number; description: number; notifyEmails: number; companyName: number; logoUrl: number };
+  limits: { options: number; label: number; description: number; notifyEmails: number; websites: number; companyName: number; logoUrl: number };
+  /** Where the embed script is served from. */
+  embedScript: string;
   /** Owners only. */
   changes?: SettingsChange[];
 }
@@ -343,6 +445,7 @@ export interface DesignerChanges {
   hinges?: Hinges;
   sliding?: boolean;
   notifyEmails?: string[];
+  websites?: string[];
   basedOn: Partial<DesignerSettings['versions']>;
 }
 
@@ -351,6 +454,24 @@ export const api = {
   askForLink: (email: string) => send<{ ok: true; link?: string }>('POST', '/sign-in', { email }),
   useLink: (token: string) => send<{ ok: true }>('POST', '/sign-in/verify', { token }),
   signOut: () => send<{ ok: true }>('POST', '/sign-out', {}),
+  signUpConfig: (signal?: AbortSignal) => call<SignUpConfig>('/sign-up', { signal }),
+  /** website: the hidden field no person fills. */
+  signUp: (form: { companyName: string; name: string; email: string; turnstileToken: string | null; website: string }) =>
+    send<{ ok: true; link?: string }>('POST', '/sign-up', form),
+  useSignUpLink: (token: string) => send<{ ok: true; company: { id: string; name: string } }>('POST', '/sign-up/verify', { token }),
+  /** Where the owner is with the set-up wizard. */
+  saveSetUp: (state: { step?: number; done?: boolean }) => send<{ ok: true }>('POST', '/set-up', state),
+  billing: (signal?: AbortSignal) => call<Billing>('/billing', { signal }),
+  /** Answers with Stripe's page to send the browser to. */
+  checkout: (planId: string) => send<{ ok: true; url: string }>('POST', '/billing/checkout', { planId }),
+  billingPortal: () => send<{ ok: true; url: string }>('POST', '/billing/portal', {}),
+  platform: (signal?: AbortSignal) => call<Platform>('/companies', { signal }, PLATFORM),
+  addCompany: (company: { name: string; ownerEmail: string; ownerName: string; plan: string }) =>
+    platformSend<{ ok: true; emailed: boolean; company: { id: string; referencePrefix: string; siteKey: string } }>('POST', '/companies', company),
+  changeCompany: (id: string, changes: { status?: 'active' | 'suspended'; reason?: string; plan?: string }) =>
+    platformSend<{ ok: true }>('PATCH', `/companies/${encodeURIComponent(id)}`, changes),
+  startTrial: (id: string) => platformSend<{ ok: true; trialEndsAt: string }>('POST', `/companies/${encodeURIComponent(id)}/trial`, {}),
+  savePlan: (plan: PlatformPlan) => platformSend<{ ok: true }>('PUT', `/plans/${encodeURIComponent(plan.id)}`, plan),
   switchCompany: (companyId: string) => send<{ ok: true }>('POST', '/company', { companyId }),
   /** after: the next page's mark, from the page before it. */
   inbox: (params: { stage?: Stage | ''; q?: string; after?: string }, signal?: AbortSignal) => {

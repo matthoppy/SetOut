@@ -85,7 +85,9 @@ node scripts/deploy.mjs staging
 
 ## Adding a company
 
-Until the platform admin exists in step 4, a company and its first designer are added with a seed file. The script only prints SQL. You run what it prints against the database you mean.
+A company is added in the platform admin, at `/platform` on the workspace's address, under "Add a company": its name, its owner's email address and its plan. That opens it with its first designer and its owner, exactly as signing up does, and the owner is emailed the way to the sign-in page. Or the company signs up itself at `/sign-up`, where sign-ups are open.
+
+The seed script is for one job only: the first company in an empty database, before anyone can sign in to reach the platform admin. It only prints SQL. You run what it prints against the database you mean.
 
 ```sh
 node scripts/seed-company.mjs scripts/seeds/custom-showers.json --key live --notify sales@example.com > seed.sql
@@ -97,7 +99,7 @@ The site key is printed at the top of `seed.sql`. It is safe to publish: it is w
 
 ## Adding a person to a company
 
-Until owners can invite their own staff, a person is put on a company's team with a script. Like the seed script, it only prints SQL. It makes the person's user if they have none, gives someone already on the team the role given, and adds nothing if the company id is wrong.
+Owners add their own staff on the team page. For the first owner of the first company in an empty database, a person is put on a company's team with a script. Like the seed script, it only prints SQL. It makes the person's user if they have none, gives someone already on the team the role given, and adds nothing if the company id is wrong.
 
 ```sh
 node scripts/add-member.mjs co_01... someone@example.com --role owner --name "Their name" > member.sql
@@ -115,6 +117,10 @@ Secrets are set per environment with `wrangler secret put`, or in the Cloudflare
 | --- | --- | --- |
 | `TURNSTILE_SECRET_KEY` | Checking the bot check's token when a design is sent | Designs are accepted and marked as unchecked |
 | `RESEND_API_KEY` | Sending email | Nothing is emailed, and each job's timeline says mail is not set up |
+| `PLATFORM_ADMINS` | The email addresses of SetOut's own staff, separated by commas. They may use the platform admin | Nobody may. The platform admin answers "not found" to everyone |
+| `TURNSTILE_SITE_KEY` | The bot check widget's public key, for the sign-up form and for each new company's designer. Not secret, but kept with the secrets so it is set once per environment | Sign-up has no bot check, and a new company's designer has none until its key is put in its settings |
+| `STRIPE_SECRET_KEY` | Stripe's API key. Only used with `BILLING` on | Checkout and the billing portal say billing is not set up |
+| `STRIPE_WEBHOOK_SECRET` | Checking that a webhook came from Stripe. Only used with `BILLING` on | Every webhook is refused |
 
 ```sh
 cd apps/api
@@ -122,6 +128,51 @@ npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
 ```
 
 Email also needs the address it is sent from. That is not a secret: it is `EMAIL_FROM` in `apps/api/wrangler.jsonc`, per environment. With either the key or the address missing, nothing is emailed.
+
+## Sign-up, the platform admin and billing
+
+Three settings in `apps/api/wrangler.jsonc`, per environment, and the four secrets above.
+
+| Setting | What it is | Locally | Staging | Production |
+| --- | --- | --- | --- | --- |
+| `SIGNUPS` | Whether a company may open its own account at `/sign-up`: `open` or `closed`. Anything else is closed | `open` | `open` | `closed`. **Matt to open** |
+| `BILLING` | Billing through Stripe: `on` or `off`. Anything else is off | `off` | `off` | `off` |
+| `TRIAL_DAYS` | How long a new company's trial lasts, once billing is on | 14 | 14 | 14 |
+
+The platform admin shows how a deploy is switched, and whether each secret is set, at the top of its page.
+
+### Before sign-ups are opened
+
+1. Set who SetOut's staff are, on each environment. The addresses go straight into the Worker, never into a file:
+   ```sh
+   cd apps/api
+   npx wrangler secret put PLATFORM_ADMINS --env staging
+   ```
+   Type the addresses separated by commas. Each must also be on some company's team to be able to sign in: Matt is, on Custom Showers.
+2. Set `TURNSTILE_SITE_KEY` the same way. It is the public key of the "SetOut designer" widget in Turnstile, the one already in Custom Showers' designer settings. The widget must list the workspace's address, `app.setoutglass.com`, as well as the designer's.
+3. Try it on staging with a real inbox: sign up at `https://app-staging.setoutglass.com/sign-up`, use the link, go through the wizard, and look at the company in the platform admin.
+4. Set `SIGNUPS` to `open` under `env.production.vars` and deploy production. Until billing is on, a company that signs up there uses SetOut for nothing and has no trial running. It can be given a trial later from the platform admin.
+
+### Turning billing on
+
+Billing is off everywhere and nothing calls Stripe. Do not turn it on until the questions in [signup-plan.md](signup-plan.md) are answered. Then, on staging first, with Stripe in test mode:
+
+1. In Stripe, make a product for each plan with a monthly price in pounds. Each price has an id starting `price_`.
+2. In the platform admin, add each plan with its Stripe price id, and tick "Offer it to owners".
+3. In Stripe, under Developers, then Webhooks, add an endpoint at `https://app-staging.setoutglass.com/api/stripe/webhook` for these events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `invoice.paid`. Stripe then shows the endpoint's signing secret, starting `whsec_`.
+4. In Stripe, under Settings, then Billing, then Customer portal, switch the portal on and choose what customers may do there.
+5. Set the two secrets. A restricted key that can write Checkout sessions and billing portal sessions is enough:
+   ```sh
+   cd apps/api
+   npx wrangler secret put STRIPE_SECRET_KEY --env staging
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET --env staging
+   ```
+6. Set `BILLING` to `on` under `env.staging.vars` and deploy.
+7. Try it end to end with one of Stripe's test cards: sign up, choose a plan, pay, see the plan on the billing page, open the portal, cancel. Then try a card that fails.
+8. Companies that signed up while billing was off have no trial. Start each one's trial from the platform admin, or put it on `free`.
+9. The same for production, with Stripe in live mode, its own webhook endpoint at `https://app.setoutglass.com/api/stripe/webhook`, and its own two secrets.
+
+To turn billing off again, set `BILLING` back to `off` and deploy. Nothing is locked from that moment. Subscriptions carry on in Stripe until they are cancelled there.
 
 ## The site's settings
 
@@ -199,5 +250,7 @@ The secrets were put straight into the Worker through Cloudflare's API and never
 
 - **The site on `setoutglass.com`.** Built, and on staging under `/site/`. Its address, its inbox and its bot check key are Matt's to switch on: see [The site's address](#the-sites-address).
 
+- **Sign-up and the platform admin.** Built. `PLATFORM_ADMINS` and `TURNSTILE_SITE_KEY` are to be set on both environments, and production's `SIGNUPS` is `closed` until Matt opens it: see [Before sign-ups are opened](#before-sign-ups-are-opened).
+- **Billing.** Built and off everywhere. Prices, the trial and the Stripe account are Matt's to decide: see [Turning billing on](#turning-billing-on).
 - **The paid Workers plan**, before real traffic. The free plan's limits are enough for staging.
 - **Custom Showers' own site on the SetOut designer.** Production is ready for it. The switch is Matt's call: once the site embeds the SetOut designer, its enquiries arrive in the SetOut workspace and by email, and stop reaching the old dashboard.

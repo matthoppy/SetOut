@@ -10,13 +10,14 @@
  * over someone else's. Every change goes in the company's audit log, with who
  * made it and what changed.
  *
- * Which websites may show a designer, and the making rules, are not changed
- * here.
+ * The making rules are not changed here. Setting up, at the foot, is where an
+ * owner's place in the set-up wizard is kept.
  */
 
 import { Hono, type Context } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import type { Session } from '../db/auth';
+import { saveSetUp, setUpOf } from '../db/onboarding';
 import { optionsInUse, readSettings, saveSettings, settingsChanges } from '../db/settings';
 import { RequestError } from '../lib/enquiry';
 import {
@@ -40,9 +41,11 @@ import {
   readSliding,
   readNotifyEmails,
   readQuoteSettings,
+  readWebsites,
   storedBranding,
   storedConfig,
   storedSettings,
+  websiteChanges,
   type CompanyView,
   type DesignerView,
 } from '../lib/settings';
@@ -92,6 +95,14 @@ async function presentDesigner(env: Env, companyId: string, designer: DesignerVi
   return { ...designer, inUse, versions };
 }
 
+/**
+ * Where the embed script is served from. On the designer's own address where
+ * there is one; where one address serves both apps, under /designer/.
+ */
+function embedScriptFor(c: Context<Bindings>): string {
+  return c.env.DESIGNER_HOST ? `https://${c.env.DESIGNER_HOST}/embed.js` : `${new URL(c.req.url).origin}/designer/embed.js`;
+}
+
 const presentCompany = async (company: CompanyView) => ({ ...company, versions: await companyVersions(company) });
 
 /** The settings as they stand. Everyone on the team may see them; owners also see the latest changes. */
@@ -105,7 +116,7 @@ staffSettings.get('/settings', async (c) => {
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
-  return c.json({ canChange: owner, company, designers, limits: LIMITS, ...(changes ? { changes } : {}) }, 200, PRIVATE);
+  return c.json({ canChange: owner, company, designers, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) }, 200, PRIVATE);
 });
 
 /**
@@ -166,22 +177,22 @@ staffSettings.patch('/settings/company', ownersOnly, async (c) => {
 });
 
 /**
- * Change the finishes, handles, glass and hinges a designer offers, or who
- * it emails when a design arrives. A list is sent whole, in the order the
+ * Change the finishes, handles, glass and hinges a designer offers, who it
+ * emails when a design arrives, or the websites that may show it. A list is sent whole, in the order the
  * designer shows it. Anything left out stays as it is.
  */
 staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
   const session = c.get('session');
   try {
     const body = await bodyOf(c);
-    const sent = (['finishes', 'handles', 'glass', 'hinges', 'sliding', 'notifyEmails'] as const).filter((part) => body[part] !== undefined);
+    const sent = (['finishes', 'handles', 'glass', 'hinges', 'sliding', 'notifyEmails', 'websites'] as const).filter((part) => body[part] !== undefined);
     const basedOn = basedOnOf(body);
     const answer = await withRetry(async () => {
       const stored = await readSettings(c.env, session.companyId);
       const index = stored?.designers.findIndex((d) => d.id === c.req.param('id')) ?? -1;
       if (!stored || index < 0) return c.json(NO_DESIGNER, 404, PRIVATE);
       if (sent.length === 0) {
-        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass, the hinges, sliding doors on or off, or the addresses to email.' }, 400, PRIVATE);
+        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass, the hinges, sliding doors on or off, the addresses to email or the websites.' }, 400, PRIVATE);
       }
       const row = stored.designers[index];
       const first = index === 0;
@@ -197,6 +208,7 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         hinges: body.hinges === undefined ? before.hinges : readHinges(body.hinges, before.hinges),
         sliding: body.sliding === undefined ? before.sliding : readSliding(body.sliding),
         notifyEmails: body.notifyEmails === undefined ? before.notifyEmails : readNotifyEmails(body.notifyEmails),
+        websites: body.websites === undefined ? before.websites : readWebsites(body.websites),
       };
       const changes = [
         ...optionChanges('finish', before.finishes, after.finishes),
@@ -205,6 +217,7 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...hingeChanges(before.hinges, after.hinges),
         ...slidingChanges(before.sliding, after.sliding),
         ...emailChanges(before.notifyEmails, after.notifyEmails),
+        ...websiteChanges(before.websites, after.websites),
       ];
       if (changes.length === 0) {
         return c.json({ ok: true, changed: false, designer: await presentDesigner(c.env, session.companyId, before, first) }, 200, PRIVATE);
@@ -224,6 +237,9 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...(changes.some((ch) => ch.field === 'notifyEmails')
           ? { notify_emails: { was: row.notify_emails, now: JSON.stringify(after.notifyEmails) } }
           : {}),
+        ...(changes.some((ch) => ch.field === 'websites')
+          ? { allowed_origins: { was: row.allowed_origins, now: JSON.stringify(after.websites) } }
+          : {}),
       };
       const saved = await saveSettings(
         c.env,
@@ -237,6 +253,47 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         : null;
     });
     return answer ?? c.json(STALE, 409, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Setting up
+// ---------------------------------------------------------------------------
+
+/**
+ * Where an owner is with the set-up wizard: the step they reached, or that
+ * they have finished. It changes nothing a customer sees, so it is not in the
+ * audit log. A company that was never sent to the wizard can still finish it.
+ */
+staffSettings.post('/set-up', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c);
+    const step = body.step;
+    if (step !== undefined && !(typeof step === 'number' && Number.isInteger(step) && step >= 0 && step < 50)) {
+      return c.json({ error: 'invalid_request', message: 'That is not a step of setting up.' }, 400, PRIVATE);
+    }
+    if (body.done !== undefined && typeof body.done !== 'boolean') {
+      return c.json({ error: 'invalid_request', message: 'Setting up is finished or it is not.' }, 400, PRIVATE);
+    }
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    let settings: Record<string, unknown> = {};
+    try {
+      settings = JSON.parse(stored.company.settings) as Record<string, unknown>;
+    } catch {
+      // Unreadable settings are treated as none.
+    }
+    const before = setUpOf(settings);
+    const setUp = {
+      done: typeof body.done === 'boolean' ? body.done : (before?.done ?? false),
+      ...(typeof step === 'number' ? { step } : before?.step !== undefined ? { step: before.step } : {}),
+    };
+    await saveSetUp(c.env, session.companyId, setUp);
+    return c.json({ ok: true, setUp }, 200, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;

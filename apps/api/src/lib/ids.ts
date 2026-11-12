@@ -26,6 +26,7 @@ export const ID_PREFIX = {
   audit: 'aud',
   quote: 'qte',
   price: 'prc',
+  subscription: 'sbn',
   siteEnquiry: 'enq',
 } as const;
 
