@@ -3,7 +3,7 @@
 <!-- impeccable:product-schema 1 -->
 
 The SetOut designer: the shower configurator a glass company puts on its own
-website, and the measuring cards that follow it. Facts marked *(inferred)*
+website, and the measuring cards that follow it. Facts marked _(inferred)_
 were taken from the code and Matt's written briefs rather than confirmed in
 an interview.
 
@@ -18,7 +18,7 @@ web
   hand, standing in the shower area with a cross-line laser and a tape
   measure.
 - Staff at the glass company, who check the numbers in the SetOut workspace
-  before glass is made *(inferred)*.
+  before glass is made _(inferred)_.
 
 ## Product Purpose
 
@@ -96,5 +96,5 @@ to a card, and every reading checked against the others.
 
 - Every picture carries a sentence describing it for screen readers.
 - Motion is limited to a gentle pulse on the point to read, and stops when
-  the device asks for reduced motion *(inferred standard: WCAG 2.1 AA, as
-  the rest of SetOut)*.
+  the device asks for reduced motion _(inferred standard: WCAG 2.1 AA, as
+  the rest of SetOut)_.

@@ -54,6 +54,10 @@ export interface LensSpec {
   value?: number | null;
   /** Things the lens must not cover, as points they reach in the room. */
   avoid?: V3[][];
+  /** How big the lens is drawn, against the usual size. */
+  size?: number;
+  /** How much of the lens's radius two points given as the zoom should span. */
+  fill?: number;
 }
 
 export interface Drawn {
@@ -182,10 +186,10 @@ function Lens({ spec, sceneId }: { spec: LensSpec; sceneId: string }) {
   // Two points a lens must hold: magnified until they span most of it, and no more.
   const fitZoom = ([a, b]: [V3, V3], r: number) => {
     const [p, q] = [at(a), at(b)];
-    return Math.min(7, Math.max(2, (r * 1.35) / (Math.hypot(q.x - p.x, q.y - p.y) || 1)));
+    return Math.min(12, Math.max(2, (r * (spec.fill ?? 1.35)) / (Math.hypot(q.x - p.x, q.y - p.y) || 1)));
   };
   const t = at(spec.target);
-  const r = Math.min(view.w * 0.25, view.h * 0.21);
+  const r = Math.min(view.w * 0.25, view.h * 0.21) * (spec.size ?? 1);
   const m = px(14);
   // The lens goes in a corner of the picture: one that keeps clear of the
   // point it magnifies, so the leader always shows where it looks, and of

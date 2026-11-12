@@ -1,0 +1,765 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T00:00:00Z",
+  "title": "Design System: SetOut measuring pictures",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Measuring Navy",
+        "canonical": "hsl(210 50% 23%)",
+        "tonalRamp": [
+          "#132639",
+          "#224365",
+          "#306191",
+          "#3f7ebd",
+          "#699bcd",
+          "#94b8db",
+          "#c0d5ea",
+          "#ecf2f9"
+        ],
+        "note": "Source is hsl(var(--measure-accent)) on a light page and a fixed hsl(210 50% 23%) on a dark page; both resolve to this value."
+      },
+      "ink-text": {
+        "role": "primary",
+        "displayName": "Pill White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "laser": {
+        "role": "secondary",
+        "displayName": "Laser Red",
+        "canonical": "#ef1d45",
+        "tonalRamp": [
+          "#470512",
+          "#7e091f",
+          "#b40d2d",
+          "#eb113a",
+          "#f24465",
+          "#f67a92",
+          "#f9b1bf",
+          "#fde7eb"
+        ]
+      },
+      "laser-hot": {
+        "role": "secondary",
+        "displayName": "Laser Core",
+        "canonical": "#ffd9e0",
+        "tonalRamp": [
+          "#4c000e",
+          "#870019",
+          "#c10024",
+          "#fb002e",
+          "#ff375c",
+          "#ff718b",
+          "#ffabbb",
+          "#ffe6ea"
+        ]
+      },
+      "tape": {
+        "role": "tertiary",
+        "displayName": "Tape Yellow",
+        "canonical": "#f7c52b",
+        "tonalRamp": [
+          "#4a3803",
+          "#826305",
+          "#ba8e07",
+          "#f2b909",
+          "#f8ca3e",
+          "#fada76",
+          "#fce9ae",
+          "#fef8e6"
+        ]
+      },
+      "tape-edge": {
+        "role": "tertiary",
+        "displayName": "Tape Edge",
+        "canonical": "#8a6a06",
+        "tonalRamp": [
+          "#493803",
+          "#816306",
+          "#b98e08",
+          "#f1b90a",
+          "#f7ca3f",
+          "#f9da77",
+          "#fce9af",
+          "#fef8e7"
+        ]
+      },
+      "tape-ink": {
+        "role": "tertiary",
+        "displayName": "Tick Black",
+        "canonical": "#2a2a2a",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "backdrop": {
+        "role": "neutral",
+        "displayName": "Studio Ground",
+        "canonical": "#fbfbfb",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "backdrop-dark-page": {
+        "role": "neutral",
+        "displayName": "Warm Panel",
+        "canonical": "#e6e4e0",
+        "tonalRamp": [
+          "#2a2822",
+          "#4b463c",
+          "#6b6456",
+          "#8b8270",
+          "#a69e90",
+          "#c0bbb0",
+          "#dad7d1",
+          "#f4f3f1"
+        ],
+        "note": "Replaces backdrop under .dark; shown as the rounded panel."
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Graphite Line",
+        "canonical": "#30363c",
+        "tonalRamp": [
+          "#22262a",
+          "#3c434b",
+          "#56616b",
+          "#707e8c",
+          "#909ba6",
+          "#b0b8c0",
+          "#d0d5da",
+          "#f1f2f4"
+        ]
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Soft Line",
+        "canonical": "#c9ced3",
+        "tonalRamp": [
+          "#22262a",
+          "#3d434a",
+          "#57616a",
+          "#717e8b",
+          "#919ba5",
+          "#b1b8bf",
+          "#d1d5d9",
+          "#f1f2f4"
+        ]
+      },
+      "floor": {
+        "role": "neutral",
+        "displayName": "Floor",
+        "canonical": "#f3f4f5",
+        "tonalRamp": [
+          "#23262a",
+          "#3d434a",
+          "#586169",
+          "#727e89",
+          "#929ba4",
+          "#b2b8be",
+          "#d1d5d9",
+          "#f1f2f3"
+        ]
+      },
+      "floor-joint": {
+        "role": "neutral",
+        "displayName": "Tile Joint",
+        "canonical": "#d6dade",
+        "tonalRamp": [
+          "#22262a",
+          "#3c434b",
+          "#56616b",
+          "#707e8b",
+          "#909ba6",
+          "#b0b8c0",
+          "#d1d5da",
+          "#f1f2f4"
+        ]
+      },
+      "wall-lit": {
+        "role": "neutral",
+        "displayName": "Lit Wall",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "wall-shade": {
+        "role": "neutral",
+        "displayName": "Shaded Wall",
+        "canonical": "#eef0f2",
+        "tonalRamp": [
+          "#21262b",
+          "#3a434c",
+          "#54616d",
+          "#6d7e8e",
+          "#8d9ba8",
+          "#aeb8c1",
+          "#d0d5db",
+          "#f1f2f4"
+        ]
+      },
+      "wall-end": {
+        "role": "neutral",
+        "displayName": "Wall End",
+        "canonical": "#e1e4e7",
+        "tonalRamp": [
+          "#22262a",
+          "#3c434b",
+          "#56616b",
+          "#707e8c",
+          "#909ba6",
+          "#b0b8c0",
+          "#d0d5da",
+          "#f1f2f4"
+        ]
+      },
+      "cut": {
+        "role": "neutral",
+        "displayName": "Section Cut",
+        "canonical": "#d3d8dc",
+        "tonalRamp": [
+          "#22272b",
+          "#3c444b",
+          "#56626c",
+          "#6f7f8c",
+          "#8f9ca6",
+          "#b0b9c0",
+          "#d0d6da",
+          "#f1f2f4"
+        ]
+      },
+      "ceiling": {
+        "role": "neutral",
+        "displayName": "Ceiling",
+        "canonical": "#f4f5f6",
+        "tonalRamp": [
+          "#22262a",
+          "#3d434a",
+          "#57616a",
+          "#717e8a",
+          "#919ba5",
+          "#b1b8bf",
+          "#d1d5d9",
+          "#f1f2f4"
+        ]
+      },
+      "tray": {
+        "role": "neutral",
+        "displayName": "Tray Top",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "tray-lit": {
+        "role": "neutral",
+        "displayName": "Tray Lit Side",
+        "canonical": "#f1f3f4",
+        "tonalRamp": [
+          "#22282b",
+          "#3b464b",
+          "#55646c",
+          "#6f838d",
+          "#8f9fa7",
+          "#afbbc0",
+          "#d0d7da",
+          "#f1f3f4"
+        ]
+      },
+      "tray-shade": {
+        "role": "neutral",
+        "displayName": "Tray Front",
+        "canonical": "#e1e4e7",
+        "tonalRamp": [
+          "#22262a",
+          "#3c434b",
+          "#56616b",
+          "#707e8c",
+          "#909ba6",
+          "#b0b8c0",
+          "#d0d5da",
+          "#f1f2f4"
+        ]
+      },
+      "tray-dish": {
+        "role": "neutral",
+        "displayName": "Tray Dish",
+        "canonical": "#fafbfb",
+        "tonalRamp": [
+          "#222a2a",
+          "#3c4b4b",
+          "#566b6b",
+          "#708c8c",
+          "#90a6a6",
+          "#b0c0c0",
+          "#d0dada",
+          "#f1f4f4"
+        ]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Pale Glass",
+        "canonical": "#c4d9e4",
+        "tonalRamp": [
+          "#182b34",
+          "#2a4b5c",
+          "#3d6c84",
+          "#4f8cac",
+          "#76a6c0",
+          "#9ec0d2",
+          "#c6dae5",
+          "#eef4f7"
+        ]
+      },
+      "glass-glint": {
+        "role": "neutral",
+        "displayName": "Glass Glint",
+        "canonical": "#9fb6c3",
+        "tonalRamp": [
+          "#1d292f",
+          "#344853",
+          "#4a6777",
+          "#61869b",
+          "#84a1b2",
+          "#a8bdc8",
+          "#cbd8df",
+          "#eff3f5"
+        ]
+      },
+      "glass-edge": {
+        "role": "neutral",
+        "displayName": "Glass Edge",
+        "canonical": "#47545e",
+        "tonalRamp": [
+          "#21272c",
+          "#3a454d",
+          "#53626e",
+          "#6c808f",
+          "#8d9da9",
+          "#aeb9c2",
+          "#cfd6db",
+          "#f0f2f4"
+        ]
+      },
+      "glass-top": {
+        "role": "neutral",
+        "displayName": "Glass Thickness",
+        "canonical": "#a9c0cc",
+        "tonalRamp": [
+          "#1c2930",
+          "#324955",
+          "#486879",
+          "#5e889e",
+          "#81a3b4",
+          "#a6beca",
+          "#cad8e0",
+          "#eff3f6"
+        ]
+      },
+      "metal": {
+        "role": "neutral",
+        "displayName": "Hardware Metal",
+        "canonical": "#dde1e4",
+        "tonalRamp": [
+          "#22272b",
+          "#3c444b",
+          "#55626c",
+          "#6f808c",
+          "#8f9ca6",
+          "#b0b9c0",
+          "#d0d6da",
+          "#f1f2f4"
+        ]
+      },
+      "metal-dark": {
+        "role": "neutral",
+        "displayName": "Dark Metal",
+        "canonical": "#6b737c",
+        "tonalRamp": [
+          "#232629",
+          "#3e4348",
+          "#596068",
+          "#747d87",
+          "#939aa2",
+          "#b3b8bd",
+          "#d2d5d8",
+          "#f1f2f3"
+        ]
+      },
+      "shadow": {
+        "role": "neutral",
+        "displayName": "Soft Shadow",
+        "canonical": "#4a5159",
+        "tonalRamp": [
+          "#23262a",
+          "#3d434a",
+          "#586069",
+          "#727d89",
+          "#929aa4",
+          "#b1b8bf",
+          "#d1d5d9",
+          "#f1f2f3"
+        ]
+      },
+      "mask": {
+        "role": "neutral",
+        "displayName": "Masking Tape Blue",
+        "canonical": "#93c3ec",
+        "tonalRamp": [
+          "#0b2841",
+          "#144773",
+          "#1d66a4",
+          "#2685d6",
+          "#55a0e1",
+          "#86bcea",
+          "#b8d7f2",
+          "#e9f3fb"
+        ]
+      },
+      "mask-edge": {
+        "role": "neutral",
+        "displayName": "Masking Tape Edge",
+        "canonical": "#3f7fbd",
+        "tonalRamp": [
+          "#132739",
+          "#224465",
+          "#306191",
+          "#3f7fbd",
+          "#699ccd",
+          "#94b9db",
+          "#c0d5ea",
+          "#ecf2f9"
+        ]
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "#1e2227",
+        "tonalRamp": [
+          "#21262b",
+          "#3b424c",
+          "#545f6d",
+          "#6d7c8e",
+          "#8e99a8",
+          "#afb7c1",
+          "#d0d4db",
+          "#f1f2f4"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "value": {
+        "displayName": "Value",
+        "purpose": "The number on the navy pill; the largest and only bold type in a picture."
+      },
+      "value-unit": {
+        "displayName": "Value unit",
+        "purpose": "The \"mm\" after the number, at 75% opacity, 3px after it."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "A few words naming a thing on the picture, or a lens caption."
+      }
+    },
+    "shadows": [
+      {
+        "name": "lift",
+        "value": "drop-shadow(0 1.5px 2.2px rgba(15,23,42,0.22))",
+        "purpose": "Under the value pill and the lens disc only."
+      },
+      {
+        "name": "tray-shadow",
+        "value": "feGaussianBlur stdDeviation 34 (room units), #4a5159 at 0.18",
+        "purpose": "Soft shadow round the foot of the tray."
+      },
+      {
+        "name": "contact",
+        "value": "feGaussianBlur stdDeviation 12 (room units), #4a5159 at 0.2",
+        "purpose": "Under anything standing on the floor (0.16 under a tripod, 0.22 under each foot)."
+      },
+      {
+        "name": "wall-foot",
+        "value": "linear #4a5159 8% to 0 over 260mm",
+        "purpose": "Shade along the foot of each wall."
+      },
+      {
+        "name": "edge-fade",
+        "value": "mask: rect inset 14px, blur 9px",
+        "purpose": "Fades the room softly into the card at the frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "read-pulse",
+        "value": "opacity 0.1-0.3, scale 0.85-1.15, 1.8s ease-in-out infinite",
+        "purpose": "The read point; off under prefers-reduced-motion."
+      }
+    ],
+    "camera": {
+      "turnDeg": 33,
+      "riseDeg": 33,
+      "lamp": [-0.55, -0.35, 0.76],
+      "lightFormula": "0.5 + 0.5 * dot(normal, lamp), clamped 0-1",
+      "mirror": "front left, or front right when only the left side has a wall; once per shower shape"
+    },
+    "framing": {
+      "maxScalePxPerMm": 0.27,
+      "readingFocus": "reading points + tray top corners + two tray corners at 900mm, grown 200mm",
+      "defaultFocusGrowMm": 240,
+      "wholeRoomWhen": "no particular reading (marking out, laser over a corner)"
+    },
+    "strokesPx": {
+      "outline": 1.05,
+      "fine": 0.6,
+      "toolEdge": 0.8,
+      "bladeEdgeAndGlint": 0.9,
+      "pencilFloor": 2,
+      "pencilWall": 1.6,
+      "dimension": 1.5,
+      "extension": 1,
+      "valueLeader": 1.2,
+      "noteLeader": 1.1,
+      "readRing": 2.4,
+      "lensRim": 1.6,
+      "lensLeader": 1.4,
+      "beamHalo": 8,
+      "beamLine": 2.2,
+      "beamCore": 0.7
+    },
+    "sizesMm": {
+      "tray": 45,
+      "lip": 100,
+      "glass": 2000,
+      "ceiling": 2440,
+      "glassThick": 14,
+      "wall": 2240,
+      "wallThick": 110,
+      "apron": 860,
+      "tile": 600,
+      "floorBeam": 160,
+      "tripodBeam": 1000,
+      "blade": 46,
+      "tapeOut": 74,
+      "wallGap": 50,
+      "maskLong": 230,
+      "maskWide": 78,
+      "front": [1000, 1300, 1500],
+      "depth": 950,
+      "wayIn": 700,
+      "side": 470,
+      "laserBody": [105, 210],
+      "tickEvery": 50
+    },
+    "marksPx": {
+      "startDot": 4.2,
+      "startHalo": 7,
+      "readDisc": 8,
+      "readCore": 3.2,
+      "readPulse": 14,
+      "arrowLength": 9.5,
+      "arrowHalfWidth": 3.8,
+      "pillHeight": 30,
+      "pillWidth": "43 + 9.8 per character",
+      "noteHeight": 26,
+      "noteWidth": "20 + 7 per character",
+      "labelInset": 8,
+      "labelClear": 6,
+      "pointKeepClear": 32,
+      "lensRadius": "min(25% width, 21% height)",
+      "lensInset": 14,
+      "lensTargetRing": 13,
+      "lensBelow": 46,
+      "lensZoomFitted": [2, 12],
+      "lensWallGap": "drawn 18% larger, zoomed until the 50mm spans the radius"
+    },
+    "themes": {
+      "light": "radial studio ground #fbfbfb, panel hidden",
+      "dark": "room unchanged on a #e6e4e0 panel rounded 14px; measuring ink fixed at hsl(210 50% 23%)"
+    }
+  },
+  "components": [
+    {
+      "name": "Value Pill",
+      "kind": "custom",
+      "refersTo": "value-pill",
+      "description": "The number being asked for, on the measuring navy, the loudest mark on every card; a question mark until typed.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-pill\"><rect x=\"70\" y=\"30\" width=\"80\" height=\"30\" rx=\"15\"/><text x=\"81\" y=\"51\"><tspan class=\"ds-pill-num\">850</tspan><tspan class=\"ds-pill-unit\" dx=\"3\">mm</tspan></text></g></svg>",
+      "css": ".ds-iso { background: #fbfbfb; font-family: \"Open Sans\", system-ui, sans-serif; } .ds-pill rect { fill: hsl(210 50% 23%); filter: drop-shadow(0 1.5px 2.2px rgba(15,23,42,0.22)); } .ds-pill text { fill: #ffffff; } .ds-pill-num { font-size: 16.5px; font-weight: 700; font-variant-numeric: tabular-nums; } .ds-pill-unit { font-size: 12.5px; font-weight: 600; opacity: 0.75; }"
+    },
+    {
+      "name": "Dimension",
+      "kind": "custom",
+      "refersTo": "value-pill",
+      "description": "A draughtsman's dimension: 1.5px navy line, filled arrowheads, 1px extension lines at 70%, the pill on the line.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-dim\"><line class=\"ds-ext\" x1=\"20\" y1=\"70\" x2=\"20\" y2=\"20\"/><line class=\"ds-ext\" x1=\"200\" y1=\"70\" x2=\"200\" y2=\"20\"/><line class=\"ds-dimline\" x1=\"20\" y1=\"30\" x2=\"200\" y2=\"30\"/><polygon points=\"20,30 29.5,26.2 29.5,33.8\"/><polygon points=\"200,30 190.5,26.2 190.5,33.8\"/><rect class=\"ds-dimpill\" x=\"76\" y=\"15\" width=\"70\" height=\"30\" rx=\"15\"/><text x=\"87\" y=\"36\">850</text></g></svg>",
+      "css": ".ds-iso { background: #fbfbfb; font-family: \"Open Sans\", system-ui, sans-serif; } .ds-dim line { stroke: hsl(210 50% 23%); } .ds-ext { stroke-width: 1px; opacity: 0.7; } .ds-dimline { stroke-width: 1.5px; } .ds-dim polygon, .ds-dimpill { fill: hsl(210 50% 23%); } .ds-dim text { fill: #fff; font-size: 16.5px; font-weight: 700; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Start Point",
+      "kind": "custom",
+      "refersTo": "start-point",
+      "description": "Where the tape starts: a solid navy dot on a white halo.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-start\"><circle class=\"ds-halo\" cx=\"110\" cy=\"45\" r=\"7\"/><circle class=\"ds-dot\" cx=\"110\" cy=\"45\" r=\"4.2\"/></g></svg>",
+      "css": ".ds-iso { background: #f3f4f5; } .ds-halo { fill: #ffffff; opacity: 0.95; } .ds-dot { fill: hsl(210 50% 23%); }"
+    },
+    {
+      "name": "Read Point",
+      "kind": "custom",
+      "refersTo": "read-point",
+      "description": "Where the number is read: a ringed point that pulses, red where the laser lights the blade, navy otherwise.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-read\"><circle class=\"ds-pulse\" cx=\"80\" cy=\"45\" r=\"14\"/><circle class=\"ds-ring\" cx=\"80\" cy=\"45\" r=\"8\"/><circle class=\"ds-core\" cx=\"80\" cy=\"45\" r=\"3.2\"/></g><g class=\"ds-read ds-read-navy\"><circle class=\"ds-pulse\" cx=\"140\" cy=\"45\" r=\"14\"/><circle class=\"ds-ring\" cx=\"140\" cy=\"45\" r=\"8\"/><circle class=\"ds-core\" cx=\"140\" cy=\"45\" r=\"3.2\"/></g></svg>",
+      "css": ".ds-iso { background: #f3f4f5; } .ds-read { --tone: #ef1d45; } .ds-read-navy { --tone: hsl(210 50% 23%); } .ds-pulse { fill: var(--tone); opacity: 0.18; transform-box: fill-box; transform-origin: center; animation: ds-pulse 1.8s ease-in-out infinite; } .ds-ring { fill: #fff; stroke: var(--tone); stroke-width: 2.4px; } .ds-core { fill: var(--tone); } @keyframes ds-pulse { 0%,100% { opacity: 0.1; transform: scale(0.85); } 50% { opacity: 0.3; transform: scale(1.15); } } @media (prefers-reduced-motion: reduce) { .ds-pulse { animation: none; } }"
+    },
+    {
+      "name": "Laser Beam",
+      "kind": "custom",
+      "refersTo": "laser",
+      "description": "Laser light, never an edge: 8px halo at 16%, 2.2px red line, 0.7px pale core; a faded run-on line beneath.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-beam\"><line class=\"ds-b-halo\" x1=\"20\" y1=\"35\" x2=\"200\" y2=\"35\"/><line class=\"ds-b-line\" x1=\"20\" y1=\"35\" x2=\"200\" y2=\"35\"/><line class=\"ds-b-core\" x1=\"20\" y1=\"35\" x2=\"200\" y2=\"35\"/></g><g class=\"ds-beam ds-faint\"><line class=\"ds-b-halo\" x1=\"20\" y1=\"65\" x2=\"200\" y2=\"65\"/><line class=\"ds-b-line\" x1=\"20\" y1=\"65\" x2=\"200\" y2=\"65\"/></g></svg>",
+      "css": ".ds-iso { background: #f3f4f5; } .ds-beam line { stroke-linecap: round; } .ds-b-halo { stroke: #ef1d45; stroke-width: 8px; opacity: 0.16; } .ds-b-line { stroke: #ef1d45; stroke-width: 2.2px; } .ds-b-core { stroke: #ffd9e0; stroke-width: 0.7px; opacity: 0.85; } .ds-faint { opacity: 0.45; }"
+    },
+    {
+      "name": "Note",
+      "kind": "chip",
+      "refersTo": "note",
+      "description": "A few words naming a thing on the picture, with a leader to a dot on it.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-note\"><line x1=\"110\" y1=\"30\" x2=\"180\" y2=\"75\"/><circle class=\"ds-note-dot\" cx=\"180\" cy=\"75\" r=\"2.8\"/><rect x=\"40\" y=\"17\" width=\"140\" height=\"26\" rx=\"7\"/><text x=\"110\" y=\"34.5\">Over the corner mark</text></g></svg>",
+      "css": ".ds-iso { background: #fbfbfb; font-family: \"Open Sans\", system-ui, sans-serif; } .ds-note line { stroke: hsl(210 50% 23%); stroke-width: 1.1px; } .ds-note-dot { fill: hsl(210 50% 23%); } .ds-note rect { fill: #fff; stroke: hsl(210 50% 23%); stroke-opacity: 0.22; stroke-width: 1px; } .ds-note text { fill: hsl(210 50% 23%); font-size: 13px; font-weight: 600; text-anchor: middle; }"
+    },
+    {
+      "name": "Lens",
+      "kind": "custom",
+      "refersTo": "read-point",
+      "description": "A magnified cutaway (no glass) of a reading too small to see across the room, in a corner, with a leader to a ring on the point it shows.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 95\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-lens\"><line class=\"ds-l-under\" x1=\"96\" y1=\"58\" x2=\"170\" y2=\"72\"/><line class=\"ds-l-lead\" x1=\"96\" y1=\"58\" x2=\"170\" y2=\"72\"/><circle class=\"ds-l-under-ring\" cx=\"183\" cy=\"74\" r=\"13\"/><circle class=\"ds-l-ring\" cx=\"183\" cy=\"74\" r=\"13\"/><circle class=\"ds-l-disc\" cx=\"60\" cy=\"45\" r=\"38\"/><rect class=\"ds-l-tape\" x=\"30\" y=\"38\" width=\"60\" height=\"14\"/><circle class=\"ds-l-rim\" cx=\"60\" cy=\"45\" r=\"38\"/></g></svg>",
+      "css": ".ds-iso { background: #fbfbfb; } .ds-l-under, .ds-l-under-ring { stroke: #fff; stroke-width: 4px; fill: none; } .ds-l-lead { stroke: hsl(210 50% 23%); stroke-width: 1.4px; } .ds-l-ring, .ds-l-rim { fill: none; stroke: hsl(210 50% 23%); stroke-width: 1.6px; } .ds-l-disc { fill: #fff; filter: drop-shadow(0 1.5px 2.2px rgba(15,23,42,0.22)); } .ds-l-tape { fill: #f7c52b; stroke: #8a6a06; stroke-width: 0.9px; }"
+    },
+    {
+      "name": "Room Planes",
+      "kind": "card",
+      "refersTo": "dark-page-panel",
+      "description": "The flat planes of the room under one light: cut, lit side wall, shaded back wall, tray top and front, 1.05px outlines.",
+      "html": "<svg class=\"ds-iso\" viewBox=\"0 0 220 90\" width=\"220\" height=\"90\" role=\"img\"><g class=\"ds-room\"><polygon class=\"ds-cut\" points=\"20,15 120,15 130,10 30,10\"/><polygon class=\"ds-shade\" points=\"20,15 120,15 120,70 20,70\"/><polygon class=\"ds-lit\" points=\"120,15 200,40 200,85 120,70\"/><polygon class=\"ds-traytop\" points=\"40,62 120,62 150,70 70,70\"/><polygon class=\"ds-trayfront\" points=\"70,70 150,70 150,76 70,76\"/></g></svg>",
+      "css": ".ds-iso { background: #fbfbfb; } .ds-room polygon { stroke: #30363c; stroke-width: 1.05px; stroke-linejoin: round; } .ds-cut { fill: #d3d8dc; } .ds-shade { fill: #eef0f2; } .ds-lit { fill: #ffffff; } .ds-traytop { fill: #ffffff; } .ds-trayfront { fill: #e1e4e7; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Architect's Set-Out Sheet",
+    "overview": "Each card is a page from one architect's drawing set: the customer's own shower standing on its tray in the corner of a pale bathroom, seen from one fixed isometric angle, with every edge a fine dark line and every surface a flat plane of white or light grey. Nothing in the room carries colour. Colour belongs only to the act of measuring: the laser's red light, the tape's yellow blade, and the navy of the dimension, the points and the number.\n\nThe pictures are calm and dense with information in one place only. The room is drawn once per shower shape and never moves while a number is typed; each card comes in close enough to its own reading to read it, and no closer, and keeps the whole tray in view so the customer knows which side and which end they are on, except a reading at a wall, which comes in close on that end of the glass (Matt, 12 November 2026). Where a reading is too small to see across the room (a 50mm gap, a 10mm line), a magnifying lens shows it close up, with the glass cut away.\n\nThe world replaces flat, face-on CAD drawings with grey slabs and dashed lines; it does not go back to them.",
+    "keyCharacteristics": [
+      "One camera for the whole deck: 33° turn, 33° rise, one light over the eye's left shoulder.",
+      "Flat planes, fine dark outlines, two room line weights (1.05px and 0.6px).",
+      "Three meaning colours only: laser red (light), tape yellow (the tool), measuring navy (what to measure).",
+      "A draughtsman's dimension with filled arrows and a large navy number pill is the loudest mark on every card.",
+      "Small readings go in a lens whose close-up is a cutaway without glass.",
+      "The room stays light on a dark page, on its own light panel."
+    ],
+    "rules": [
+      {
+        "name": "The Three Meanings Rule",
+        "body": "Red is the laser's light, yellow is the tape, navy is what to measure. Each means one thing on every card, and nothing in the room is drawn in any of them.",
+        "section": "colors"
+      },
+      {
+        "name": "The Light Is Not An Edge Rule",
+        "body": "A laser line is always drawn as light: an 8px halo at 16% opacity, a 2.2px red line, and a 0.7px pale core at 85%. Where it runs on past what matters it fades out along its length; a secondary line is drawn at 45% opacity. A beam is never a single hard stroke.",
+        "section": "colors"
+      },
+      {
+        "name": "The Material Blue Rule",
+        "body": "The masking tape keeps its real light blue; it is a material, so it may sit in the room. It must never be used for a measuring mark, and navy must never be used on the room.",
+        "section": "colors"
+      },
+      {
+        "name": "The Number Is The Hero Rule",
+        "body": "The value pill is the largest type on the picture and the only bold type. Nothing else on a card may be set larger or heavier.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Light Rule",
+        "body": "Every face is toned by the same lamp over the eye's left shoulder. Never light a single object from its own direction to make it read.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Contact-Only Shadow Rule",
+        "body": "Shadows sit under things that stand on the floor and nowhere else, except the 1.5px lift under the pill and the lens.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** draw every picture in a deck from the one camera (33° turn, 33° rise, mirrored only by the shower's shape) and the one lamp over the eye's left shoulder.",
+      "**Do** frame a reading on the reading and the whole tray, grown 200mm, and never closer than 0.27px per mm.",
+      "**Do** size every stroke, mark and label in screen pixels: 1.05px outlines, 0.6px fine lines inside objects, 1.5px dimension lines.",
+      "**Do** tone faces flat by the light: lit side walls white, the back wall `wall-shade`, cuts through walls `cut`, the tray front `tray-shade`.",
+      "**Do** mark every measurement the same way: navy start dot, read ring (red when the laser lights the blade), arrowed dimension, navy number pill on the line or beside it with a leader.",
+      "**Do** use a lens only for a reading too small to see across the room, and draw its close-up as a cutaway without glass.",
+      "**Do** keep the room light on a dark page, on its own 14px-rounded warm panel, with the marks still navy.",
+      "**Do** describe every picture in one sentence for screen readers."
+    ],
+    "donts": [
+      "**Don't** draw anything in the room in laser red, tape yellow or measuring navy.",
+      "**Don't** draw a laser line as a single hard stroke; it is always light, with a halo and a core.",
+      "**Don't** scale the room to the customer's numbers or move it while a number is typed.",
+      "**Don't** change the camera, the light or the mirroring from card to card within a deck.",
+      "**Don't** add hard or offset shadows; shadows are soft and sit under things standing on the floor.",
+      "**Don't** set any type larger or heavier than the value pill.",
+      "**Don't** draw glass inside a lens.",
+      "**Don't** return to face-on CAD drawings with grey slabs and dashed lines."
+    ]
+  }
+}

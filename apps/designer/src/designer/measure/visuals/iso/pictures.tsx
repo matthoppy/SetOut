@@ -598,7 +598,10 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
     <Stage
       plan={plan}
       label={words.gap(where === 'bottom' ? 'floor' : 'top')}
-      focus={readingFocus(plan, [hook, read, standAt, lift(line, where === 'bottom' ? 600 : lineTop), lift(standAt, onFloor ? 300 : level + 120)])}
+      // Close in on the end of the glass at the wall (Matt, 12 November 2026:
+      // the readings close to the wall need a closer view), with the laser
+      // and a little of the glass line for where it is.
+      focus={focusOn([hook, read, standAt, lift(end.at, where === 'bottom' ? 700 : z + 200), lift(standAt, onFloor ? 300 : level + 120), lift(add(end.at, into, 650), H)], 150)}
       draw={(ctx) => ({
         scene: (
           <RoomWith
@@ -622,11 +625,13 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
           />
         ),
         lens: {
-          target: read,
-          zoom: 5,
+          target: along(hook, read, 0.5),
+          zoom: [hook, read],
+          fill: 1.05,
+          size: 1.18,
           overlay: (to) => (
             <g>
-              <Dimension from={hook} to={read} off={neg(run.out)} by={40} project={to} />
+              <Dimension from={hook} to={read} off={neg(run.out)} by={22} project={to} />
               <StartPoint at={to(hook)} />
               <ReadPoint at={to(read)} laser />
             </g>

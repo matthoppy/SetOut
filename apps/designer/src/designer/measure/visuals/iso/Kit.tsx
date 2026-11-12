@@ -62,7 +62,7 @@ export function LaserBody({ at: p }: { at: V3 }) {
       <Block base={lift(p, p.z + MM.floorBeam - 22)} u={v(1, 0)} w={v(0, 1)} n={up} su={BODY.size + 6} sw={BODY.size + 6} sn={44} paint={(l) => `hsl(352 32% ${Math.round(14 + l * 14)}%)`} />
       {/* The knob on top that locks the pendulum. */}
       <Block base={lift(p, p.z + BODY.tall)} u={v(1, 0)} w={v(0, 1)} n={up} su={46} sw={46} sn={18} paint={(l) => graphite(0.4 + l * 0.4)} />
-      <g className="mw-glow">
+      <g>
         <circle cx={e.x} cy={e.y} r={26} fill="var(--iso-laser)" opacity={0.25} />
         <circle cx={e.x} cy={e.y} r={10} fill="var(--iso-laser-hot)" />
       </g>
@@ -313,7 +313,7 @@ export function Value({ at: p0, value, leader, inside }: { at: P; value: number 
     if (d > reach) p = { x: inside.c.x + (dx / d) * Math.max(0, reach), y: inside.c.y + (dy / d) * Math.max(0, reach) };
   }
   return (
-    <g className="mw-value">
+    <g>
       {leader && <line x1={p.x} y1={p.y} x2={leader.x} y2={leader.y} stroke="var(--iso-ink)" strokeWidth={1.2} />}
       <g filter={`url(#${id('lift')})`}>
         <rect x={p.x - w / 2} y={p.y - h / 2} width={w} height={h} rx={h / 2} fill="var(--iso-ink)" />
