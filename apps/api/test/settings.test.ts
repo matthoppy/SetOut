@@ -32,9 +32,14 @@ interface DesignerBody {
   finishes: Finish[];
   handles: Handle[];
   glass: { offered: number[]; standard: number };
+  hinges: Hinges;
   notifyEmails: string[];
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; notifyEmails: string };
+  versions: { finishes: string; handles: string; glass: string; hinges: string; notifyEmails: string };
+}
+interface Hinges {
+  wall: { offered: string[]; standard: string };
+  inLine: { offered: string[]; standard: string };
 }
 interface Change {
   id: string;
@@ -60,6 +65,7 @@ interface PublicConfig {
   handles: Handle[];
   glassThicknessMm: number;
   glassThicknesses: number[];
+  hinges: Hinges;
   intro?: string;
 }
 
@@ -96,7 +102,11 @@ const firstJob = async () => {
 };
 type Label = { id: string; label: string; code?: string };
 const labelsOnJob = async () =>
-  (await json<{ labels: { finishes: Label[]; handles: Label[] } }>(await api(`/jobs/${await firstJob()}`, { cookie: owner }))).labels;
+  (
+    await json<{ labels: { finishes: Label[]; handles: Label[]; hinges: { wall: string; inLine: string } } }>(
+      await api(`/jobs/${await firstJob()}`, { cookie: owner })
+    )
+  ).labels;
 
 beforeAll(async () => {
   shop = await company('Settings Showers', 'SS');
@@ -642,5 +652,53 @@ describe('the glass a designer offers', () => {
     );
     expect(editor.config.glassThicknesses).toEqual([8, 10, 12]);
     expect(editor.config.glassThicknessMm).toBe(10);
+  });
+});
+
+describe('the hinges a designer offers', () => {
+  test('are the offset back plate and the standard in-line hinge until an owner offers more', async () => {
+    const standard = { wall: { offered: ['offset'], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' } };
+    expect((await ours()).hinges).toEqual(standard);
+    expect((await publicConfig(shop)).hinges).toEqual(standard);
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'offset', inLine: 'standard' });
+  });
+
+  test('an owner offers more, sets the standard, and the designer, the job and the record follow', async () => {
+    const hinges = {
+      wall: { offered: ['short', 'full', 'offset', 'full'], standard: 'full' },
+      inLine: { offered: ['adjustable', 'standard'], standard: 'standard' },
+    };
+    const { designer } = await saved(await changeDesigner({ hinges }));
+    const tidied = { wall: { offered: ['offset', 'full', 'short'], standard: 'full' }, inLine: { offered: ['standard', 'adjustable'], standard: 'standard' } };
+    expect(designer.hinges).toEqual(tidied);
+    expect((await publicConfig(shop)).hinges).toEqual(tidied);
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'full', inLine: 'standard' });
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([
+      { field: 'wallHingesOffered', from: ['offset'], to: ['offset', 'full', 'short'] },
+      { field: 'wallHingeStandard', from: 'offset', to: 'full' },
+      { field: 'inLineHingesOffered', from: ['standard'], to: ['standard', 'adjustable'] },
+    ]);
+  });
+
+  test.each([
+    ['not a choice at all', 'full'],
+    ['a hinge CRL does not make', { wall: { offered: ['glued'], standard: 'glued' }, inLine: { offered: ['standard'], standard: 'standard' } }],
+    ['no wall hinge at all', { wall: { offered: [], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' } }],
+    ['a standard not offered', { wall: { offered: ['offset'], standard: 'full' }, inLine: { offered: ['standard'], standard: 'standard' } }],
+    ['the in-line hinges left out', { wall: { offered: ['offset'], standard: 'offset' } }],
+  ])('%s is refused, and nothing changes', async (_, hinges) => {
+    const before = await ours();
+    expect(await errorOf(await changeDesigner({ hinges }))).toEqual([400, 'invalid_hinges']);
+    expect(await ours()).toEqual(before);
+  });
+
+  test('staff changing a shower may choose any hinge, starting from the company standard', async () => {
+    const job = await firstJob();
+    const { designs } = await json<{ designs: { id: string }[] }>(await api(`/jobs/${job}`, { cookie: staff }));
+    const editor = await json<{ config: { hinges: Hinges } }>(await api(`/jobs/${job}/designs/${designs[0].id}/editor`, { cookie: staff }));
+    expect(editor.config.hinges.wall.offered).toHaveLength(9);
+    expect(editor.config.hinges.wall.standard).toBe('full');
+    expect(editor.config.hinges.inLine.offered).toEqual(['standard', 'adjustable', 'positive-close']);
   });
 });

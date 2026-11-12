@@ -8,8 +8,8 @@
 import { Label } from '@/components/ui/label';
 import { Check } from 'lucide-react';
 import type { StepProps } from './types';
-import type { GlassType, GlassCoating } from '@setout/engine';
-import { thicknessesOf } from '../config';
+import { doorMountsOf, IN_LINE_HINGE_STYLES, WALL_HINGE_STYLES, type GlassType, type GlassCoating, type HingeStyle } from '@setout/engine';
+import { hingesOf, thicknessesOf } from '../config';
 
 const GLASS_TYPES: { id: GlassType; label: string; description: string }[] = [
   { id: 'clear', label: 'Clear', description: 'Standard clear glass' },
@@ -27,6 +27,10 @@ const GLASS_COATINGS: { id: GlassCoating; label: string; description: string }[]
 export function HardwareStep({ config, state, update }: StepProps) {
   const thicknesses = thicknessesOf(config);
   const standard = config.glassThicknessMm;
+  const hinges = hingesOf(config);
+  const mounts = new Set(doorMountsOf(state));
+  const wallChoice = mounts.has('wall-to-glass') && hinges.wall.offered.length > 1;
+  const inLineChoice = mounts.has('glass-to-glass-180') && hinges.inLine.offered.length > 1;
   return (
     <div className="space-y-6">
       <div className="space-y-3">
@@ -88,6 +92,25 @@ export function HardwareStep({ config, state, update }: StepProps) {
           ))}
         </div>
       </div>
+
+      {wallChoice && (
+        <HingeChoice
+          title="Hinges to the wall"
+          styles={hinges.wall.offered.map((id) => [id, WALL_HINGE_STYLES[id]])}
+          standard={hinges.wall.standard}
+          chosen={state.wallHinge ?? hinges.wall.standard}
+          onChoose={(id) => update({ wallHinge: id })}
+        />
+      )}
+      {inLineChoice && (
+        <HingeChoice
+          title="Hinges between the glass"
+          styles={hinges.inLine.offered.map((id) => [id, IN_LINE_HINGE_STYLES[id]])}
+          standard={hinges.inLine.standard}
+          chosen={state.inLineHinge ?? hinges.inLine.standard}
+          onChoose={(id) => update({ inLineHinge: id })}
+        />
+      )}
 
       <div className="space-y-3">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -183,6 +206,45 @@ export function HardwareStep({ config, state, update }: StepProps) {
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** One way of hanging's hinges, as cards: the company's standard first marked as such. */
+function HingeChoice<T extends string>({
+  title,
+  styles,
+  standard,
+  chosen,
+  onChoose,
+}: {
+  title: string;
+  styles: [T, HingeStyle][];
+  standard: T;
+  chosen: T;
+  onChoose: (id: T) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</Label>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={title}>
+        {styles.map(([id, style]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={chosen === id}
+            onClick={() => onChoose(id)}
+            className={`rounded-lg border p-3 text-left transition-colors ${chosen === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'}`}
+          >
+            <div className="font-medium">
+              {style.name}
+              {id === standard && <span className="ml-2 text-xs font-normal text-muted-foreground">Our standard</span>}
+            </div>
+            <div className="text-sm text-muted-foreground">{style.about}</div>
+          </button>
+        ))}
       </div>
     </div>
   );

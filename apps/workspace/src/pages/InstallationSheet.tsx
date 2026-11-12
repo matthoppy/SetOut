@@ -14,12 +14,21 @@
  * job's own, and are written here.
  */
 
-import { crlFinishCode, crlPartOf, type ConfiguratorSpec, type ConfiguratorState, type CrlPart, type Fitting, type HingeMount } from '@setout/engine';
+import {
+  crlFinishCode,
+  crlPartOf,
+  hingeStylesOf,
+  type ConfiguratorSpec,
+  type ConfiguratorState,
+  type CrlPart,
+  type Fitting,
+  type HingeMount,
+} from '@setout/engine';
 import { Fragment, useState, type FormEvent } from 'react';
 import { api, ApiError, signInAgain, SignedOut, type JobDetail, type OptionLabel, type Revision } from '../lib/api';
 import { humanise, layoutName } from '../lib/format';
 import { useLoad } from '../lib/load';
-import { fittings, panes as panesFor, setOut as setOutFor } from '../lib/panes';
+import { fittings, hingeStyle, panes as panesFor, setOut as setOutFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { Elevation, OutOfSquare, paneName, SetOutBand } from './InstallDrawings';
 import { Problem, PrintedPage } from './parts';
@@ -320,22 +329,30 @@ function fittingRows(fittings: Fitting[], spec: ConfiguratorSpec, design: Config
   const option = labels.finishes.find((o) => o.id === design.finishId);
   const finish = named(labels.finishes, design.finishId);
   const finishCode = crlFinishCode(option ?? { label: finish });
+  const hinges = hingeStylesOf(design, labels.hinges);
   const door = (pane: number) => `${paneName(spec.panels[pane]?.label ?? '')} door`;
   const said = new Set<string>();
   return fittings.map((f): Row => {
-    const row = wordsFor(f, door, finish, labels);
+    const style = f.kind === 'hinges' ? hingeStyle(design, spec, f.pane, labels.hinges) : null;
+    const row = wordsFor(f, door, finish, labels, style);
     const handleCode = f.kind === 'handle' ? (labels.handles.find((o) => o.id === f.handleId)?.code ?? null) : null;
-    const { code, note } = crlColumns(crlPartOf(f, { glassMm: spec.glassThicknessMm, finishCode, handleCode }), row.item, finish);
+    const { code, note } = crlColumns(crlPartOf(f, { glassMm: spec.glassThicknessMm, finishCode, handleCode, hinges }), row.item, finish);
     const fresh = note !== null && !said.has(note);
     if (note) said.add(note);
     return { ...row, code, note: fresh ? note : null };
   });
 }
 
-function wordsFor(f: Fitting, door: (pane: number) => string, finish: string, labels: JobDetail['labels']): Omit<Row, 'code' | 'note'> {
+function wordsFor(
+  f: Fitting,
+  door: (pane: number) => string,
+  finish: string,
+  labels: JobDetail['labels'],
+  style: string | null
+): Omit<Row, 'code' | 'note'> {
   switch (f.kind) {
     case 'hinges':
-      return { qty: String(f.count), item: `${f.brand} hinge`, where: `${door(f.pane)}, ${MOUNTS[f.mount]}`, finish };
+      return { qty: String(f.count), item: `${f.brand} hinge`, where: `${door(f.pane)}, ${MOUNTS[f.mount]}${style ? `, ${style}` : ''}`, finish };
     case 'handle':
       return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
     case 'seal':
@@ -363,5 +380,7 @@ function crlColumns(part: CrlPart | null, item: string, finish: string): { code:
       return { code: part.series, note: `Not in CRL's catalogue in ${finish.toLowerCase()}: ${part.code}. Check with CRL, or change the finish.` };
     case 'no-handle-code':
       return { code: '', note: `${item} has no CRL number yet. Add it in Settings, under Handles.` };
+    case 'not-in-range':
+      return { code: '', note: `${part.range} makes no ${part.style} hinge. Change this shower's hinges.` };
   }
 }

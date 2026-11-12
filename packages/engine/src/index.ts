@@ -11,6 +11,7 @@
  *   panes        each pane as the toughener draws it, cut to its shape
  *   shapes       the shape each pane is cut to, and where it stands in the opening
  *   fittings     what the fitter takes: hinges, handle, seal, channel or clamps
+ *   hinges       which of CRL's hinges each door hangs on: the styles, and each one's number
  *   crl          CRL's catalogue number for each of those, in the shower's finish
  *   measure      what the customer measured, and the checks on it
  *   geometry     the shape of the enclosure, worked out from its panels
@@ -31,6 +32,7 @@ export * from './spec';
 export * from './panes';
 export * from './shapes';
 export * from './fittings';
+export * from './hinges';
 export * from './crl';
 export { CRL_CATALOGUE_DATE } from './crl-catalogue';
 export * from './measure';

@@ -8,12 +8,16 @@
 
 import {
   DEFAULT_RULESET,
+  doorHingeOf,
   fittingsOf,
+  hingeMountOf,
+  hingeStylesOf,
   panesOf,
   setOutOf,
   type ConfiguratorSpec,
   type ConfiguratorState,
   type Fitting,
+  type HingeStyles,
   type Pane,
   type PaneFeature,
   type SetOut,
@@ -32,6 +36,14 @@ export function setOut(design: ConfiguratorState, spec: ConfiguratorSpec): SetOu
 /** What the fitter takes. */
 export function fittings(design: ConfiguratorState, spec: ConfiguratorSpec): Fitting[] {
   return fittingsOf(design, spec, DEFAULT_RULESET.fixed);
+}
+
+/** The style of hinge a door hangs on, where its range offers more than one: "offset back plate". */
+export function hingeStyle(design: ConfiguratorState, spec: ConfiguratorSpec, index: number, standards: HingeStyles): string | null {
+  const door = spec.panels[index]?.door;
+  if (!door) return null;
+  const mount = hingeMountOf(design, spec, index) ?? 'wall-to-glass';
+  return doorHingeOf(door.hingeBrand, mount, hingeStylesOf(design, standards)).style?.words ?? null;
 }
 
 const CORNER = { 'bottom-left': 'bottom left corner', 'bottom-right': 'bottom right corner' } as const;

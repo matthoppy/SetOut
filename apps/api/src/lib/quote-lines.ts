@@ -9,7 +9,18 @@
  * worked out here, never taken from a browser.
  */
 
-import { DEFAULT_RULESET, panesOf, type ConfiguratorSpec, type ConfiguratorState } from '@setout/engine';
+import {
+  DEFAULT_RULESET,
+  doorHingeOf,
+  hingeMountOf,
+  hingeStylesOf,
+  panesOf,
+  STANDARD_HINGES,
+  type ConfiguratorSpec,
+  type ConfiguratorState,
+  type HingeMount,
+  type HingeStyles,
+} from '@setout/engine';
 import { QUOTE_UNITS, type QuoteLine, type QuoteUnit } from '../db/tables';
 import { RequestError } from './enquiry';
 
@@ -28,7 +39,15 @@ export interface PricedShower {
 export interface OptionLabels {
   finishes: { id: string; label: string }[];
   handles: { id: string; label: string }[];
+  /** The company's standard hinges, for a shower that has not chosen its own. */
+  hinges?: HingeStyles;
 }
+
+const HUNG: Record<HingeMount, string> = {
+  'wall-to-glass': 'to the wall',
+  'glass-to-glass-180': 'glass to glass',
+  'glass-to-glass-90': 'glass to glass at 90°',
+};
 
 const GLASS_NAMES: Record<string, string> = {
   clear: 'clear',
@@ -64,10 +83,16 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
         'm2'
       );
     }
-    for (const panel of spec.panels) {
+    const styles = hingeStylesOf(design, labels.hinges ?? STANDARD_HINGES);
+    for (const [i, panel] of spec.panels.entries()) {
       if (!panel.door) continue;
       const brand = panel.door.hingeBrand;
-      line(`hinge:${brand.toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${design.finishId}`, `${prefix}${panel.label} hinges: ${brand}, ${finish}`, panel.door.hingeCount, 'each');
+      // Each of CRL's hinges is priced on its own: a Geneva hinge to the wall is not the price of one between the glass.
+      const mount = hingeMountOf(design, spec, i) ?? 'wall-to-glass';
+      const { series, style } = doorHingeOf(brand, mount, styles);
+      const what = [brand, HUNG[mount], style?.words].filter(Boolean).join(', ');
+      const key = `hinge:${(series ?? brand).toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${design.finishId}`;
+      line(key, `${prefix}${panel.label} hinges: ${what}, ${finish}`, panel.door.hingeCount, 'each');
       line(`handle:${design.handleId}:${design.finishId}`, `${prefix}${panel.label} handle: ${named(labels.handles, design.handleId)}, ${finish}`, 1, 'each');
     }
     if (spec.mounting === 'channel') {

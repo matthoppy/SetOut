@@ -87,7 +87,7 @@ describe('the email to the company', () => {
       '020 7946 0000',
       '395 × 1980',
       '690 × 1980',
-      '2 × Geneva hinges, right hand',
+      '2 × Geneva hinges, offset back plate, right hand',
       'hinge centres 250 / 1730mm from the bottom',
       'Hinge notch 58 × 47, r8',
       'Channel required',

@@ -77,9 +77,9 @@ every catalogue number from this folder (`crl-catalogue.ts`, written by
 
 | Fitting | Number | Why |
 | --- | --- | --- |
-| Hinges to the wall | GEN044, V1E044, BEL344 + finish | The offset back plate, as Custom Showers' own site sold them |
-| Hinges glass to glass, in line | GEN180, V1E180, BEL380 + finish | |
-| Hinges glass to glass, at a corner | GEN092, V1E092, BEL392 + finish | |
+| Hinges to the wall | The style chosen + finish: offset GEN044/V1E044, full GEN037/V1E037, short GEN074/V1E074, 5° pre-set GEN544/V1E544 and GEN537/V1E537, adjustable GEN344/V1E344 and GEN337/V1E337, H plate GENH037/V1EH037, positive close V1E067. Bellagio BEL344 | The company's standard (offset until chosen), or the shower's own |
+| Hinges glass to glass, in line | Standard GEN180/V1E180, adjustable GEN380/V1E380, positive close V1E780. Bellagio BEL380 | As above |
+| Hinges glass to glass, at a corner | GEN092, V1E092, BEL392 + finish | One per range |
 | Bubble seal | PCR8, PCR10, PCR12 | By glass thickness; clear, so no finish |
 | 90° stopper seal | PC0890, PC1090 | None for 12mm yet. Matt to confirm it is the seal he fits |
 | U-channel | SDCD38 (10mm), SDCD12 (12mm) + finish | Deep U-channel in 2.41m lengths, as Custom Showers' own site listed it. Chrome hardware takes brite anodised (BA) channel |

@@ -10,6 +10,7 @@
  * staff or prices, stays on the server.
  */
 
+import { IN_LINE_HINGES, STANDARD_HINGES, WALL_HINGES, type HingeStyles, type InLineHinge, type WallHinge } from '@setout/engine';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
 import type { Row } from '../db/tables';
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnst
   ],
   glassThicknessMm: 10,
   glassThicknessesMm: [10],
+  hinges: {},
   measurementDisclaimer:
     'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
 };
@@ -51,6 +53,41 @@ export function glassOf(settings: DesignerSettings): Glass {
   const chosen = new Set<number>([standard, ...(settings.glassThicknessesMm ?? [])]);
   return { offered: GLASS_THICKNESSES.filter((t) => chosen.has(t)), standard };
 }
+
+/** The hinge styles a designer offers for each way a door hangs, in SetOut's order, and the standard of each. */
+export interface Hinges {
+  wall: { offered: WallHinge[]; standard: WallHinge };
+  inLine: { offered: InLineHinge[]; standard: InLineHinge };
+}
+
+function choiceOf<T extends string>(all: readonly T[], stored: { offered?: unknown; standard?: unknown } | undefined, fallback: T) {
+  const standard = all.includes(stored?.standard as T) ? (stored?.standard as T) : fallback;
+  const chosen = new Set<unknown>([standard, ...(Array.isArray(stored?.offered) ? stored.offered : [])]);
+  return { offered: all.filter((h) => chosen.has(h)), standard };
+}
+
+/**
+ * The hinges a designer offers: the offset back plate to the wall and the
+ * standard in-line hinge alone until the company chooses more, and a new
+ * design always starts at one of those offered.
+ */
+export function hingesOf(settings: DesignerSettings): Hinges {
+  return {
+    wall: choiceOf(WALL_HINGES, settings.hinges?.wall, STANDARD_HINGES.wall),
+    inLine: choiceOf(IN_LINE_HINGES, settings.hinges?.inLine, STANDARD_HINGES.inLine),
+  };
+}
+
+/** Every hinge style, for staff, who may make any shower with any of them. */
+export const ALL_HINGES = (standards: HingeStyles): Hinges => ({
+  wall: { offered: [...WALL_HINGES], standard: standards.wall },
+  inLine: { offered: [...IN_LINE_HINGES], standard: standards.inLine },
+});
+
+const standardsOf = (hinges: Hinges): HingeStyles => ({ wall: hinges.wall.standard, inLine: hinges.inLine.standard });
+
+/** The hinges a shower takes when it has not chosen its own. */
+export const standardHinges = (settings: DesignerSettings): HingeStyles => standardsOf(hingesOf(settings));
 
 /** The colours a company's pages use until it chooses its own. */
 export const BRANDING_DEFAULTS = { primary: '#1e293b', primaryForeground: '#ffffff' } as const;
@@ -92,6 +129,7 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     handles: handles.map(({ id, label, description }) => ({ id, label, description })),
     glassThicknessMm: glass.standard,
     glassThicknesses: glass.offered,
+    hinges: hingesOf(settings),
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
     ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),
@@ -99,15 +137,20 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
   };
 }
 
-/** What a company calls its finishes and handles, and their CRL codes, from the designer a job came from. */
+/**
+ * What a company calls its finishes and handles, and their CRL codes, and its
+ * standard hinges, from the designer a job came from.
+ */
 export interface OptionLabels {
   finishes: { id: string; label: string; code?: string }[];
   handles: { id: string; label: string; code?: string }[];
+  hinges: HingeStyles;
 }
 
 export async function optionLabelsFor(db: CompanyDb, job: Row<'jobs'>): Promise<OptionLabels> {
   const designer = job.designer_id ? await db.get('designers', job.designer_id) : (await db.find('designers', { limit: 1 }))[0];
-  const { finishes, handles } = offeredOptions((designer?.config ?? {}) as DesignerSettings);
+  const settings = (designer?.config ?? {}) as DesignerSettings;
+  const { finishes, handles } = offeredOptions(settings);
   const pick = (list: { id: string; label: string; code?: string }[]) => list.map(({ id, label, code }) => ({ id, label, ...(code ? { code } : {}) }));
-  return { finishes: pick(finishes), handles: pick(handles) };
+  return { finishes: pick(finishes), handles: pick(handles), hinges: standardHinges(settings) };
 }

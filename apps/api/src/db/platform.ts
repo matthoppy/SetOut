@@ -241,6 +241,8 @@ export interface DesignerSettings {
   glassThicknessMm?: number;
   /** Every thickness customers may choose, the one above among them. */
   glassThicknessesMm?: number[];
+  /** The hinge styles customers may choose for a door hung from a wall and one hung in line, and the standard of each. */
+  hinges?: { wall?: { offered?: string[]; standard?: string }; inLine?: { offered?: string[]; standard?: string } };
   measurementDisclaimer?: string;
   intro?: string;
   turnstileSiteKey?: string;

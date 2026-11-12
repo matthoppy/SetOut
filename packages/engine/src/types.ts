@@ -58,6 +58,27 @@ export interface ConfiguratorJunction {
 }
 
 
+/**
+ * The hinges a door can hang on from a wall, by the plate on the wall and how
+ * the hinge closes, and from the glass beside it in line. In one hinge range
+ * they all hold the glass the same way, so the glass is cut the same
+ * whichever is fitted. See hinges.ts.
+ */
+export const WALL_HINGES = [
+  'offset',
+  'full',
+  'short',
+  'offset-preset',
+  'full-preset',
+  'offset-adjustable',
+  'full-adjustable',
+  'h-plate',
+  'positive-close',
+] as const;
+export type WallHinge = (typeof WALL_HINGES)[number];
+export const IN_LINE_HINGES = ['standard', 'adjustable', 'positive-close'] as const;
+export type InLineHinge = (typeof IN_LINE_HINGES)[number];
+
 export interface ConfiguratorState {
   panels: ConfiguratorPanel[];
   junctions: ConfiguratorJunction[];
@@ -79,6 +100,13 @@ export interface ConfiguratorState {
   aboveDoor?: 'open' | 'glass' | null;
   /** Door height under that transom; the fixed panels run to the ceiling. */
   doorHeightMm?: number;
+  /**
+   * The hinges a door hung from a wall takes, and one hung in line from the
+   * glass beside it, where the customer or staff chose them for this shower.
+   * Otherwise each is the company's standard.
+   */
+  wallHinge?: WallHinge;
+  inLineHinge?: InLineHinge;
   /** Keys into the company's hardware catalogue. */
   finishId: string;
   handleId: string;

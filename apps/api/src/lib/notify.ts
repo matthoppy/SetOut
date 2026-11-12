@@ -9,6 +9,7 @@
 
 import type { CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
+import { standardHinges } from './designer-config';
 import { companyEmail, customerEmail, sendEmail, type EnquiryEmailInput } from './email';
 
 export interface MailSettings {
@@ -57,7 +58,7 @@ export async function notifyEnquiry(n: Notification): Promise<void> {
     customer: n.customer,
     design: n.design,
     spec: n.spec,
-    labels: { finishes: settings.finishes, handles: settings.handles },
+    labels: { finishes: settings.finishes, handles: settings.handles, hinges: standardHinges(settings) },
     disclaimer: settings.measurementDisclaimer || n.defaultDisclaimer,
     files: n.files,
     botCheck: n.botCheck,

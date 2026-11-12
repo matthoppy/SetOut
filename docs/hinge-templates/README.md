@@ -16,6 +16,13 @@ Saved 11 November 2026, from CRL's public document store.
 | `crl-v1e037-vienna-wall-mount.pdf` | Vienna wall mount, full back plate (V1E037) | The Vienna door notch, from inches to the nearest mm: 76 high, 46 deep, with Ø16 ears 70 apart and 40 in |
 | `crl-bel344-bellagio-wall-mount-offset.pdf` | Bellagio wall mount, offset back plate (BEL344, CRL North America) | Nothing yet. Its standard cut-out is 58 high × 47 deep with 6mm corners: the same two numbers as SetOut's own door notch (58 deep × 47 high, 8mm corners) turned round. Waiting on Matt before SetOut changes |
 
+Every Geneva wall hinge (037, 044, 074, the 5° pre-set 537 and 544, the
+adjustable 337 and 344, the H plate) and in-line hinge (180, adjustable 380)
+is the same Geneva hinge body on a different plate or setting: CRL gives them
+all the same cut-out note and points them at the same fabrication material.
+So SetOut cuts them all to the Geneva notch, and likewise every Vienna to the
+Vienna notch. The box template still wins.
+
 ## Still needed
 
 - Bellagio glass to glass, in line and 90°. Custom Showers fits CRL Europe's

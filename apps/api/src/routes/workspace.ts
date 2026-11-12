@@ -31,7 +31,7 @@ import { companyDb } from '../db/company-db';
 import { usersByIds } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
-import { designerConfig, GLASS_THICKNESSES, optionLabelsFor } from '../lib/designer-config';
+import { ALL_HINGES, designerConfig, GLASS_THICKNESSES, optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -526,8 +526,12 @@ staff.get('/jobs/:id/designs/:designId/editor', async (c) => {
   ]);
   return c.json(
     {
-      // Staff may make a shower in any glass SetOut makes, offered to customers or not.
-      config: { ...config, glassThicknesses: [...GLASS_THICKNESSES] },
+      // Staff may make a shower in any glass, and hang it on any hinge, SetOut knows, offered to customers or not.
+      config: {
+        ...config,
+        glassThicknesses: [...GLASS_THICKNESSES],
+        hinges: ALL_HINGES({ wall: config.hinges.wall.standard, inLine: config.hinges.inLine.standard }),
+      },
       job: { id: job.id, reference: job.reference, customer: customer?.name ?? null },
       design: { id: design.id, label: design.label },
       revision: { number: revision.number, document: revision.document },

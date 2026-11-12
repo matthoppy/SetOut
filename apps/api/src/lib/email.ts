@@ -16,10 +16,15 @@
 import {
   describeOpening,
   describeWidths,
+  doorHingeOf,
+  hingeMountOf,
+  hingeStylesOf,
   METHOD_LABELS,
   openingContext,
+  STANDARD_HINGES,
   type ConfiguratorSpec,
   type ConfiguratorState,
+  type HingeStyles,
 } from '@setout/engine';
 import type { BotCheck, EnquiryCustomer, EnquiryFile } from './enquiry';
 
@@ -32,10 +37,11 @@ export interface EmailMessage {
   attachments: { filename: string; content: string }[];
 }
 
-/** What the designer's settings call each option the customer picked. */
+/** What the designer's settings call each option the customer picked, and its standard hinges. */
 export interface OptionLabels {
   finishes?: { id: string; label: string }[];
   handles?: { id: string; label: string }[];
+  hinges?: HingeStyles;
 }
 
 export interface EnquiryEmailInput {
@@ -102,14 +108,16 @@ const rows = (pairs: [string, string][]) =>
     .map(([label, value]) => `<tr><td ${TD} width="160"><strong>${esc(label)}</strong></td><td ${TD}>${esc(value)}</td></tr>`)
     .join('');
 
-function panelSchedule(spec: ConfiguratorSpec): string {
+function panelSchedule(spec: ConfiguratorSpec, design: ConfiguratorState, labels: OptionLabels): string {
+  const styles = hingeStylesOf(design, labels.hinges ?? STANDARD_HINGES);
   const body = spec.panels
-    .map((p) => {
+    .map((p, i) => {
       const detail: string[] = [];
       if (p.door) {
         const count = p.door.hingeCount ? `${esc(p.door.hingeCount)} × ` : '';
+        const { style } = doorHingeOf(p.door.hingeBrand, hingeMountOf(design, spec, i) ?? 'wall-to-glass', styles);
         detail.push(
-          `${count}${esc(p.door.hingeBrand)} hinges, ${esc(p.door.hingeSide)} hand`,
+          `${count}${esc(p.door.hingeBrand)} hinges${style ? `, ${esc(style.words)}` : ''}, ${esc(p.door.hingeSide)} hand`,
           `opens ${p.door.swing === 'both' ? 'both ways' : 'outwards only'}`,
           esc(p.door.sealType)
         );
@@ -230,7 +238,7 @@ export function companyEmail(input: EnquiryEmailInput, from: string, to: string[
       </table>
 
       <h3 style="margin:24px 0 8px;">Panel schedule</h3>
-      ${panelSchedule(spec)}
+      ${panelSchedule(spec, input.design, input.labels)}
 
       ${
         spec.rakeNotes.length
@@ -285,7 +293,7 @@ export function customerEmail(input: EnquiryEmailInput, from: string, replyTo: s
       <table style="border-collapse:collapse;width:100%;font-size:14px;">
         ${rows(summarise(input.design, input.spec, input.labels))}
       </table>
-      ${panelSchedule(input.spec)}
+      ${panelSchedule(input.spec, input.design, input.labels)}
       <p style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
         You confirmed: ${esc(input.disclaimer)}
       </p>

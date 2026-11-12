@@ -31,6 +31,8 @@ import {
 import { getTemplate, type ShowerTemplate } from './templates';
 import {
   createInitialState,
+  IN_LINE_HINGES,
+  WALL_HINGES,
   type ConfiguratorJunction,
   type ConfiguratorPanel,
   type ConfiguratorState,
@@ -375,5 +377,7 @@ function readDesign(v: unknown): ConfiguratorState {
     design.aboveDoor = oneOfOrNull(d.aboveDoor, ['open', 'glass'] as const, 'aboveDoor');
   }
   if (d.doorHeightMm !== undefined) design.doorHeightMm = mm(d.doorHeightMm, 'doorHeightMm', 1);
+  if (d.wallHinge !== undefined) design.wallHinge = oneOf(d.wallHinge, WALL_HINGES, 'wallHinge');
+  if (d.inLineHinge !== undefined) design.inLineHinge = oneOf(d.inLineHinge, IN_LINE_HINGES, 'inLineHinge');
   return design;
 }

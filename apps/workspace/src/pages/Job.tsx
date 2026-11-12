@@ -7,12 +7,12 @@
  * The drawings are the ones the customer agreed to on the last card.
  */
 
-import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type Pane, type PanelSpec } from '@setout/engine';
+import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type HingeStyles, type Pane, type PanelSpec } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
 import { bytes, humanise, layoutName, money, STAGE_NAMES, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
-import { describeFeature, panes as panesFor } from '../lib/panes';
+import { describeFeature, hingeStyle, panes as panesFor } from '../lib/panes';
 import { go, Link } from '../lib/router';
 import { lettersFor } from './PaneDrawing';
 import { QuoteStatusPill } from './QuotePage';
@@ -96,6 +96,7 @@ export function Job({ id }: { id: string }) {
             layout={typeof received?.data.template === 'string' ? received.data.template : null}
             design={design.revision.document.design}
             spec={design.revision.computed}
+            hinges={detail.labels.hinges}
             revision={design.revision.number}
             drawings={drawingsFor(design.revision, i)}
             editHref={`/edit/${encodeURIComponent(detail.job.id)}/${encodeURIComponent(design.id)}`}
@@ -298,6 +299,7 @@ function Shower({
   layout,
   design,
   spec,
+  hinges,
   revision,
   drawings,
   signOff,
@@ -308,6 +310,8 @@ function Shower({
   layout: string | null;
   design: ConfiguratorState;
   spec: ConfiguratorSpec;
+  /** The company's standard hinges, for a shower without its own. */
+  hinges: HingeStyles;
   revision: number;
   drawings: JobFile[];
   signOff: React.ReactNode;
@@ -381,14 +385,17 @@ function Shower({
           <Row label="Fixing">{design.mounting === 'channel' ? 'U-channel' : 'Glass clamps'}</Row>
           <Row label="Finish">{humanise(design.finishId)}</Row>
           <Row label="Handle">{humanise(design.handleId)}</Row>
-          {spec.panels
-            .filter((p) => p.door)
-            .map((p) => (
+          {spec.panels.map((p, i) => {
+            if (!p.door) return null;
+            const style = hingeStyle(design, spec, i, hinges);
+            return (
               <Row key={p.id} label={spec.panels.filter((x) => x.door).length > 1 ? `${p.label} hinges` : 'Hinges'}>
-                {p.door?.hingeCount ? `${p.door.hingeCount} × ` : ''}
-                {p.door?.hingeBrand}, {p.door?.hingeSide} hand, opens {p.door?.swing === 'both' ? 'both ways' : 'outwards'}
+                {p.door.hingeCount ? `${p.door.hingeCount} × ` : ''}
+                {p.door.hingeBrand}
+                {style ? `, ${style}` : ''}, {p.door.hingeSide} hand, opens {p.door.swing === 'both' ? 'both ways' : 'outwards'}
               </Row>
-            ))}
+            );
+          })}
           {design.aboveDoor && <Row label="Above the door">{design.aboveDoor === 'glass' ? 'Glass transom' : 'Left open'}{design.doorHeightMm ? `, door ${design.doorHeightMm}mm tall` : ''}</Row>}
         </dl>
       </Section>

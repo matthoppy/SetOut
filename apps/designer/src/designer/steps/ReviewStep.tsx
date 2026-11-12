@@ -13,8 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle, Info } from 'lucide-react';
-import { buildSpec } from '@setout/engine';
-import { finishLabel, handleLabel } from '../config';
+import { buildSpec, doorHingeOf, hingeMountOf, hingeStylesOf } from '@setout/engine';
+import { finishLabel, handleLabel, hingesOf } from '../config';
 import type { CustomerDetails } from '@setout/engine';
 import { PhotoUpload } from '../PhotoUpload';
 import { useEngine } from '../engine';
@@ -44,6 +44,14 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const engine = useEngine();
   const spec = useMemo(() => buildSpec(state, engine), [state, engine]);
+  const hinges = hingesOf(config);
+  /** The style of hinge a door hangs on, where its range offers more than one. */
+  const hingeStyleOf = (i: number) => {
+    const door = spec.panels[i]?.door;
+    if (!door) return null;
+    const styles = hingeStylesOf(state, { wall: hinges.wall.standard, inLine: hinges.inLine.standard });
+    return doorHingeOf(door.hingeBrand, hingeMountOf(state, spec, i) ?? 'wall-to-glass', styles).style?.words ?? null;
+  };
   const [challenge, setChallenge] = useState<'loading' | 'ready' | 'failed'>('loading');
   const challengeRef = useRef<'loading' | 'ready' | 'failed'>('loading');
   const [, setWidgetId] = useState<string | null>(null);
@@ -290,7 +298,7 @@ export function ReviewStep({
           </p>
         </div>
         <div className="divide-y">
-          {spec.panels.map((p) => (
+          {spec.panels.map((p, i) => (
             <div key={p.id} className="px-4 py-3 text-sm">
               <div className="flex items-baseline justify-between gap-4">
                 <span className="font-medium">{p.label}</span>
@@ -314,7 +322,8 @@ export function ReviewStep({
                   <div className="flex justify-between">
                     <span>Hinges</span>
                     <span className="font-medium">
-                      {p.door.hingeCount} × {p.door.hingeBrand} · {p.door.hingeSide} hand
+                      {p.door.hingeCount} × {p.door.hingeBrand}
+                      {hingeStyleOf(i) && `, ${hingeStyleOf(i)}`} · {p.door.hingeSide} hand
                     </span>
                   </div>
                   <div className="flex justify-between">

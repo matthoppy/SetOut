@@ -9,7 +9,14 @@
  * who the staff are never reach the browser.
  */
 
-import type { ConfiguratorState, GlassThickness, RulesetOverrides } from '@setout/engine';
+import {
+  STANDARD_HINGES,
+  type ConfiguratorState,
+  type GlassThickness,
+  type InLineHinge,
+  type RulesetOverrides,
+  type WallHinge,
+} from '@setout/engine';
 
 export interface HardwareFinish {
   id: string;
@@ -44,6 +51,8 @@ export interface DesignerConfig {
   glassThicknessMm: GlassThickness;
   /** Every thickness the customer may choose, thinnest first. Older servers send only the one above. */
   glassThicknesses?: GlassThickness[];
+  /** The hinge styles the customer may choose for a door hung from a wall and one hung in line, and the standard of each. */
+  hinges?: DesignerHinges;
   /**
    * Shown on the review step and repeated to the company. Spells out who is
    * responsible for the measurements being right, which matters when glass is
@@ -81,6 +90,10 @@ export const PREVIEW_CONFIG: DesignerConfig = {
   ],
   glassThicknessMm: 10,
   glassThicknesses: [8, 10, 12],
+  hinges: {
+    wall: { offered: ['offset', 'full', 'short'], standard: 'offset' },
+    inLine: { offered: ['standard', 'adjustable'], standard: 'standard' },
+  },
   measurementDisclaimer:
     'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
   intro: 'Design your enclosure and send the measurements straight to the workshop.',
@@ -118,6 +131,21 @@ export function withOfferedHardware(state: ConfiguratorState, config: Pick<Desig
     ...state,
     finishId: config.finishes[0]?.id ?? state.finishId,
     handleId: config.handles[0]?.id ?? state.handleId,
+  };
+}
+
+export interface DesignerHinges {
+  wall: { offered: WallHinge[]; standard: WallHinge };
+  inLine: { offered: InLineHinge[]; standard: InLineHinge };
+}
+
+/** The hinges on offer: always at least the standard of each, SetOut's own where the server sends none. */
+export function hingesOf(config: Pick<DesignerConfig, 'hinges'>): DesignerHinges {
+  const wall = config.hinges?.wall ?? { offered: [STANDARD_HINGES.wall], standard: STANDARD_HINGES.wall };
+  const inLine = config.hinges?.inLine ?? { offered: [STANDARD_HINGES.inLine], standard: STANDARD_HINGES.inLine };
+  return {
+    wall: { ...wall, offered: wall.offered.includes(wall.standard) ? wall.offered : [wall.standard] },
+    inLine: { ...inLine, offered: inLine.offered.includes(inLine.standard) ? inLine.offered : [inLine.standard] },
   };
 }
 

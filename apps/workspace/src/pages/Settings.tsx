@@ -9,7 +9,7 @@
  * save over each other unawares.
  */
 
-import { CRL_CODE, crlFinishCode } from '@setout/engine';
+import { CRL_CODE, crlFinishCode, IN_LINE_HINGE_STYLES, IN_LINE_HINGES, WALL_HINGE_STYLES, WALL_HINGES, type HingeStyle } from '@setout/engine';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   api,
@@ -112,6 +112,15 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 limits={data.limits}
                 justSaved={saved === `glass:${designer.id}`}
                 onSaved={() => onSaved(`glass:${designer.id}`)}
+                onReload={settings.reload}
+              />
+              <HingesPart
+                key={designer.versions.hinges}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `hinges:${designer.id}`}
+                onSaved={() => onSaved(`hinges:${designer.id}`)}
                 onReload={settings.reload}
               />
               <EmailsPart
@@ -808,6 +817,128 @@ function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPa
   );
 }
 
+const hingeName = (style: HingeStyle) => [style.Geneva, style.Vienna].filter(Boolean).join(', ');
+
+/** One way of hanging's hinges: which customers may choose, and the standard. */
+function HingeList<T extends string>({
+  legend,
+  ids,
+  styles,
+  offered,
+  standard,
+  onChange,
+  name,
+}: {
+  legend: string;
+  ids: readonly T[];
+  styles: Record<T, HingeStyle>;
+  offered: T[];
+  standard: T;
+  onChange: (offered: T[], standard: T) => void;
+  name: string;
+}) {
+  const toggle = (id: T) => {
+    const next = offered.includes(id) ? offered.filter((h) => h !== id) : ids.filter((h) => h === id || offered.includes(h));
+    onChange(next, next.includes(standard) || next.length === 0 ? standard : next[0]);
+  };
+  return (
+    <fieldset className="mt-4 first:mt-0">
+      <legend className="text-sm font-semibold">{legend}</legend>
+      <ul className="mt-2 divide-y divide-rule rounded-md border border-rule">
+        {ids.map((id) => (
+          <li key={id} className="flex items-start gap-3 px-3 py-2">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={offered.includes(id)} onChange={() => toggle(id)} className="mt-1 h-4 w-4 shrink-0" />
+              <span className="min-w-0">
+                <span className="font-medium">{styles[id].name}</span>{' '}
+                <span className="ml-1 font-mono text-xs text-quiet">{hingeName(styles[id])}</span>{' '}
+                <span className="block text-xs text-quiet">{styles[id].about}</span>
+              </span>
+            </label>
+            <label className={`flex shrink-0 items-center gap-1.5 text-xs ${offered.includes(id) ? 'cursor-pointer' : 'invisible'}`}>
+              <input type="radio" name={name} checked={standard === id} onChange={() => onChange(offered, id)} className="h-4 w-4" />
+              Standard
+            </label>
+          </li>
+        ))}
+      </ul>
+      {offered.length === 0 && <p className="mt-2 text-xs text-bad">Offer at least one.</p>}
+    </fieldset>
+  );
+}
+
+function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const [hinges, setHinges] = useState(designer.hinges);
+  const saving = useSave(onSaved);
+  const dirty = JSON.stringify(hinges) !== JSON.stringify(designer.hinges);
+  const valid = hinges.wall.offered.includes(hinges.wall.standard) && hinges.inLine.offered.includes(hinges.inLine.standard);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { hinges, basedOn: { hinges: designer.versions.hinges } }),
+      'The hinges could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'Which of CRL’s hinges your customers can choose, where a door hangs from a wall and where it hangs from the glass beside it. A new design starts with the standard one. Staff can choose any for a shower. The glass is cut the same for all of them. Bellagio makes one of each (BEL344 to the wall, BEL380 in line), and every range one hinge for a corner.';
+
+  if (!owner) {
+    const listed = <T extends string>(offered: T[], styles: Record<T, HingeStyle>, standard: T) =>
+      offered.map((id) => `${styles[id].name}${id === standard ? ' (standard)' : ''}`).join(', ');
+    return (
+      <Section title="Hinges">
+        <div className={`${CARD} space-y-1 text-sm`}>
+          <Hint>{about}</Hint>
+          <p>
+            To the wall: <span className="font-medium">{listed(designer.hinges.wall.offered, WALL_HINGE_STYLES, designer.hinges.wall.standard)}</span>
+          </p>
+          <p>
+            In line: <span className="font-medium">{listed(designer.hinges.inLine.offered, IN_LINE_HINGE_STYLES, designer.hinges.inLine.standard)}</span>
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Hinges">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>{about}</Hint>
+        <HingeList
+          legend="Doors hung from a wall"
+          ids={WALL_HINGES}
+          styles={WALL_HINGE_STYLES}
+          offered={hinges.wall.offered}
+          standard={hinges.wall.standard}
+          onChange={(offered, standard) => setHinges({ ...hinges, wall: { offered, standard } })}
+          name={`wall-${designer.id}`}
+        />
+        <HingeList
+          legend="Doors hung in line from the glass"
+          ids={IN_LINE_HINGES}
+          styles={IN_LINE_HINGE_STYLES}
+          offered={hinges.inLine.offered}
+          standard={hinges.inLine.standard}
+          onChange={(offered, standard) => setHinges({ ...hinges, inLine: { offered, standard } })}
+          name={`in-line-${designer.id}`}
+        />
+        <SaveRow
+          label="Save the hinges"
+          dirty={dirty}
+          valid={valid}
+          saving={saving}
+          onUndo={() => setHinges(designer.hinges)}
+          justSaved={justSaved}
+          savedNote="Saved. Your designer offers these within a minute."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
 function EmailsPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.notifyEmails.length ? designer.notifyEmails : [''];
   const [emails, setEmails] = useState<string[]>(original);
@@ -1275,6 +1406,17 @@ function describe(item: SettingsChangeItem, by: string): string {
       return `${by} offered customers ${millimetres(item.to)} glass, from ${millimetres(item.from)}.`;
     case 'glassStandard':
       return `${by} started new designs at ${item.to}mm glass, from ${item.from}mm.`;
+    case 'wallHingesOffered':
+    case 'inLineHingesOffered': {
+      const styles: Record<string, HingeStyle> = item.field === 'wallHingesOffered' ? WALL_HINGE_STYLES : IN_LINE_HINGE_STYLES;
+      const names = (ids: string[]) => listed(ids.map((id) => styles[id]?.words ?? id));
+      return `${by} offered customers ${names(item.to)} hinges ${item.field === 'wallHingesOffered' ? 'to the wall' : 'in line'}, from ${names(item.from)}.`;
+    }
+    case 'wallHingeStandard':
+    case 'inLineHingeStandard': {
+      const styles: Record<string, HingeStyle> = item.field === 'wallHingeStandard' ? WALL_HINGE_STYLES : IN_LINE_HINGE_STYLES;
+      return `${by} made ${styles[item.to]?.words ?? item.to} the standard hinge ${item.field === 'wallHingeStandard' ? 'to the wall' : 'in line'}, from ${styles[item.from]?.words ?? item.from}.`;
+    }
     case 'notifyEmails': {
       const parts = [
         ...(item.added.length ? [`started emailing ${listed(item.added)}`] : []),

@@ -9,11 +9,11 @@
  * the glass, the fixings, and the drawings of that revision.
  */
 
-import type { ConfiguratorSpec, ConfiguratorState, Pane } from '@setout/engine';
+import type { ConfiguratorSpec, ConfiguratorState, HingeStyles, Pane } from '@setout/engine';
 import { api, fileUrl, type JobDetail, type JobFile, type Revision } from '../lib/api';
 import { humanise, layoutName, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
-import { describeFeature, panes as panesFor } from '../lib/panes';
+import { describeFeature, hingeStyle, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { lettersFor } from './PaneDrawing';
 import { Problem } from './parts';
@@ -68,6 +68,7 @@ export function MakingSheet({ id }: { id: string }) {
             revision={revision}
             design={revision.document.design}
             spec={revision.computed}
+            hinges={detail.labels.hinges}
             drawings={drawings}
             printedAt={printedAt}
           />
@@ -86,6 +87,7 @@ function Sheet({
   revision,
   design,
   spec,
+  hinges,
   drawings,
   printedAt,
 }: {
@@ -97,6 +99,8 @@ function Sheet({
   revision: Revision;
   design: ConfiguratorState;
   spec: ConfiguratorSpec;
+  /** The company's standard hinges, for a shower without its own. */
+  hinges: HingeStyles;
   drawings: JobFile[];
   printedAt: string;
 }) {
@@ -195,7 +199,9 @@ function Sheet({
                 <tr key={panel.id} className="border-b border-black/20 align-top">
                   <td className="py-1.5 pr-2 font-semibold">{panel.label}</td>
                   <td className="py-1.5 pr-2">
-                    {panel.door?.hingeCount} × {panel.door?.hingeBrand}, {panel.door?.hingeSide} hand, {finish}
+                    {panel.door?.hingeCount} × {panel.door?.hingeBrand}
+                    {hingeStyle(design, spec, spec.panels.indexOf(panel), hinges) ? `, ${hingeStyle(design, spec, spec.panels.indexOf(panel), hinges)}` : ''},{' '}
+                    {panel.door?.hingeSide} hand, {finish}
                   </td>
                   <td className="py-1.5 pr-2 tabular-nums">{panel.door?.hingeHeightsMm.join(' / ')}mm</td>
                   <td className="py-1.5 pr-2 tabular-nums">

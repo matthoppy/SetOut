@@ -103,6 +103,13 @@ describe('older formats', () => {
     expect(read.design.opening.runs[0].widthAtFloorMm).toBe(1104);
   });
 
+  test("a shower's own wall hinge is kept, and a design without one has none", () => {
+    const doc = valid();
+    doc.design.wallHinge = 'full';
+    expect(upgradeDocument(structuredClone(doc)).design.wallHinge).toBe('full');
+    expect('wallHinge' in upgradeDocument(valid()).design).toBe(false);
+  });
+
   test('a document from a newer engine is refused, not guessed at', () => {
     const doc = valid();
     doc.format = DOCUMENT_FORMAT + 1;
@@ -143,6 +150,7 @@ describe('refusing what is not a design', () => {
     ['a notch with no size', (d) => (d.panels[0].notches = { bottom_left: true, bottom_right: false }), 'panels[0].notches.width_mm'],
     ['a negative air gap', (d) => (d.topGapMm = -30), 'topGapMm'],
     ['something else above the door', (d) => (d.aboveDoor = 'brick'), 'aboveDoor'],
+    ['a wall hinge CRL does not make', (d) => (d.wallHinge = 'glued'), 'wallHinge'],
     ['no measurements at all', (d) => delete d.opening, 'opening'],
     ['measurements for the wrong number of runs', (d) => d.opening.runs.push(d.opening.runs[0]), 'opening.runs'],
     ['a run width that is text', (d) => (d.opening.runs[0].widthAtFloorMm = 'wide'), 'opening.runs[0].widthAtFloorMm'],

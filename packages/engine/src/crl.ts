@@ -3,8 +3,8 @@
  *
  * Geneva, Vienna and Bellagio are CRL's own hinge ranges, so a hinge's number
  * follows from its range and how it fixes, and a finish adds CRL's code for
- * it: GEN044 + CH is a polished chrome Geneva hinge to the wall. Wall hinges
- * are the offset back plate (044, Bellagio 344), as Custom Showers fits them.
+ * it: GEN044 + CH is a polished chrome Geneva hinge to the wall on an offset
+ * back plate. Which of CRL's hinges a door takes is chosen (hinges.ts).
  * Seals are clear and have no finish. The channel is CRL's deep U-channel in
  * 2.41m lengths: it is aluminium, which is never chromed, so polished chrome
  * hardware has its channel brite anodised.
@@ -18,7 +18,8 @@
  */
 
 import { CRL_CATALOGUE } from './crl-catalogue';
-import type { Fitting, HingeMount } from './fittings';
+import type { Fitting } from './fittings';
+import { doorHingeOf, STANDARD_HINGES, type HingeStyles } from './hinges';
 
 /** CRL's finish codes, by CRL's name for each. */
 export const CRL_FINISHES: readonly { code: string; name: string }[] = [
@@ -75,12 +76,6 @@ export function inCrlCatalogue(code: string): boolean {
   return catalogue.has(code);
 }
 
-const HINGES: Record<string, Record<HingeMount, string>> = {
-  Geneva: { 'wall-to-glass': 'GEN044', 'glass-to-glass-180': 'GEN180', 'glass-to-glass-90': 'GEN092' },
-  Vienna: { 'wall-to-glass': 'V1E044', 'glass-to-glass-180': 'V1E180', 'glass-to-glass-90': 'V1E092' },
-  Bellagio: { 'wall-to-glass': 'BEL344', 'glass-to-glass-180': 'BEL380', 'glass-to-glass-90': 'BEL392' },
-};
-
 /** By the seal SetOut gives a door and the glass it is on. */
 const SEALS: Record<string, Partial<Record<number, string>>> = {
   'bubble seal': { 8: 'PCR8', 10: 'PCR10', 12: 'PCR12' },
@@ -100,6 +95,8 @@ export type CrlPart =
   | { status: 'no-finish-code'; series: string }
   /** CRL's catalogue has no such part in the shower's finish. `code` is the number it would be. */
   | { status: 'not-in-finish'; series: string; code: string }
+  /** The hinge range makes no hinge in the style chosen, such as a positive close Geneva. */
+  | { status: 'not-in-range'; range: string; style: string }
   /** The handle has no CRL number yet. */
   | { status: 'no-handle-code' };
 
@@ -109,6 +106,8 @@ export interface CrlChoices {
   finishCode: string | null;
   /** CRL's number for the shower's handle, without its finish, if the company has set one. */
   handleCode: string | null;
+  /** The hinges the shower's doors take: its own choice, or the company's standard (hingeStylesOf). */
+  hinges?: HingeStyles;
 }
 
 /** A part made in finishes: its number in the shower's finish, if CRL lists one. */
@@ -127,8 +126,9 @@ function inFinish(series: string, finishCode: string | null, alternatives: Recor
 export function crlPartOf(fitting: Fitting, choices: CrlChoices): CrlPart | null {
   switch (fitting.kind) {
     case 'hinges': {
-      const series = HINGES[fitting.brand]?.[fitting.mount];
-      return series ? inFinish(series, choices.finishCode) : null;
+      const { series, style } = doorHingeOf(fitting.brand, fitting.mount, choices.hinges ?? STANDARD_HINGES);
+      if (series) return inFinish(series, choices.finishCode);
+      return style ? { status: 'not-in-range', range: fitting.brand, style: style.words } : null;
     }
     case 'handle': {
       if (!choices.handleCode) return { status: 'no-handle-code' };

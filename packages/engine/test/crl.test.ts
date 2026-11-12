@@ -12,6 +12,9 @@ import {
   buildSpec,
   createInitialState,
   CRL_FINISHES,
+  IN_LINE_HINGE_STYLES,
+  WALL_HINGE_STYLES,
+  WALL_HINGES,
   crlFinishCode,
   crlPartOf,
   DEFAULT_RULESET,
@@ -20,6 +23,8 @@ import {
   TEMPLATES,
   type Fitting,
   type HingeMount,
+  type InLineHinge,
+  type WallHinge,
 } from '../src';
 import { CRL_CATALOGUE } from '../src/crl-catalogue';
 import { GOLDEN_COMPANY, GOLDENS } from './goldens';
@@ -94,6 +99,53 @@ describe('hinges', () => {
 
   test('without a finish code, the hinge is named by its range alone', () => {
     expect(crlPartOf(hinges('Geneva', 'wall-to-glass'), choices(null))).toEqual({ status: 'no-finish-code', series: 'GEN044' });
+  });
+
+  const styled = (finish: string, wall: WallHinge = 'offset', inLine: InLineHinge = 'standard') => ({ ...choices(finish), hinges: { wall, inLine } });
+
+  test('every hinge style names a hinge CRL makes, in each range that makes it', () => {
+    const styles = [...Object.values(WALL_HINGE_STYLES), ...Object.values(IN_LINE_HINGE_STYLES)];
+    for (const style of styles) {
+      for (const series of [style.Geneva, style.Vienna].filter((s): s is string => Boolean(s))) {
+        expect([...skus].some((s) => s.startsWith(series)), series).toBe(true);
+      }
+    }
+    for (const wall of WALL_HINGES) {
+      for (const brand of ['Geneva', 'Vienna'] as const) {
+        const part = crlPartOf(hinges(brand, 'wall-to-glass'), styled('MBL', wall));
+        const series = WALL_HINGE_STYLES[wall][brand];
+        if (series) expect(['found', 'not-in-finish'], `${brand} ${wall}`).toContain(part?.status);
+        if (part?.status === 'found') expect(part.code).toBe(`${series}MBL`);
+      }
+    }
+  });
+
+  test('a door hung from a wall takes the wall hinge chosen', () => {
+    expect(crlPartOf(hinges('Geneva', 'wall-to-glass'), styled('CH', 'full'))).toEqual({ status: 'found', code: 'GEN037CH' });
+    expect(crlPartOf(hinges('Vienna', 'wall-to-glass'), styled('BN', 'short'))).toEqual({ status: 'found', code: 'V1E074BN' });
+    expect(crlPartOf(hinges('Geneva', 'wall-to-glass'), styled('MBL', 'h-plate'))).toEqual({ status: 'found', code: 'GENH037MBL' });
+    // CRL makes the 5° pre-set offset hinge in matte black only.
+    expect(crlPartOf(hinges('Geneva', 'wall-to-glass'), styled('CH', 'offset-preset'))).toEqual({ status: 'not-in-finish', series: 'GEN544', code: 'GEN544CH' });
+  });
+
+  test('a door hung in line from the glass takes the in-line hinge chosen', () => {
+    expect(crlPartOf(hinges('Geneva', 'glass-to-glass-180'), styled('CH', 'offset', 'adjustable'))).toEqual({ status: 'found', code: 'GEN380CH' });
+    expect(crlPartOf(hinges('Vienna', 'glass-to-glass-180'), styled('BN', 'offset', 'positive-close'))).toEqual({ status: 'found', code: 'V1E780BN' });
+  });
+
+  test('a style the range does not make is said, not swapped for another', () => {
+    expect(crlPartOf(hinges('Geneva', 'wall-to-glass'), styled('CH', 'positive-close'))).toEqual({ status: 'not-in-range', range: 'Geneva', style: 'positive close' });
+    expect(crlPartOf(hinges('Geneva', 'glass-to-glass-180'), styled('CH', 'offset', 'positive-close'))).toEqual({
+      status: 'not-in-range',
+      range: 'Geneva',
+      style: 'positive close',
+    });
+  });
+
+  test('Bellagio has one hinge for each way of hanging, and every range one for a corner, whatever is chosen', () => {
+    expect(crlPartOf(hinges('Bellagio', 'wall-to-glass'), styled('CH', 'full'))).toEqual({ status: 'found', code: 'BEL344CH' });
+    expect(crlPartOf(hinges('Bellagio', 'glass-to-glass-180'), styled('CH', 'full', 'adjustable'))).toEqual({ status: 'found', code: 'BEL380CH' });
+    expect(crlPartOf(hinges('Geneva', 'glass-to-glass-90'), styled('CH', 'full', 'adjustable'))).toEqual({ status: 'found', code: 'GEN092CH' });
   });
 
   test('a hinge SetOut has no CRL range for is not named', () => {

@@ -1,8 +1,8 @@
 /**
  * A company's settings, as its owners change them in the workspace: its name,
  * the colours and logo its customers see, how a new quote starts, and, for
- * each designer, the finishes, handles and glass it offers and who hears
- * about each design.
+ * each designer, the finishes, handles, glass and hinges it offers and who
+ * hears about each design.
  *
  * Everything sent is checked here before anything is saved, and a request
  * with one thing wrong changes nothing. What changed is worked out here too,
@@ -15,7 +15,8 @@
 import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
-import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, isThickness, offeredOptions, type Glass } from './designer-config';
+import { IN_LINE_HINGES, WALL_HINGES } from '@setout/engine';
+import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, hingesOf, isThickness, offeredOptions, type Glass, type Hinges } from './designer-config';
 import { RequestError } from './enquiry';
 
 export interface Finish {
@@ -139,6 +140,7 @@ export interface DesignerView {
   finishes: Finish[];
   handles: Handle[];
   glass: Glass;
+  hinges: Hinges;
   notifyEmails: string[];
 }
 
@@ -152,6 +154,7 @@ export function designerView(stored: { id: string; name: string; status: string;
     finishes,
     handles,
     glass: glassOf(config),
+    hinges: hingesOf(config),
     notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
   };
 }
@@ -172,13 +175,14 @@ export async function companyVersions(company: CompanyView) {
 }
 
 export async function designerVersions(designer: DesignerView) {
-  const [finishes, handles, glass, notifyEmails] = await Promise.all([
+  const [finishes, handles, glass, hinges, notifyEmails] = await Promise.all([
     versionOf(designer.finishes),
     versionOf(designer.handles),
     versionOf(designer.glass),
+    versionOf(designer.hinges),
     versionOf(designer.notifyEmails),
   ]);
-  return { finishes, handles, glass, notifyEmails };
+  return { finishes, handles, glass, hinges, notifyEmails };
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +295,30 @@ export function readGlass(input: unknown): Glass {
     throw new RequestError(400, 'invalid_glass', 'A new design must start at a thickness you offer.');
   }
   return { offered, standard: g.standard };
+}
+
+/** One way of hanging's hinges, as an owner sent them: styles SetOut knows, at least one, and the standard among them. */
+function readHingeChoice<T extends string>(all: readonly T[], input: unknown, what: string): { offered: T[]; standard: T } {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_hinges', `Send the ${what} to offer, and the standard one.`);
+  }
+  const c = input as Record<string, unknown>;
+  if (!Array.isArray(c.offered) || !c.offered.every((h) => all.includes(h as T))) {
+    throw new RequestError(400, 'invalid_hinges', `That is not one of CRL's ${what} SetOut knows.`);
+  }
+  const offered = all.filter((h) => (c.offered as unknown[]).includes(h));
+  if (offered.length === 0) throw new RequestError(400, 'invalid_hinges', `Offer at least one of the ${what}.`);
+  if (!offered.includes(c.standard as T)) throw new RequestError(400, 'invalid_hinges', `The standard one of the ${what} must be one you offer.`);
+  return { offered, standard: c.standard as T };
+}
+
+/** The hinges a designer offers, as an owner sent them. */
+export function readHinges(input: unknown): Hinges {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_hinges', 'Send the hinges to offer for a door hung from a wall and one hung in line.');
+  }
+  const h = input as Record<string, unknown>;
+  return { wall: readHingeChoice(WALL_HINGES, h.wall, 'wall hinges'), inLine: readHingeChoice(IN_LINE_HINGES, h.inLine, 'in-line hinges') };
 }
 
 type Kind = 'finish' | 'handle';
@@ -430,6 +458,8 @@ export type SettingsChange =
   | { field: Kind; change: 'reordered' }
   | { field: 'glassOffered'; from: number[]; to: number[] }
   | { field: 'glassStandard'; from: number; to: number }
+  | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
+  | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
@@ -467,6 +497,16 @@ export function glassChanges(before: Glass, after: Glass): SettingsChange[] {
   const changes: SettingsChange[] = [];
   if (before.offered.join() !== after.offered.join()) changes.push({ field: 'glassOffered', from: before.offered, to: after.offered });
   if (before.standard !== after.standard) changes.push({ field: 'glassStandard', from: before.standard, to: after.standard });
+  return changes;
+}
+
+export function hingeChanges(before: Hinges, after: Hinges): SettingsChange[] {
+  const changes: SettingsChange[] = [];
+  for (const way of ['wall', 'inLine'] as const) {
+    const [b, a] = [before[way], after[way]];
+    if (b.offered.join() !== a.offered.join()) changes.push({ field: `${way}HingesOffered`, from: b.offered, to: a.offered });
+    if (b.standard !== a.standard) changes.push({ field: `${way}HingeStandard`, from: b.standard, to: a.standard });
+  }
   return changes;
 }
 
@@ -516,7 +556,7 @@ export function storedSettings(text: string, before: QuoteSettings, after: Quote
 }
 
 /** The designer's config with new lists of finishes or handles, or new glass, and everything else it holds kept. */
-export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass }): string {
+export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass; hinges?: Hinges }): string {
   const stored = parsed(text);
   if (changes.finishes) stored.finishes = changes.finishes;
   if (changes.handles) stored.handles = changes.handles;
@@ -524,5 +564,6 @@ export function storedConfig(text: string, changes: { finishes?: Finish[]; handl
     stored.glassThicknessesMm = changes.glass.offered;
     stored.glassThicknessMm = changes.glass.standard;
   }
+  if (changes.hinges) stored.hinges = changes.hinges;
   return JSON.stringify(stored);
 }
