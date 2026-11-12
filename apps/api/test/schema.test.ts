@@ -10,7 +10,7 @@ import { expect, test } from 'vitest';
 import { TABLES } from '../src/db/tables';
 
 /** Tables that belong to the platform, not to a company. */
-const PLATFORM_TABLES = ['companies', 'users', 'login_tokens', 'sessions'];
+const PLATFORM_TABLES = ['companies', 'users', 'login_tokens', 'sessions', 'site_enquiries'];
 /** Company tables reached through their own methods, not the general ones. */
 const SPECIAL_TABLES = ['rulesets', 'usage_monthly'];
 /**

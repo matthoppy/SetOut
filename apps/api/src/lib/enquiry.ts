@@ -52,12 +52,12 @@ const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
 /** Base64 is a third larger than what it carries, plus the rest of the request. */
 export const MAX_BODY_BYTES = 45 * 1024 * 1024;
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Loose = Record<string, unknown>;
-const isObject = (v: unknown): v is Loose => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isObject = (v: unknown): v is Loose => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-function text(v: unknown, field: string, max: number, required = false): string {
+export function text(v: unknown, field: string, max: number, required = false): string {
   if (v === undefined || v === null) v = '';
   if (typeof v !== 'string') throw new RequestError(400, 'invalid_request', `${field} must be text.`);
   const trimmed = v.trim();

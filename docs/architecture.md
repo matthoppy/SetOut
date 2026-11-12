@@ -11,6 +11,7 @@ Subscription software for frameless shower companies. Their customer designs and
 | Designer | The company's customers, on the company's own website | Pick a layout, choose glass and hardware, follow the measuring cards, see the shower drawn from their own numbers, then send it |
 | Workspace | The company's staff | Receive each design as a job, check and edit it, see drawings and cut sizes, price it, quote it, turn it into an order, and print what the toughener and the fitter need |
 | Platform admin | SetOut | Manage companies, plans, usage and support |
+| The site | Shower companies who do not use SetOut yet | Read what SetOut is and what a subscription includes, and ask to start |
 
 Custom Showers is company one and the test bed. Brennan Glass is company two, on a free account, and adding it must need no new code.
 
@@ -176,20 +177,40 @@ CRL's catalogue numbers come from the engine's `crl.ts`. Geneva, Vienna and Bell
 
 A making sheet is one printed A4 page per shower, for the workshop and the toughener, and only a checked shower has one. Everything on it comes from the revision that was checked, as the server worked it out: each pane's cut size beside what was measured, its notches, holes and cut-outs with their heights, the hinge centres and handle holes on each door, the glass, the fixings, any support the run needs, the notes from measuring, and the plan and elevation of that revision, with who checked it and when. A job's page shows what the server worked out and the customer agreed to, never anything a browser added up: the drawings from the last card, each panel's cut size beside what was measured, the hardware and glass, every reading in the order it was taken, the photos and the timeline. Signing in, signing out and moving to another company each load the page afresh, so nothing one person or company could see is left in the page for the next.
 
-## The two addresses
+## The site
 
-One Worker answers on two addresses, agreed on 11 November 2026.
+SetOut's own public site, built on 12 November 2026 (Matt: "set up the rest of the website"). The plan it was built to, and the questions still open, are in [site-plan.md](site-plan.md).
+
+It has five pages: home at `/`, how it works at `/how-it-works/`, pricing at `/pricing/`, get started at `/get-started/` and privacy at `/privacy/`, and a not-found page for anything else. They are plain HTML, written at build time by `apps/site/build.mjs` into `dist/site/site/`, with one stylesheet and one script, for the form. The colours are the workspace's own tokens, which the build reads from the workspace's stylesheet. Every link in a page is relative, so the same files work wherever the site is served. There are no cookies, no analytics and nothing loaded from anywhere else, except Cloudflare's bot check on the get-started page.
+
+Self-serve sign-up is step 4 and is not built, so the site never offers it. A shower company fills in the get-started form instead, and is set up by hand.
+
+| Public route | What it does |
+| --- | --- |
+| `GET /api/site/config` | What the form needs: the bot check's public key, or that there is none |
+| `POST /api/site/enquiries` | A shower company asks to start: company, name, email and, if they like, phone, website, roughly how many showers a month and a message |
+
+The second is refused unless it comes from the site's own page. Every field is checked for shape and size. A script that fills the hidden field is told it worked and nothing is kept. The bot check is the designer's: a wrong token is refused, and a missing one is kept and marked. One email address can send three in a day and the site takes a hundred a day from everyone, counted in the database in the same statement that saves, as sign-in links are. The enquiry is saved to `site_enquiries`, the person is answered, and then it is emailed to the address in `SITE_NOTIFY_EMAIL`, with the person's address to reply to. What happened to that email is written on the row. Nothing is emailed to the person who filled the form in: a public form that emails whatever address is typed into it is a way to send junk through SetOut. Until the platform admin exists, enquiries are read in the email and in the database.
+
+These answer on the site's address and where one address serves everything, never on the designer's address or the workspace's. The site's address has none of their routes.
+
+## The three addresses
+
+One Worker answers on three addresses. The first two were agreed on 11 November 2026. The third is ready but not switched on: `setoutglass.com` is not yet routed to the Worker, which is Matt's call (see [deploying.md](deploying.md)).
 
 | Address | Serves | Framing |
 | --- | --- | --- |
 | `designer.setoutglass.com` | The designer, its embed script at `/embed.js`, and the designer's routes | Only by the websites listed for that designer |
 | `app.setoutglass.com` | The workspace and, from step 2, its routes | Never, by anyone |
+| `setoutglass.com` | The site and its one route. `www.setoutglass.com` redirects to it, path and all | Never, by anyone |
 
 They are separate so that nothing running in the public designer can reach a signed-in workspace. The workspace's address has no designer, no embed script and no designer routes, and the designer's address never serves the workspace.
 
 Each designer has a list of websites allowed to show it. The designer's page is sent with that list as its framing rule, read from the database on every load, so a change takes effect at once. A browser refuses to show the designer on any other website. A test key may also be framed from a developer's own machine. With no key, or an unknown one, nobody may frame it.
 
-Staging has the same pair, `designer-staging.setoutglass.com` and `app-staging.setoutglass.com`, and keeps its workers.dev name, which serves both apps by path: the designer under `/designer/` and the workspace everywhere else. A developer's machine works the same way.
+The site's address is the `SITE_HOST` variable. It serves the site's pages, their files and `/api/site/*`, and nothing else: no workspace, no designer, no quote page. A page it does not have gets the site's own not-found page with a 404, never the workspace. Every page is sent with a content security policy that allows the site's own files and Cloudflare's bot check and nothing else, so no page of it has an inline style or script.
+
+Staging has the same pair, `designer-staging.setoutglass.com` and `app-staging.setoutglass.com`, and keeps its workers.dev name, which serves everything by path: the designer under `/designer/`, the site under `/site/` and the workspace everywhere else. A developer's machine works the same way. Anywhere the site is served under `/site/`, its pages are sent with `X-Robots-Tag: noindex`, so only the real address is ever listed by a search engine.
 
 ## The database
 
@@ -224,7 +245,7 @@ Tables in place:
 | `quotes` | Each quote on a job: its lines, the revisions it prices, what it comes to, and whether it was sent, accepted or withdrawn. Frozen once sent |
 | `price_list` | The price a company last sent for each thing it quotes, so the next quote starts from it |
 
-Three tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, and `sessions` for signed-in browsers.
+Four tables belong to the platform rather than to a company: `users`, one row per person whatever companies they belong to, `login_tokens` for sign-in links, `sessions` for signed-in browsers, and `site_enquiries` for shower companies who have asked to start through the site's form.
 
 Still to come, with the step that uses them: `catalog_items`, `finishes`, `price_books` and `orders` in step 3. A quote's lines are kept on the quote itself, as the document it was sent as, rather than in a table of their own. `suppliers`, `purchase_orders`, `appointments` and `webhook_endpoints` in step 5.
 

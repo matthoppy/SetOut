@@ -26,6 +26,7 @@ export const ID_PREFIX = {
   audit: 'aud',
   quote: 'qte',
   price: 'prc',
+  siteEnquiry: 'enq',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;
