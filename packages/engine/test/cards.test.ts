@@ -58,13 +58,15 @@ function typeAll(start: ConfiguratorState, heightMm = 2000): ConfiguratorState {
 }
 
 describe('the deck a single door is dealt', () => {
-  test('a set height: two cards to read, the height, six readings to the cross, then the drawing', () => {
+  test('a set height: two cards to read, the left wall at the bottom, then the height, the rest of the cross, then the drawing', () => {
     const cards = buildCards(door());
     expect(cards.map((c) => c.id)).toEqual([
       'marks',
       'laser-setup',
-      'height',
+      // The bottom first, then the height (Matt, 12 November 2026). Reading 2
+      // is taken level with the mark the height card asks for.
       'cross-1',
+      'height',
       'cross-2',
       'cross-3',
       'cross-4',
@@ -346,7 +348,7 @@ describe('a deck for every layout', () => {
 
   test('the eight readings to a cross keep their own numbers', () => {
     const readings = readingCards(deck('alcove-door'));
-    expect(readings.map((c) => c.mark)).toEqual([undefined, 1, 2, 3, 4, 5, 6]);
+    expect(readings.map((c) => c.mark)).toEqual([1, undefined, 2, 3, 4, 5, 6]);
   });
 
   test.each(EVERY_DECK)(
@@ -379,6 +381,25 @@ describe('a deck for every layout', () => {
     }
   );
 
+  test.each(EVERY_DECK.filter((d) => d.id !== 'alcove-door'))(
+    '$id (to the ceiling: $toCeiling): only a single door is measured to a laser in the middle, so every run is one pull',
+    ({ id, toCeiling }) => {
+      const cards = deck(id, toCeiling);
+      expect(cards.filter((c) => c.field?.kind === 'half')).toEqual([]);
+      for (const card of cards) {
+        if (card.visual?.kind === 'run-width') expect(card.visual.part).toBe('whole');
+      }
+    }
+  );
+
+  test.each(EVERY_DECK.filter((d) => !d.toCeiling))('$id: the first measurement is along the bottom, and the height comes after it', ({ id }) => {
+    const readings = readingCards(deck(id));
+    const at = readings.findIndex((c) => c.field?.kind === 'height');
+    expect(at).toBeGreaterThan(0);
+    expect(['width', 'tray', 'cross']).toContain(readings[at - 1].field?.kind);
+    expect(['width', 'cross']).toContain(readings[0].field?.kind);
+  });
+
   test.each(EVERY_DECK)('$id (to the ceiling: $toCeiling): the deck is the same after it has been filled in', ({ id, toCeiling }) => {
     const start = layout(id, toCeiling);
     const options = { overBath: id === 'over-bath' };
@@ -388,13 +409,13 @@ describe('a deck for every layout', () => {
 });
 
 describe('what each layout is asked', () => {
-  test('a panel and door between two walls: the opening in halves, the floor, then each wall', () => {
-    expect(ids(deck('alcove-panel-door'))).toEqual([
+  test('a panel and door between two walls: the opening in one pull, the height, the floor, then each wall', () => {
+    const cards = deck('alcove-panel-door');
+    expect(ids(cards)).toEqual([
       'marks',
       'laser-on',
+      'width-0',
       'height',
-      'half-0-a',
-      'half-0-b',
       'floor-0-start',
       'floor-0-end',
       'wall-start-bottom',
@@ -403,16 +424,17 @@ describe('what each layout is asked', () => {
       'wall-end-top',
       'review',
     ]);
+    expect(cards.find((c) => c.id === 'width-0')?.title).toBe('How wide is the opening?');
   });
 
-  test('a walk-in screen: its length in one pull, the tray if they like, the floor, and its one wall', () => {
+  test('a walk-in screen: its length in one pull, the tray if they like, then the height, the floor, and its one wall', () => {
     const cards = deck('walk-in');
     expect(ids(cards)).toEqual([
       'marks',
       'laser-on',
-      'height',
       'width-0',
       'tray',
+      'height',
       'floor-0-start',
       'floor-0-end',
       'wall-start-bottom',
@@ -434,16 +456,15 @@ describe('what each layout is asked', () => {
     expect(ids(deck('corner-door-return'))).toEqual([
       'marks',
       'laser-on',
-      'height',
-      // The side has no door in it, so one pull.
       'width-0',
+      // The bottom first, then the height.
+      'height',
       'floor-0-start',
       'floor-0-end',
       'wall-start-bottom',
       'wall-start-top',
-      // The front has the door, so two halves to the laser.
-      'half-1-a',
-      'half-1-b',
+      // The front has the door, and is measured in one pull as well.
+      'width-1',
       'floor-1-start',
       'floor-1-end',
       'wall-end-bottom',
@@ -469,14 +490,16 @@ describe('what each layout is asked', () => {
       'ceiling-2-start',
       'ceiling-2-end',
     ]);
-    expect(readingCards(cards)).toHaveLength(20);
+    expect(readingCards(cards)).toHaveLength(19);
     expect(ids(deck('three-sided')).some((id) => id.startsWith('ceiling-'))).toBe(false);
   });
 
   test('a front between two corners says which corner, and two ends of one wall say which end', () => {
-    const titles = deck('three-sided').map((c) => c.title);
-    expect(titles).toContain('The front: left corner to the laser');
-    expect(titles).toContain('The front: right corner to the laser');
+    const cards = deck('three-sided');
+    const titles = cards.map((c) => c.title);
+    expect(cards.find((c) => c.id === 'width-1')?.instruction).toBe(
+      'Hold the end of the tape on the left corner mark, and measure along the floor to the right corner mark.'
+    );
     expect(titles).toContain('Back wall on the left, at the bottom');
     expect(titles).toContain('Back wall on the right, at the bottom');
   });

@@ -6,10 +6,14 @@
  * shower and the tool in the customer's hand.
  *
  * There are two kinds of deck. A single door between two walls is measured
- * to a cross in the middle of the opening: eight readings from one place.
- * Every other shape is measured a run at a time, in the steps agreed for it:
- * how wide the run is, what the floor does under it, the ceiling where the
- * glass reaches it, and each wall the glass ends on.
+ * to a cross in the middle of the opening: eight readings from one place, the
+ * laser's lines going four ways. Only that shape is measured to the middle
+ * (Matt, 12 November 2026). Every other shape is measured a run at a time:
+ * how wide the run is, in one pull of the tape, what the floor does under it,
+ * the ceiling where the glass reaches it, and each wall the glass ends on.
+ *
+ * In both, the first measurement is along the bottom and the height of the
+ * glass comes after it (Matt, 12 November 2026).
  *
  * A reading card names the field it writes through readField/writeField,
  * which call the same functions measure.ts has always used, so every rule and
@@ -189,20 +193,6 @@ function singleDoorLaser(state: ConfiguratorState): MeasureCardDef[] {
     },
   ];
 
-  if (!toCeiling) {
-    cards.push({
-      id: 'height',
-      kind: 'reading',
-      title: 'How tall is the glass?',
-      instruction: 'Mark the top of the glass on a piece of tape on the wall. Hook the tape measure on the floor and read up to your mark.',
-      visual: { kind: 'height' },
-      field: { kind: 'height' },
-      inputLabel: 'Floor to your mark',
-      minMm: 500,
-      maxMm: 3000,
-    });
-  }
-
   const words: Record<number, { title: string; instruction: string; label: string }> = {
     1: {
       title: 'Left wall, at the bottom',
@@ -260,6 +250,21 @@ function singleDoorLaser(state: ConfiguratorState): MeasureCardDef[] {
       minMm: 50,
       maxMm: 3500,
     });
+    // The bottom first, then the height: the customer is at the left wall,
+    // and reading 2 is taken level with the mark this card asks them to make.
+    if (p.n === 1 && !toCeiling) {
+      cards.push({
+        id: 'height',
+        kind: 'reading',
+        title: 'How tall is the glass?',
+        instruction: 'Mark the top of the glass on a piece of tape on the left wall. Hook the tape measure on the floor and read up to your mark.',
+        visual: { kind: 'height' },
+        field: { kind: 'height' },
+        inputLabel: 'Floor to your mark',
+        minMm: 500,
+        maxMm: 3000,
+      });
+    }
   }
 
   cards.push({ id: 'review', kind: 'review', title: 'Your measurements', instruction: '', visual: null });
@@ -292,10 +297,12 @@ export function runViews(state: ConfiguratorState, options: DeckOptions = {}): R
 /**
  * The steps agreed for every shape but the single door (Notion, Customer
  * measuring flow and Measuring Calculator decisions): each run along the
- * floor, in two halves to the laser where there is a door in it; the floor
- * under each run as two readings up to the level line; floor to ceiling at
- * each end where the glass reaches it; and each wall the glass ends on as two
- * readings to the laser's upright line, stood 50mm off it.
+ * floor in one pull of the tape, whether or not there is a door in it (Matt,
+ * 12 November 2026: only a single door is measured to a laser in the middle);
+ * the height once the first run has been measured; the floor under each run
+ * as two readings up to the level line; floor to ceiling at each end where
+ * the glass reaches it; and each wall the glass ends on as two readings to
+ * the laser's upright line, stood 50mm off it.
  *
  * They are dealt one reading to a card, and in the order the customer meets
  * them walking along the glass, so the laser is moved as little as possible.
@@ -359,19 +366,20 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
     },
   ];
 
-  if (!toCeiling) {
-    cards.push({
-      id: 'height',
-      kind: 'reading',
-      title: `How tall is the ${glass}?`,
-      instruction: `Mark the top of the ${glass} on a piece of tape on the wall. Hook the tape measure on the ${floor} and read up to your mark.`,
-      visual: { kind: 'height' },
-      field: { kind: 'height' },
-      inputLabel: `${cap(floor)} to your mark`,
-      minMm: 500,
-      maxMm: 3000,
-    });
-  }
+  // Asked once the first run has been measured along the bottom.
+  const height: MeasureCardDef | null = toCeiling
+    ? null
+    : {
+        id: 'height',
+        kind: 'reading',
+        title: `How tall is the ${glass}?`,
+        instruction: `Mark the top of the ${glass} on a piece of tape on the wall. Hook the tape measure on the ${floor} and read up to your mark.`,
+        visual: { kind: 'height' },
+        field: { kind: 'height' },
+        inputLabel: `${cap(floor)} to your mark`,
+        minMm: 500,
+        maxMm: 3000,
+      };
 
   // 'the back wall, at the left end' reads badly in front of 'at the bottom',
   // so a heading uses the wall's short name, and says which side only when
@@ -422,33 +430,16 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
     const along = multi ? run : options.overBath ? 'the bath rim' : 'the glass line';
     const minWidth = view.door ? MIN_PLAUSIBLE_MM : MIN_PLAUSIBLE_RETURN_MM;
 
-    // How wide. Two short pulls to the laser are more accurate than one long
-    // one, so a run with a door in it is measured in halves.
-    if (view.door) {
-      const halves = [
-        ['a', left, `Stand the laser facing ${run}, with its up-and-down line near the middle. `],
-        ['b', right, 'Leave the laser where it is. '],
-      ] as const;
-      for (const [half, end, lead] of halves) {
-        cards.push({
-          id: `half-${i}-${half}`,
-          kind: 'reading',
-          title: heading(`${brief(end.kind, end.wall)} to the laser`),
-          instruction: `${lead}${from(end.kind, end.wall)}, along the ${floor}, and read where the laser lights the blade.`,
-          visual: { kind: 'run-width', view, part: half },
-          field: { kind: 'half', run: i, half },
-          inputLabel: `${cap(brief(end.kind, end.wall))} to the laser, along the ${floor}`,
-          minMm: 50,
-          maxMm: 3000,
-        });
-      }
-    } else {
+    // How wide, in one pull of the tape, door or not. Only a single door
+    // between two walls is measured in halves to a laser in the middle.
+    {
       // A tape hooks on a wall, so the pull starts from whichever end has one.
       const [near, far] = right.kind === 'wall' && left.kind !== 'wall' ? [right, left] : [left, right];
+      const opening = left.kind === 'wall' && right.kind === 'wall';
       cards.push({
         id: `width-${i}`,
         kind: 'reading',
-        title: multi ? `How wide is ${run}?` : `How long is the ${glass}?`,
+        title: multi ? `How wide is ${run}?` : opening && !options.overBath ? 'How wide is the opening?' : `How long is the ${glass}?`,
         instruction: `${from(near.kind, near.wall)}, and measure along the ${floor} to ${place(far.kind, far.wall)}.`,
         visual: { kind: 'run-width', view, part: 'whole' },
         field: { kind: 'width', run: i },
@@ -474,6 +465,9 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
         maxMm: 4000,
       });
     }
+
+    // The bottom first, then the height.
+    if (i === 0 && height) cards.push(height);
 
     // The floor, as two readings up to the level line.
     const sides = [
