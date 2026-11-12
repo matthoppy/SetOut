@@ -34,7 +34,7 @@ Geneva and Vienna from CRL North America, Bellagio from CRL Europe (found on
 Custom Showers' own website, 12 November 2026). Each range has its own:
 Vienna's (76 by 46) is bigger than Geneva's (63 by 44). Vienna can be cut with
 mouse ears or rectangular; Bellagio's door notch depends on whether it is
-fitted with seals. A style whose own drawing is not there yet is marked on
+fitted with seals (usual) or without (often a bigger shower). A style whose own drawing is not there yet is marked on
 the glass order to check against the template in its box. The "fabrication"
 pictures in `fabrication/` are product photos and exploded views, not
 templates.

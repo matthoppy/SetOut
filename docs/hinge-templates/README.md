@@ -36,10 +36,16 @@ the adjustables, the H plate, positive close, Vienna in line) is cut to its
 range's cut-out but named for itself on the glass order and marked to check
 against the template in its box, until its drawing is here.
 
+Bellagio is usually fitted with seals; a bigger shower is often fitted without
+(Matt, 12 November 2026). A company sets its standard in Settings, Hinges, and
+staff choose for a shower; the glass order draws the door's notch for the one
+chosen, and the installation sheet says when it is fitted without seals.
+
 ## Still needed
 
-- Bellagio: whether Custom Showers fits it with seals or without. SetOut
-  cuts the door to the with-seals notch and says so on the glass order.
+- Bellagio's gap at the hinge: CRL draws 8mm fitted with seals and 3mm
+  without. SetOut leaves 3mm at every glass-to-glass hinge (Matt, 11
+  November 2026), which sets the door out as CRL does without seals.
 - The back of the Geneva 90° sheet, to confirm the door notch and the
   spacing of the panel's holes.
 - Vienna 180° and 90° glass to glass, and the styles listed above.

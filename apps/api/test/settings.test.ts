@@ -41,6 +41,7 @@ interface Hinges {
   wall: { offered: string[]; standard: string };
   inLine: { offered: string[]; standard: string };
   viennaCutout: string;
+  bellagioFit: string;
 }
 interface Change {
   id: string;
@@ -104,7 +105,7 @@ const firstJob = async () => {
 type Label = { id: string; label: string; code?: string };
 const labelsOnJob = async () =>
   (
-    await json<{ labels: { finishes: Label[]; handles: Label[]; hinges: { wall: string; inLine: string; viennaCutout: string } } }>(
+    await json<{ labels: { finishes: Label[]; handles: Label[]; hinges: { wall: string; inLine: string; viennaCutout: string; bellagioFit: string } } }>(
       await api(`/jobs/${await firstJob()}`, { cookie: owner })
     )
   ).labels;
@@ -658,10 +659,15 @@ describe('the glass a designer offers', () => {
 
 describe('the hinges a designer offers', () => {
   test('are the offset back plate and the standard in-line hinge until an owner offers more', async () => {
-    const standard = { wall: { offered: ['offset'], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' }, viennaCutout: 'mouse-ear' };
+    const standard = {
+      wall: { offered: ['offset'], standard: 'offset' },
+      inLine: { offered: ['standard'], standard: 'standard' },
+      viennaCutout: 'mouse-ear',
+      bellagioFit: 'with-seals',
+    };
     expect((await ours()).hinges).toEqual(standard);
     expect((await publicConfig(shop)).hinges).toEqual(standard);
-    expect((await labelsOnJob()).hinges).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' });
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' });
   });
 
   test('an owner offers more, sets the standard, and the designer, the job and the record follow', async () => {
@@ -674,10 +680,11 @@ describe('the hinges a designer offers', () => {
       wall: { offered: ['offset', 'full', 'short'], standard: 'full' },
       inLine: { offered: ['standard', 'adjustable'], standard: 'standard' },
       viennaCutout: 'mouse-ear',
+      bellagioFit: 'with-seals',
     };
     expect(designer.hinges).toEqual(tidied);
     expect((await publicConfig(shop)).hinges).toEqual(tidied);
-    expect((await labelsOnJob()).hinges).toEqual({ wall: 'full', inLine: 'standard', viennaCutout: 'mouse-ear' });
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'full', inLine: 'standard', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' });
     const { changes } = await read();
     expect(changes?.[0].data.changes).toEqual([
       { field: 'wallHingesOffered', from: ['offset'], to: ['offset', 'full', 'short'] },
@@ -712,6 +719,15 @@ describe('the hinges a designer offers', () => {
     // Saving the hinges without it leaves it as it is.
     const { wall, inLine } = designer.hinges;
     expect((await saved(await changeDesigner({ hinges: { wall, inLine } }))).designer.hinges.viennaCutout).toBe('rectangular');
+  });
+
+  test('Bellagio can be fitted without seals as standard, and that is on record', async () => {
+    const { hinges } = await ours();
+    const { designer } = await saved(await changeDesigner({ hinges: { ...hinges, bellagioFit: 'without-seals' } }));
+    expect(designer.hinges.bellagioFit).toBe('without-seals');
+    expect((await read()).changes?.[0].data.changes).toEqual([{ field: 'bellagioFit', from: 'with-seals', to: 'without-seals' }]);
+    expect(await errorOf(await changeDesigner({ hinges: { ...hinges, bellagioFit: 'glued' } }))).toEqual([400, 'invalid_hinges']);
+    await saved(await changeDesigner({ hinges: { ...designer.hinges, bellagioFit: 'with-seals' } }));
   });
 
   test('staff changing a shower may choose any hinge, starting from the company standard', async () => {

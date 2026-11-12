@@ -340,7 +340,8 @@ function fittingRows(fittings: Fitting[], spec: ConfiguratorSpec, design: Config
     const code = crl.code;
     // A rectangular Vienna cut-out has no holes for two of the hinge's screws.
     const screws = f.kind === 'hinges' && f.brand === 'Vienna' && hinges.viennaCutout === 'rectangular' ? 'Rectangular cut-outs: take the two screws out of each hinge.' : null;
-    const note = [crl.note, screws].filter(Boolean).join(' ') || null;
+    const seals = f.kind === 'hinges' && f.brand === 'Bellagio' && hinges.bellagioFit === 'without-seals' ? 'Fitted without seals.' : null;
+    const note = [crl.note, screws, seals].filter(Boolean).join(' ') || null;
     const fresh = note !== null && !said.has(note);
     if (note) said.add(note);
     return { ...row, code, note: fresh ? note : null };

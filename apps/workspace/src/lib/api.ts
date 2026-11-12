@@ -6,7 +6,7 @@
  * sign-in page.
  */
 
-import type { ConfiguratorSpec, ConfiguratorState, HingeStyles, InLineHinge, ViennaCutout, WallHinge } from '@setout/engine';
+import type { BellagioFit, ConfiguratorSpec, ConfiguratorState, HingeStyles, InLineHinge, ViennaCutout, WallHinge } from '@setout/engine';
 
 export class SignedOut extends Error {
   constructor() {
@@ -247,6 +247,7 @@ export interface Hinges {
   wall: { offered: WallHinge[]; standard: WallHinge };
   inLine: { offered: InLineHinge[]; standard: InLineHinge };
   viennaCutout: ViennaCutout;
+  bellagioFit: BellagioFit;
 }
 
 /** A finish or handle as it is sent to be saved: one without an id is new. */
@@ -305,7 +306,7 @@ export type SettingsChangeItem =
   | { field: 'glassStandard'; from: number; to: number }
   | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
-  | { field: 'viennaCutout'; from: string; to: string }
+  | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 export interface SettingsChange {

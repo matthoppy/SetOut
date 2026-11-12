@@ -14,6 +14,7 @@ import {
   type ConfiguratorState,
   type GlassThickness,
   type InLineHinge,
+  type BellagioFit,
   type RulesetOverrides,
   type ViennaCutout,
   type WallHinge,
@@ -140,6 +141,8 @@ export interface DesignerHinges {
   inLine: { offered: InLineHinge[]; standard: InLineHinge };
   /** How the company cuts the glass for a Vienna hinge unless a shower says otherwise. */
   viennaCutout?: ViennaCutout;
+  /** How the company fits a Bellagio hinge unless a shower says otherwise. */
+  bellagioFit?: BellagioFit;
 }
 
 /** The hinges on offer: always at least the standard of each, SetOut's own where the server sends none. */

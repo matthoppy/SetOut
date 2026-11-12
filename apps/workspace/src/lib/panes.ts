@@ -62,7 +62,7 @@ export function describeFeature(f: PaneFeature, pane: Pane, letters: Map<string,
   const length = f.side === 'left' ? topLeft.y - bottomLeft.y : topRight.y - bottomRight.y;
   const p = placing(length, f);
   if (f.kind === 'notch') {
-    const shape = f.ears ? `with Ø${f.ears.diameterMm} ears` : `r${f.radiusMm}`;
+    const shape = `${f.ears ? `with Ø${f.ears.diameterMm} ears` : `r${f.radiusMm}`}${f.rebate ? `, in a rebate ${f.rebate.depthMm} deep × ${f.rebate.heightMm} high` : ''}`;
     return `${letter}: ${what}, ${f.depthMm} deep × ${f.heightMm} high, ${shape}, ${f.side} edge, ${p.distanceMm}mm from the ${p.from} to its ${p.from === 'top' ? 'upper' : 'lower'} edge`;
   }
   const first = partner(pane, f);

@@ -29,17 +29,16 @@ describe('how each door hangs', () => {
 
 describe('the hinges a shower takes', () => {
   test('the company standard, unless the shower has its own', () => {
-    expect(hingeStylesOf({}, STANDARD_HINGES)).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' });
-    expect(hingeStylesOf({}, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular' })).toEqual({
+    expect(hingeStylesOf({}, STANDARD_HINGES)).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' });
+    expect(hingeStylesOf({}, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular', bellagioFit: 'without-seals' })).toEqual({
       wall: 'full',
       inLine: 'adjustable',
       viennaCutout: 'rectangular',
+      bellagioFit: 'without-seals',
     });
-    expect(hingeStylesOf({ wallHinge: 'short', viennaCutout: 'mouse-ear' }, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular' })).toEqual({
-      wall: 'short',
-      inLine: 'adjustable',
-      viennaCutout: 'mouse-ear',
-    });
+    expect(
+      hingeStylesOf({ wallHinge: 'short', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' }, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular', bellagioFit: 'without-seals' })
+    ).toEqual({ wall: 'short', inLine: 'adjustable', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' });
   });
 
   test('a style is named where the range has more than one', () => {

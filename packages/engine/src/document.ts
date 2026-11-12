@@ -31,6 +31,7 @@ import {
 import { getTemplate, type ShowerTemplate } from './templates';
 import {
   createInitialState,
+  BELLAGIO_FITS,
   IN_LINE_HINGES,
   VIENNA_CUTOUTS,
   WALL_HINGES,
@@ -381,5 +382,6 @@ function readDesign(v: unknown): ConfiguratorState {
   if (d.wallHinge !== undefined) design.wallHinge = oneOf(d.wallHinge, WALL_HINGES, 'wallHinge');
   if (d.inLineHinge !== undefined) design.inLineHinge = oneOf(d.inLineHinge, IN_LINE_HINGES, 'inLineHinge');
   if (d.viennaCutout !== undefined) design.viennaCutout = oneOf(d.viennaCutout, VIENNA_CUTOUTS, 'viennaCutout');
+  if (d.bellagioFit !== undefined) design.bellagioFit = oneOf(d.bellagioFit, BELLAGIO_FITS, 'bellagioFit');
   return design;
 }

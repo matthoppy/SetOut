@@ -38,7 +38,7 @@ export function lettersFor(panes: Pane[]): Map<string, string> {
  * mouth round to the bottom. A notch with ears follows each relief hole
  * round the outside, where it stands proud of the square.
  */
-export function notchOutline(f: Pick<PaneNotch, 'depthMm' | 'heightMm' | 'radiusMm' | 'ears'>): { x: number; y: number }[] {
+export function notchOutline(f: Pick<PaneNotch, 'depthMm' | 'heightMm' | 'radiusMm' | 'ears' | 'rebate'>): { x: number; y: number }[] {
   const D = f.depthMm;
   const top = f.heightMm / 2;
   const arc = (cx: number, cy: number, r: number, from: number, to: number) =>
@@ -46,6 +46,21 @@ export function notchOutline(f: Pick<PaneNotch, 'depthMm' | 'heightMm' | 'radius
       const a = from + ((to - from) * k) / 12;
       return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
     });
+  if (f.rebate) {
+    // A shallow rebate along the edge, its inner corners rounded, with the
+    // notch set in it, its own inner corners rounded too.
+    const d = f.rebate.depthMm;
+    const t = f.rebate.heightMm / 2;
+    const rr = Math.min(f.radiusMm, d);
+    const r = Math.min(f.radiusMm, D - d, top);
+    const upper = [
+      ...arc(d - rr, t - rr, rr, Math.PI / 2, 0),
+      { x: d, y: top },
+      ...arc(D - r, top - r, r, Math.PI / 2, 0),
+    ];
+    const lower = upper.map((p) => ({ x: p.x, y: -p.y })).reverse();
+    return [{ x: 0, y: t }, ...upper, ...lower, { x: 0, y: -t }];
+  }
   if (f.ears) {
     const r = f.ears.diameterMm / 2;
     const I = f.ears.inMm;
@@ -251,7 +266,8 @@ export function placing(edgeLengthMm: number, f: Cut): { from: 'top' | 'bottom';
   const round = (v: number) => Math.round(v * 10) / 10;
   const fromTop = edgeLengthMm - f.centreMm < f.centreMm;
   if (f.kind === 'notch') {
-    const half = f.heightMm / 2;
+    // A rebated notch is placed by the rebate's near edge, the first glass the cut takes.
+    const half = (f.rebate?.heightMm ?? f.heightMm) / 2;
     const atMm = fromTop ? f.centreMm + half : f.centreMm - half;
     return { from: fromTop ? 'top' : 'bottom', to: 'edge', distanceMm: round(fromTop ? edgeLengthMm - atMm : atMm), atMm };
   }
@@ -421,19 +437,30 @@ export function TemplateDrawing({ letter, feature }: { letter: string; feature: 
     const P = (p: { x: number; y: number }) => ({ X: E + p.x * s, Y: cy - p.y * s });
     const top = cy - (feature.heightMm / 2) * s;
     const bottom = cy + (feature.heightMm / 2) * s;
+    // Where the cut meets the edge: the rebate's ends, if it has one.
+    const edgeTop = cy - ((feature.rebate?.heightMm ?? feature.heightMm) / 2) * s;
+    const edgeBottom = cy + ((feature.rebate?.heightMm ?? feature.heightMm) / 2) * s;
     return (
       <figure className="break-inside-avoid">
         {caption}
         <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 h-auto w-full max-w-[380px]" role="img" aria-label={`${feature.name}: ${feature.heightMm}mm high, ${feature.depthMm}mm deep`}>
           {marker}
-          <line x1={E} y1={10} x2={E} y2={top} stroke={INK} strokeWidth="2" />
-          <line x1={E} y1={bottom} x2={E} y2={H - 10} stroke={INK} strokeWidth="2" />
+          <line x1={E} y1={10} x2={E} y2={edgeTop} stroke={INK} strokeWidth="2" />
+          <line x1={E} y1={edgeBottom} x2={E} y2={H - 10} stroke={INK} strokeWidth="2" />
           <text x={E - 8} y={18} fontSize="11" textAnchor="end" fill={INK}>
             edge
           </text>
           <polyline points={outline.map(P).map((p) => `${p.X},${p.Y}`).join(' ')} fill="#f4f4f4" stroke={INK} strokeWidth="1.6" />
           {dim(E - 22, top, E - 22, bottom, `${feature.heightMm}`, true)}
-          {dim(E, top - 22, E + feature.depthMm * s, top - 22, `${feature.depthMm}`)}
+          {dim(E, edgeTop - 22, E + feature.depthMm * s, edgeTop - 22, `${feature.depthMm}`)}
+          {feature.rebate && (
+            <>
+              {dim(E - 46, edgeTop, E - 46, edgeBottom, `${feature.rebate.heightMm}`, true)}
+              <text x={E + feature.rebate.depthMm * s + 6} y={edgeTop + 14} fontSize="12" fill={INK}>
+                rebate {feature.rebate.depthMm} deep
+              </text>
+            </>
+          )}
           {feature.ears ? (
             <>
               {dim(E + reach * s + 26, cy - (feature.ears.apartMm / 2) * s, E + reach * s + 26, cy + (feature.ears.apartMm / 2) * s, `${feature.ears.apartMm}`, true)}

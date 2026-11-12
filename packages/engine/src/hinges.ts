@@ -19,7 +19,7 @@
  */
 
 import type { HingeMount } from './fittings';
-import type { ConfiguratorState, InLineHinge, ViennaCutout, WallHinge } from './types';
+import type { BellagioFit, ConfiguratorState, InLineHinge, ViennaCutout, WallHinge } from './types';
 
 export interface HingeStyle {
   /** As a heading or an option: "Offset back plate". */
@@ -91,20 +91,23 @@ export interface HingeStyles {
   inLine: InLineHinge;
   /** Mouse ears when not given. */
   viennaCutout?: ViennaCutout;
+  /** With seals when not given. */
+  bellagioFit?: BellagioFit;
 }
 
 /** What a company starts with until it chooses. */
-export const STANDARD_HINGES: Required<HingeStyles> = { wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' };
+export const STANDARD_HINGES: Required<HingeStyles> = { wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear', bellagioFit: 'with-seals' };
 
 /** The hinges a shower's doors take: its own choice for each, or the company's standard. */
 export function hingeStylesOf(
-  design: Pick<ConfiguratorState, 'wallHinge' | 'inLineHinge' | 'viennaCutout'>,
+  design: Pick<ConfiguratorState, 'wallHinge' | 'inLineHinge' | 'viennaCutout' | 'bellagioFit'>,
   standards: HingeStyles = STANDARD_HINGES
 ): Required<HingeStyles> {
   return {
     wall: design.wallHinge ?? standards.wall,
     inLine: design.inLineHinge ?? standards.inLine,
     viennaCutout: design.viennaCutout ?? standards.viennaCutout ?? STANDARD_HINGES.viennaCutout,
+    bellagioFit: design.bellagioFit ?? standards.bellagioFit ?? STANDARD_HINGES.bellagioFit,
   };
 }
 

@@ -11,10 +11,12 @@
  */
 
 import {
+  BELLAGIO_FITS,
   IN_LINE_HINGES,
   STANDARD_HINGES,
   VIENNA_CUTOUTS,
   WALL_HINGES,
+  type BellagioFit,
   type HingeStyles,
   type InLineHinge,
   type ViennaCutout,
@@ -68,6 +70,7 @@ export interface Hinges {
   wall: { offered: WallHinge[]; standard: WallHinge };
   inLine: { offered: InLineHinge[]; standard: InLineHinge };
   viennaCutout: ViennaCutout;
+  bellagioFit: BellagioFit;
 }
 
 function choiceOf<T extends string>(all: readonly T[], stored: { offered?: unknown; standard?: unknown } | undefined, fallback: T) {
@@ -88,6 +91,7 @@ export function hingesOf(settings: DesignerSettings): Hinges {
     viennaCutout: VIENNA_CUTOUTS.includes(settings.hinges?.viennaCutout as ViennaCutout)
       ? (settings.hinges?.viennaCutout as ViennaCutout)
       : STANDARD_HINGES.viennaCutout,
+    bellagioFit: BELLAGIO_FITS.includes(settings.hinges?.bellagioFit as BellagioFit) ? (settings.hinges?.bellagioFit as BellagioFit) : STANDARD_HINGES.bellagioFit,
   };
 }
 
@@ -96,12 +100,14 @@ export const ALL_HINGES = (hinges: Hinges): Hinges => ({
   wall: { offered: [...WALL_HINGES], standard: hinges.wall.standard },
   inLine: { offered: [...IN_LINE_HINGES], standard: hinges.inLine.standard },
   viennaCutout: hinges.viennaCutout,
+  bellagioFit: hinges.bellagioFit,
 });
 
 const standardsOf = (hinges: Hinges): HingeStyles => ({
   wall: hinges.wall.standard,
   inLine: hinges.inLine.standard,
   viennaCutout: hinges.viennaCutout,
+  bellagioFit: hinges.bellagioFit,
 });
 
 /** The hinges a shower takes when it has not chosen its own. */

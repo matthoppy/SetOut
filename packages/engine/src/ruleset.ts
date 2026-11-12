@@ -120,6 +120,8 @@ export interface NotchCutout {
  */
 export type CutoutShape =
   | { kind: 'notch'; heightMm: number; depthMm: number; radiusMm: number }
+  /** A notch set in a shallow rebate along the edge, taller than the notch. */
+  | { kind: 'notch-rebated'; heightMm: number; depthMm: number; radiusMm: number; rebateHeightMm: number; rebateDepthMm: number }
   | { kind: 'notch-ears'; heightMm: number; depthMm: number; earDiameterMm: number; earInMm: number; earApartMm: number }
   | { kind: 'holes'; diameterMm: number; inMm: number; apartMm: number };
 
@@ -142,6 +144,8 @@ export interface HingeCutouts {
   panelAtCorner?: CutoutTemplate;
   /** Vienna's rectangular cut-out, for the door and the panel in line, instead of the mouse ears. */
   rectangular?: { door: CutoutTemplate; panelInLine: CutoutTemplate };
+  /** Bellagio's door notch when it is fitted without seals. */
+  withoutSeals?: { door: CutoutTemplate };
 }
 
 export interface FixedRules {
@@ -378,14 +382,23 @@ export const FIXED_RULES: FixedRules = {
       bellagio: {
         // CRL Europe's BEL344, BEL380 and BEL392 drawings (from Custom
         // Showers' own site, docs/hinge-templates/), in mm. Fitted with
-        // seals: the door notch is 58 high and 47 deep with 6mm inner
-        // corners, the same in all three, as CRL North America's BEL344
-        // sheet has it. Fitted without seals the door's notch is stepped
-        // instead, so the source says to check which.
+        // seals, as usual: the door notch is 58 high and 47 deep with 6mm
+        // inner corners, the same in all three, as CRL North America's BEL344
+        // sheet has it. Fitted without seals, as a bigger shower often is
+        // (Matt, 12 November 2026): the door's notch is 58 high and 52 deep,
+        // set in a rebate 6 deep and 84 high. The panels are the same either
+        // way.
         door: {
           name: 'Bellagio hinge notch',
-          source: 'CRL Europe BEL344, BEL380 and BEL392 drawings, fitted with seals (fitted without seals the door notch is stepped: check which)',
+          source: 'CRL Europe BEL344, BEL380 and BEL392 drawings, fitted with seals',
           shape: { kind: 'notch', heightMm: 58, depthMm: 47, radiusMm: 6 },
+        },
+        withoutSeals: {
+          door: {
+            name: 'Bellagio hinge notch, without seals',
+            source: 'CRL Europe BEL344, BEL380 and BEL392 drawings, fitted without seals',
+            shape: { kind: 'notch-rebated', heightMm: 58, depthMm: 52, radiusMm: 6, rebateHeightMm: 84, rebateDepthMm: 6 },
+          },
         },
         panelInLine: {
           name: 'Bellagio 180° panel notch',

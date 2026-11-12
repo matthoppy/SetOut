@@ -85,6 +85,13 @@ export type InLineHinge = (typeof IN_LINE_HINGES)[number];
  */
 export const VIENNA_CUTOUTS = ['mouse-ear', 'rectangular'] as const;
 export type ViennaCutout = (typeof VIENNA_CUTOUTS)[number];
+/**
+ * How a Bellagio hinge is fitted: CRL draws both. Usually with seals; a bigger
+ * shower often without (Matt, 12 November 2026). Without, the door's notch is
+ * stepped and deeper.
+ */
+export const BELLAGIO_FITS = ['with-seals', 'without-seals'] as const;
+export type BellagioFit = (typeof BELLAGIO_FITS)[number];
 
 export interface ConfiguratorState {
   panels: ConfiguratorPanel[];
@@ -116,6 +123,8 @@ export interface ConfiguratorState {
   inLineHinge?: InLineHinge;
   /** How the glass is cut for a Vienna hinge, where staff chose it for this shower. */
   viennaCutout?: ViennaCutout;
+  /** How a Bellagio hinge is fitted, where staff chose it for this shower. */
+  bellagioFit?: BellagioFit;
   /** Keys into the company's hardware catalogue. */
   finishId: string;
   handleId: string;

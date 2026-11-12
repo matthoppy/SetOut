@@ -176,6 +176,28 @@ describe('each hinge is cut to its own template', () => {
     expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ role: 'panel-hinge', hinge: 'Bel - G/G', heightMm: 52, depthMm: 33, radiusMm: 6 });
   });
 
+  test('a Bellagio door fitted without seals: 58 high and 52 deep, in a rebate 6 deep and 84 high; the panel is the same', () => {
+    const state = widened(panelAndDoor('left'), 950);
+    const spec = buildSpec(state, context);
+    expect(spec.panels[1].door!.hingeBrand).toBe('Bellagio');
+    for (const [design, standards] of [
+      [state, { ...STANDARD_HINGES, bellagioFit: 'without-seals' as const }],
+      [{ ...state, bellagioFit: 'without-seals' as const }, STANDARD_HINGES],
+    ] as const) {
+      const [panel, door] = panesOf(design, spec, fixed, standards);
+      expect(door.features.find((f) => f.kind === 'notch')).toMatchObject({
+        name: 'Bellagio hinge notch, without seals',
+        heightMm: 58,
+        depthMm: 52,
+        radiusMm: 6,
+        rebate: { heightMm: 84, depthMm: 6 },
+      });
+      expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ heightMm: 52, depthMm: 33, rebate: null });
+    }
+    // With seals, as usual, there is no rebate.
+    expect(panesOf(state, spec, fixed)[1].features.find((f) => f.kind === 'notch')).toMatchObject({ depthMm: 47, rebate: null });
+  });
+
   test('a Vienna door cut rectangular: the same 76 by 46, with 12mm holes at its inner corners instead of the ears', () => {
     const state = widened(panelAndDoor('left'), 800);
     const spec = buildSpec(state, context);

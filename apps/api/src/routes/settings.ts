@@ -58,7 +58,7 @@ const STALE = {
   message: 'Someone else changed this since you opened it. Open the settings again to see their change.',
 } as const;
 const NO_DESIGNER = { error: 'not_found', message: 'There is no such designer.' } as const;
-const HINGE_FIELDS: string[] = ['wallHingesOffered', 'wallHingeStandard', 'inLineHingesOffered', 'inLineHingeStandard', 'viennaCutout'];
+const HINGE_FIELDS: string[] = ['wallHingesOffered', 'wallHingeStandard', 'inLineHingesOffered', 'inLineHingeStandard', 'viennaCutout', 'bellagioFit'];
 const NO_COMPANY = { error: 'not_found', message: 'This company could not be found.' } as const;
 
 /** Only an owner may change the settings. The role is read from the membership on every request. */

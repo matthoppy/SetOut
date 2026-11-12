@@ -876,6 +876,10 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
     ['mouse-ear', 'Mouse ear', 'Two 16mm holes drilled as well, so the glass costs more to make.'],
     ['rectangular', 'Rectangular', 'A 12mm hole at each inner corner instead. The fitters take two screws out of each hinge.'],
   ] as const;
+  const fits = [
+    ['with-seals', 'With seals', 'The door’s notch 58mm high by 47mm deep.'],
+    ['without-seals', 'Without seals', 'Often better for a bigger shower. The door’s notch 58mm by 52mm deep, in a rebate 6mm deep and 84mm high.'],
+  ] as const;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -903,6 +907,9 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
           </p>
           <p>
             Vienna cut-out: <span className="font-medium">{designer.hinges.viennaCutout === 'rectangular' ? 'Rectangular' : 'Mouse ear'}</span>
+          </p>
+          <p>
+            Bellagio: <span className="font-medium">{designer.hinges.bellagioFit === 'without-seals' ? 'without seals' : 'with seals'}</span>
           </p>
         </div>
       </Section>
@@ -942,6 +949,27 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
                   name={`vienna-${designer.id}`}
                   checked={hinges.viennaCutout === id}
                   onChange={() => setHinges({ ...hinges, viennaCutout: id })}
+                  className="mt-1 h-4 w-4 shrink-0"
+                />
+                <span>
+                  <span className="font-medium">{name}</span>{' '}
+                  <span className="block text-xs text-quiet">{about}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="mt-4">
+          <legend className="text-sm font-semibold">How a Bellagio hinge is fitted</legend>
+          <p className="text-xs text-quiet">Both are CRL’s. The panels are cut the same either way. Staff can choose the other for a shower.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {fits.map(([id, name, about]) => (
+              <label key={id} className="flex cursor-pointer items-start gap-2 rounded-md border border-rule px-3 py-2">
+                <input
+                  type="radio"
+                  name={`bellagio-${designer.id}`}
+                  checked={hinges.bellagioFit === id}
+                  onChange={() => setHinges({ ...hinges, bellagioFit: id })}
                   className="mt-1 h-4 w-4 shrink-0"
                 />
                 <span>
@@ -1440,6 +1468,8 @@ function describe(item: SettingsChangeItem, by: string): string {
       const names = (ids: string[]) => listed(ids.map((id) => styles[id]?.words ?? id));
       return `${by} offered customers ${names(item.to)} hinges ${item.field === 'wallHingesOffered' ? 'to the wall' : 'in line'}, from ${names(item.from)}.`;
     }
+    case 'bellagioFit':
+      return `${by} made Bellagio fitted ${item.to === 'without-seals' ? 'without' : 'with'} seals as standard, from ${item.from === 'without-seals' ? 'without' : 'with'}.`;
     case 'viennaCutout':
       return `${by} made Vienna cut-outs ${item.to === 'rectangular' ? 'rectangular' : 'mouse ear'} as standard, from ${item.from === 'rectangular' ? 'rectangular' : 'mouse ear'}.`;
     case 'wallHingeStandard':

@@ -18,6 +18,7 @@ import {
   measureScreenCount,
   runWidthsMm,
   syncRuns,
+  type BellagioFit,
   type ConfiguratorState,
   type ViennaCutout,
 } from '@setout/engine';
@@ -214,6 +215,18 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
                   onChoose={(viennaCutout) => update({ viennaCutout })}
                 />
               )}
+              {spec.panels.some((p) => p.door?.hingeBrand === 'Bellagio') && (
+                <Choice<BellagioFit>
+                  title="Bellagio fitted"
+                  options={[
+                    ['with-seals', 'With seals', 'The door’s notch 58mm high by 47mm deep.'],
+                    ['without-seals', 'Without seals', 'Often better for a bigger shower. The door’s notch 58mm by 52mm deep, in a rebate 6mm deep and 84mm high.'],
+                  ]}
+                  chosen={state.bellagioFit ?? config.hinges?.bellagioFit ?? 'with-seals'}
+                  standard={config.hinges?.bellagioFit ?? 'with-seals'}
+                  onChoose={(bellagioFit) => update({ bellagioFit })}
+                />
+              )}
             </>
           )}
         </div>
@@ -343,14 +356,38 @@ function ViennaCutoutChoice({
   standard: ViennaCutout;
   onChoose: (cutout: ViennaCutout) => void;
 }) {
-  const options: [ViennaCutout, string, string][] = [
-    ['mouse-ear', 'Mouse ear', 'Two 16mm holes drilled as well, so the glass costs more to make.'],
-    ['rectangular', 'Rectangular', 'A 12mm hole at each inner corner instead. The fitters take two screws out of each hinge.'],
-  ];
+  return (
+    <Choice<ViennaCutout>
+      title="Vienna cut-out"
+      options={[
+        ['mouse-ear', 'Mouse ear', 'Two 16mm holes drilled as well, so the glass costs more to make.'],
+        ['rectangular', 'Rectangular', 'A 12mm hole at each inner corner instead. The fitters take two screws out of each hinge.'],
+      ]}
+      chosen={chosen}
+      standard={standard}
+      onChoose={onChoose}
+    />
+  );
+}
+
+/** A choice staff make for this shower, as cards, the company's standard marked. */
+function Choice<T extends string>({
+  title,
+  options,
+  chosen,
+  standard,
+  onChoose,
+}: {
+  title: string;
+  options: [T, string, string][];
+  chosen: T;
+  standard: T;
+  onChoose: (id: T) => void;
+}) {
   return (
     <div className="mt-6 space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vienna cut-out</p>
-      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Vienna cut-out">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={title}>
         {options.map(([id, name, about]) => (
           <button
             key={id}

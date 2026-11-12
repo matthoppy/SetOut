@@ -59,6 +59,8 @@ export interface PaneNotch extends Template {
   radiusMm: number;
   /** Round relief holes at its inner corners, where its template has them. */
   ears: { diameterMm: number; inMm: number; apartMm: number } | null;
+  /** A shallow rebate along the edge the notch is set in, where its template has one. */
+  rebate: { heightMm: number; depthMm: number } | null;
 }
 
 /** A hole through the glass: one of a hinge's or a pull handle's pair, or a knob's one. */
@@ -175,8 +177,9 @@ export function panesOf(
           centreMm,
           depthMm: shape.depthMm,
           heightMm: shape.heightMm,
-          radiusMm: shape.kind === 'notch' ? shape.radiusMm : 0,
+          radiusMm: shape.kind === 'notch' || shape.kind === 'notch-rebated' ? shape.radiusMm : 0,
           ears: shape.kind === 'notch-ears' ? { diameterMm: shape.earDiameterMm, inMm: shape.earInMm, apartMm: shape.earApartMm } : null,
+          rebate: shape.kind === 'notch-rebated' ? { heightMm: shape.rebateHeightMm, depthMm: shape.rebateDepthMm } : null,
         },
       ];
     }
@@ -195,6 +198,7 @@ export function panesOf(
         heightMm: own.heightMm,
         radiusMm: own.radiusMm,
         ears: null,
+        rebate: null,
       },
     ];
   };
@@ -233,12 +237,13 @@ export function panesOf(
     // marked to check against the template in its box.
     const kitCutouts = kit ? fixed.hinges.cutouts[kit] : undefined;
     const rectangular = kitCutouts?.rectangular && styles.viennaCutout === 'rectangular' ? kitCutouts.rectangular : undefined;
+    const withoutSeals = styles.bellagioFit === 'without-seals' ? kitCutouts?.withoutSeals : undefined;
     const fitted = doorHingeOf(door.hingeBrand, mount, styles);
     const checked = cutoutDrawn(door.hingeBrand, fitted);
     const unchecked = (t: CutoutTemplate | undefined): CutoutTemplate | undefined =>
       t && !checked && fitted.style ? { ...t, name: `${t.name}, ${fitted.style.words}`, source: null } : t;
     const cutouts = kitCutouts && {
-      door: unchecked(rectangular?.door ?? kitCutouts.door),
+      door: unchecked(rectangular?.door ?? withoutSeals?.door ?? kitCutouts.door),
       panelInLine: unchecked(rectangular?.panelInLine ?? kitCutouts.panelInLine),
       panelAtCorner: kitCutouts.panelAtCorner,
     };
