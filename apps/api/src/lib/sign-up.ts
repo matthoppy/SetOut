@@ -12,8 +12,14 @@ import { esc, type EmailMessage } from './email';
 import { RequestError } from './enquiry';
 import { LIMITS } from './settings';
 
-/** Sign-ups are open only where SIGNUPS says so. Anything else is closed. */
-export const signUpsAreOpen = (env: Pick<Env, 'SIGNUPS'>): boolean => env.SIGNUPS === 'open';
+/**
+ * Sign-ups are open only where SIGNUPS says so, and anywhere but a
+ * developer's own machine only where the bot check is set up too. The form
+ * emails whatever address is typed into it, so without the check a script
+ * could use it to send SetOut's mail to anyone. Anything else is closed.
+ */
+export const signUpsAreOpen = (env: Pick<Env, 'SIGNUPS' | 'ENVIRONMENT' | 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY'>): boolean =>
+  env.SIGNUPS === 'open' && (env.ENVIRONMENT === 'local' || botCheckIsSetUp(env));
 
 /** The bot check is asked for where both of its keys are set: the one the page shows and the one the server checks with. */
 export const botCheckIsSetUp = (env: Pick<Env, 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY'>): boolean =>

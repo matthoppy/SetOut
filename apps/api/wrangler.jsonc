@@ -85,6 +85,8 @@
         "SITE_NOTIFY_EMAIL": "delivered@resend.dev",
         // To be set: see docs/deploying.md.
         "SITE_TURNSTILE_SITE_KEY": "",
+        // Open, but only once TURNSTILE_SITE_KEY is set here as well as the
+        // secret key: sign-ups never open without the bot check.
         "SIGNUPS": "open",
         "BILLING": "off",
         "TRIAL_DAYS": "14"

@@ -38,19 +38,20 @@ const PRIVATE = { 'Cache-Control': 'no-store' };
 const NOT_FOUND = { error: 'not_found' } as const;
 const NO_COMPANY = { error: 'not_found', message: 'There is no such company.' } as const;
 
+// Signed in, and one of SetOut's own. Both are checked on every request,
+// first, so that to anyone else these routes say nothing at all.
+platform.use('*', async (c, next) => {
+  const session = await resolveSession(c.env, getCookie(c, SESSION_COOKIE));
+  if (!session || !isPlatformAdmin(c.env, session.email)) return c.json(NOT_FOUND, 404, PRIVATE);
+  c.set('session', session);
+  await next();
+});
+
 // A change must come from the workspace's own pages, as in the workspace.
 platform.use('*', async (c, next) => {
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD' && c.req.header('origin') !== new URL(c.req.url).origin) {
     return c.json({ error: 'wrong_origin', message: 'That request did not come from the workspace.' }, 403);
   }
-  await next();
-});
-
-// Signed in, and one of SetOut's own. Both are checked on every request.
-platform.use('*', async (c, next) => {
-  const session = await resolveSession(c.env, getCookie(c, SESSION_COOKIE));
-  if (!session || !isPlatformAdmin(c.env, session.email)) return c.json(NOT_FOUND, 404, PRIVATE);
-  c.set('session', session);
   await next();
 });
 

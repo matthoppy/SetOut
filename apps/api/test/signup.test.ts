@@ -130,13 +130,15 @@ describe('asking to sign up', () => {
   });
 
   test('the answer is the same for an address that already has an account', async () => {
-    const response = await callWith({ ENVIRONMENT: 'staging' }, '/api/workspace/sign-up', {
+    vi.stubGlobal('fetch', async () => Response.json({ success: true }));
+    const staging = { ENVIRONMENT: 'staging', TURNSTILE_SECRET_KEY: 'secret', TURNSTILE_SITE_KEY: '0x4AAA' };
+    const response = await callWith(staging, '/api/workspace/sign-up', {
       method: 'POST',
-      body: body({ ...FORM, email: 'owner@cs.example' }),
+      body: body({ ...FORM, email: 'owner@cs.example', turnstileToken: 'good' }),
     });
-    const fresh = await callWith({ ENVIRONMENT: 'staging' }, '/api/workspace/sign-up', {
+    const fresh = await callWith(staging, '/api/workspace/sign-up', {
       method: 'POST',
-      body: body({ ...FORM, email: 'nobody@fresh.example' }),
+      body: body({ ...FORM, email: 'nobody@fresh.example', turnstileToken: 'good' }),
     });
     expect(response.status).toBe(202);
     expect(await json(response)).toEqual({ ok: true });
@@ -153,12 +155,14 @@ describe('asking to sign up', () => {
   test('where mail is set up, the link is emailed and never in the answer', async () => {
     const sent: { url: string; body: { to: string[]; subject: string; html: string } }[] = [];
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (url.includes('turnstile')) return Response.json({ success: true });
       sent.push({ url, body: JSON.parse(init.body as string) as { to: string[]; subject: string; html: string } });
       return new Response('{}', { status: 200 });
     });
-    const response = await callWith({ ENVIRONMENT: 'staging', RESEND_API_KEY: 're_test', EMAIL_FROM: 'hello@setout.example' }, '/api/workspace/sign-up', {
+    const staging = { ENVIRONMENT: 'staging', TURNSTILE_SECRET_KEY: 'secret', TURNSTILE_SITE_KEY: '0x4AAA' };
+    const response = await callWith({ ...staging, RESEND_API_KEY: 're_test', EMAIL_FROM: 'hello@setout.example' }, '/api/workspace/sign-up', {
       method: 'POST',
-      body: body({ ...FORM, email: 'mailed@northern.example' }),
+      body: body({ ...FORM, email: 'mailed@northern.example', turnstileToken: 'good' }),
     });
     expect(await json(response)).toEqual({ ok: true });
     expect(sent).toHaveLength(1);
@@ -176,6 +180,23 @@ describe('asking to sign up', () => {
     });
     expect(email.html).not.toContain('<img');
     expect(email.html).not.toContain('<b>Bad');
+  });
+});
+
+describe('sign-ups away from a developer’s own machine', () => {
+  test('stay closed until the bot check is set up, whatever SIGNUPS says', async () => {
+    for (const environment of ['staging', 'production']) {
+      const bare = { ENVIRONMENT: environment, SIGNUPS: 'open' };
+      expect(await json(await callWith(bare, '/api/workspace/sign-up'))).toEqual({ open: false, linkHours: 24 });
+      const asked = await callWith(bare, '/api/workspace/sign-up', { method: 'POST', body: body({ ...FORM, email: `early@${environment}.example` }) });
+      expect(asked.status).toBe(403);
+      expect(await count(`SELECT COUNT(*) AS n FROM signups WHERE email = 'early@${environment}.example'`)).toBe(0);
+      // Half of it is not enough: the page needs one key and the server the other.
+      expect(await json(await callWith({ ...bare, TURNSTILE_SITE_KEY: '0x4AAA' }, '/api/workspace/sign-up'))).toMatchObject({ open: false });
+      expect(await json(await callWith({ ...bare, TURNSTILE_SECRET_KEY: 'secret' }, '/api/workspace/sign-up'))).toMatchObject({ open: false });
+      const checked = { ...bare, TURNSTILE_SECRET_KEY: 'secret', TURNSTILE_SITE_KEY: '0x4AAA' };
+      expect(await json(await callWith(checked, '/api/workspace/sign-up'))).toEqual({ open: true, linkHours: 24, turnstileSiteKey: '0x4AAA' });
+    }
   });
 });
 
@@ -349,7 +370,7 @@ describe('using a sign-up link', () => {
 
   test('in production the designer gets a live key, and the bot check’s key where there is one', async () => {
     const token = await ask({ ...FORM, companyName: 'Live Glass', email: 'live@northern.example' });
-    const used = await callWith({ ENVIRONMENT: 'production', TURNSTILE_SITE_KEY: '0x4AAA' }, '/api/workspace/sign-up/verify', {
+    const used = await callWith({ ENVIRONMENT: 'production', TURNSTILE_SECRET_KEY: 'secret', TURNSTILE_SITE_KEY: '0x4AAA' }, '/api/workspace/sign-up/verify', {
       method: 'POST',
       body: body({ token }),
     });

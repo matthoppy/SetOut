@@ -149,7 +149,7 @@ The platform admin shows how a deploy is switched, and whether each secret is se
    npx wrangler secret put PLATFORM_ADMINS --env staging
    ```
    Type the addresses separated by commas. Each must also be on some company's team to be able to sign in: Matt is, on Custom Showers.
-2. Set `TURNSTILE_SITE_KEY` the same way. It is the public key of the "SetOut designer" widget in Turnstile, the one already in Custom Showers' designer settings. The widget must list the workspace's address, `app.setoutglass.com`, as well as the designer's.
+2. Set `TURNSTILE_SITE_KEY` the same way. Until it and `TURNSTILE_SECRET_KEY` are both set, sign-ups stay closed on staging and production whatever `SIGNUPS` says: the form emails whatever address is typed into it, so it is never open without the bot check. It is the public key of the "SetOut designer" widget in Turnstile, the one already in Custom Showers' designer settings. The widget must list the workspace's address, `app.setoutglass.com`, as well as the designer's.
 3. Try it on staging with a real inbox: sign up at `https://app-staging.setoutglass.com/sign-up`, use the link, go through the wizard, and look at the company in the platform admin.
 4. Set `SIGNUPS` to `open` under `env.production.vars` and deploy production. Until billing is on, a company that signs up there uses SetOut for nothing and has no trial running. It can be given a trial later from the platform admin.
 
