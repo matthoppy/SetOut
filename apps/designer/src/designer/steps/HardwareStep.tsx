@@ -152,7 +152,7 @@ export function HardwareStep({ config, state, update }: StepProps) {
                 state.handleId === h.id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
               }`}
             >
-              <HardwarePhoto file={handlePhoto(h)} alt={`CRL’s photo of the ${h.label}`} />
+              <HardwarePhoto file={handlePhoto(h)} />
               <div className="min-w-0">
                 <div className="font-medium">{h.label}</div>
                 <div className="text-sm text-muted-foreground">{h.description}</div>
@@ -275,7 +275,7 @@ function HingeChoice<T extends string>({
             onClick={() => onChoose(id)}
             className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${chosen === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'}`}
           >
-            <HardwarePhoto file={photos[i]?.file} alt={`CRL’s photo of its ${photos[i]?.range} hinge, ${style.words}`} />
+            <HardwarePhoto file={photos[i]?.file} />
             <div className="min-w-0">
               <div className="font-medium">
                 {style.name}
@@ -294,14 +294,16 @@ function HingeChoice<T extends string>({
 /**
  * CRL's photo on a card, small enough that the cards stay compact on a phone.
  * With no photo, or one that will not load, there is nothing: no gap either.
+ * The card's own words name the part, so the photo says nothing to a screen
+ * reader: the choice is read out by its name alone.
  */
-function HardwarePhoto({ file, alt }: { file: string | undefined; alt: string }) {
+function HardwarePhoto({ file }: { file: string | undefined }) {
   const [failed, setFailed] = useState<string | null>(null);
   if (!file || failed === file) return null;
   return (
     <img
       src={crlPhotoSrc(file)}
-      alt={alt}
+      alt=""
       width={64}
       height={64}
       loading="lazy"

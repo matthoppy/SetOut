@@ -595,7 +595,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
         <ul className={`${CARD} space-y-3 text-sm`}>
           {designer.handles.map((h) => (
             <li key={h.id} className="flex items-start gap-3">
-              <HandleThumb code={h.code} label={h.label} />
+              <HandleThumb code={h.code} />
               <div className="min-w-0">
                 <p className="flex items-baseline gap-3">
                   <span className="font-medium">{h.label}</span>
@@ -622,7 +622,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
           {rows.map((row, i) => (
             <li key={row.key} className="flex items-start gap-3">
               {/* Beside the row where there is room; on a phone, under it, so the name keeps its width. */}
-              <HandleThumb code={tidyCode(row.code)} label={tidy(row.label)} className="hidden sm:block" />
+              <HandleThumb code={tidyCode(row.code)} className="hidden sm:block" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
                   <label className="min-w-0 flex-1">
@@ -660,7 +660,7 @@ function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: 
                     className={`${FIELD} text-sm ${long[i] ? 'border-bad/60' : 'border-rule'}`}
                   />
                 </label>
-                <HandleThumb code={tidyCode(row.code)} label={tidy(row.label)} className="mt-2 sm:hidden" />
+                <HandleThumb code={tidyCode(row.code)} className="mt-2 sm:hidden" />
                 <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-quiet">
                   {problems[i] && <span className="text-bad">{problems[i]}</span>}
                   {long[i] && <span className="text-bad">Keep the line to {limits.description} characters.</span>}
@@ -891,15 +891,16 @@ function HingeList<T extends string>({
 
 /**
  * CRL's photo of a part, small, beside its name. Nothing where there is no
- * photo, or it will not load.
+ * photo, or it will not load. The name beside it says what it is, so the
+ * photo says nothing to a screen reader, and a tick box keeps its own name.
  */
-function Thumb({ file, alt, className = '' }: { file: string | undefined; alt: string; className?: string }) {
+function Thumb({ file, className = '' }: { file: string | undefined; className?: string }) {
   const [failed, setFailed] = useState<string | null>(null);
   if (!file || failed === file) return null;
   return (
     <img
       src={crlPhotoSrc(file)}
-      alt={alt}
+      alt=""
       width={40}
       height={40}
       loading="lazy"
@@ -913,13 +914,13 @@ function Thumb({ file, alt, className = '' }: { file: string | undefined; alt: s
 /** A hinge style's photo: Geneva's, or Vienna's where only Vienna makes it. */
 function HingeThumb({ style }: { style: HingeStyle }) {
   const photo = hingePhotoOf(style, null, null);
-  return <Thumb file={photo?.file} alt={`CRL’s photo of its ${photo?.range} hinge, ${style.words}`} />;
+  return <Thumb file={photo?.file} />;
 }
 
 /** A handle's photo, once it has a CRL number CRL shows a photo for. */
-function HandleThumb({ code, label, className }: { code: string | undefined; label: string; className?: string }) {
+function HandleThumb({ code, className }: { code: string | undefined; className?: string }) {
   const photo = handlePhotoOf(code, null);
-  return <Thumb file={photo?.file} className={className} alt={label ? `CRL’s photo of the ${label}` : `CRL’s photo of ${code}`} />;
+  return <Thumb file={photo?.file} className={className} />;
 }
 
 const PHOTOS = 'Photos: C.R. Laurence. Each shows the part’s shape, in whichever finish CRL photographed it.';
