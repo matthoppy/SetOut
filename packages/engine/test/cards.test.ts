@@ -452,25 +452,45 @@ describe('what each layout is asked', () => {
     expect(words).not.toMatch(/\bfloor\b|\btray\b/i);
   });
 
-  test('a corner: each run in turn, with the wall it ends on straight after it', () => {
-    expect(ids(deck('corner-door-return'))).toEqual([
+  test('a corner: both widths to the laser at the corner, the height, then each run in turn with the wall it ends on', () => {
+    const cards = deck('corner-door-return');
+    expect(ids(cards)).toEqual([
       'marks',
       'laser-on',
+      // The laser stands over the corner for both, so they come together.
       'width-0',
+      'width-1',
       // The bottom first, then the height.
       'height',
       'floor-0-start',
       'floor-0-end',
       'wall-start-bottom',
       'wall-start-top',
-      // The front has the door, and is measured in one pull as well.
-      'width-1',
       'floor-1-start',
       'floor-1-end',
       'wall-end-bottom',
       'wall-end-top',
       'review',
     ]);
+    // Matt, 12 November 2026: the laser at the corner, the tape from each wall, read at the laser.
+    const [side, front] = [cards.find((c) => c.id === 'width-0')!, cards.find((c) => c.id === 'width-1')!];
+    expect(side.instruction).toMatch(/^Stand the laser over the corner mark, with its lines along both glass lines\. Hook the tape on the .+ at your mark, along the floor, and read where the laser lights the blade\.$/);
+    expect(front.instruction).toMatch(/^Leave the laser where it is\. Hook the tape on the .+ at your mark, along the floor, and read where the laser lights the blade\.$/);
+    expect(side.visual).toMatchObject({ kind: 'run-width', part: 'whole', laser: 'right' });
+    expect(front.visual).toMatchObject({ kind: 'run-width', part: 'whole', laser: 'left' });
+    expect(side.inputLabel).toMatch(/to the laser, along the floor$/);
+  });
+
+  test('every run that meets a corner is read at the laser, which moves once at most', () => {
+    for (const id of ['corner-door-return', 'corner-panel-door-return', 'three-sided', 'walk-in-return']) {
+      const widths = deck(id).filter((c) => c.field?.kind === 'width');
+      for (const card of widths) {
+        expect(card.instruction, id).toMatch(/read where the laser lights the blade\.$/);
+        expect(card.visual, id).toHaveProperty('laser');
+      }
+      expect(widths.filter((c) => /^(Stand|Move) the laser/.test(c.instruction)).length, id).toBeLessThanOrEqual(2);
+      expect(widths.filter((c) => /^Move the laser/.test(c.instruction)).length, id).toBe(id === 'three-sided' ? 1 : 0);
+    }
   });
 
   test('a walk-in with a return has one wall, and its return ends in the open', () => {
@@ -497,8 +517,9 @@ describe('what each layout is asked', () => {
   test('a front between two corners says which corner, and two ends of one wall say which end', () => {
     const cards = deck('three-sided');
     const titles = cards.map((c) => c.title);
+    // The laser is still over the left corner from the left side, so the front is read there.
     expect(cards.find((c) => c.id === 'width-1')?.instruction).toBe(
-      'Hold the end of the tape on the left corner mark, and measure along the floor to the right corner mark.'
+      'Leave the laser where it is. Hold the end of the tape on the right corner mark, along the floor, and read where the laser lights the blade.'
     );
     expect(titles).toContain('Back wall on the left, at the bottom');
     expect(titles).toContain('Back wall on the right, at the bottom');
@@ -506,9 +527,11 @@ describe('what each layout is asked', () => {
 
   test('a pull of the tape starts from a wall where the run has one', () => {
     const cards = deck('three-sided');
-    expect(cards.find((c) => c.id === 'width-0')?.instruction).toMatch(/^Hook the tape on the back wall/);
+    expect(cards.find((c) => c.id === 'width-0')?.instruction).toMatch(/^Stand the laser over the corner mark, with its lines along both glass lines\. Hook the tape on the back wall/);
     // The right side starts at a corner and ends on the back wall.
-    expect(cards.find((c) => c.id === 'width-2')?.instruction).toMatch(/^Hook the tape on the back wall/);
+    expect(cards.find((c) => c.id === 'width-2')?.instruction).toMatch(/^Move the laser over the other corner mark, with its lines along both glass lines\. Hook the tape on the back wall/);
+    // With no corner the tape runs wall to wall.
+    expect(deck('alcove-panel-door').find((c) => c.id === 'width-0')?.instruction).toMatch(/^Hook the tape on the .+ at your mark, and measure along the floor to the .+\.$/);
   });
 
   test('the tape marks are shown from above only when the glass turns a corner', () => {

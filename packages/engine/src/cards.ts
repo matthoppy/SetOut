@@ -71,8 +71,12 @@ export type CardVisual =
   | { kind: 'plan-marks' }
   /** The laser on its tripod with both lines on, before it is stood anywhere in particular. */
   | { kind: 'laser-on' }
-  /** A run along the floor: in one pull, or one of its halves to the laser. */
-  | { kind: 'run-width'; view: RunView; part: 'whole' | 'a' | 'b' }
+  /**
+   * A run along the floor: in one pull, or one of its halves to the laser.
+   * `laser` says the end of the run the laser stands at, over a corner mark,
+   * where the pull is read.
+   */
+  | { kind: 'run-width'; view: RunView; part: 'whole' | 'a' | 'b'; laser?: 'left' | 'right' }
   /** The whole tray beside a walk-in screen, wall to its far edge. */
   | { kind: 'tray-width'; view: RunView }
   /** The floor up to the level line, at one side of a run. */
@@ -418,21 +422,35 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
     ];
   };
 
+  // Each run's two ends, as the tape and the words need them. A run between
+  // two corners has to say which corner. 'wall' then stands for the words that
+  // tell them apart.
+  const endsOf = views.map((view, i) => {
+    const named = runEndNames(state, i);
+    const between = view.left === 'corner' && view.right === 'corner';
+    return {
+      left: { kind: view.left, wall: between ? 'left' : named.start },
+      right: { kind: view.right, wall: between ? 'right' : named.end },
+    };
+  });
+
+  // How wide each run is, along the bottom, all taken first.
+  //
+  // Where the glass turns a corner the laser stands over the corner mark with
+  // its lines along both glass lines, and each run that meets that corner is
+  // measured from its other end and read at the laser (Matt, 12 November
+  // 2026: "you always take the tape measurement reading from the laser"). So
+  // the laser stands at one corner for every run it can, and moves once at
+  // most. A run with no corner is one pull of the tape, door or not: only a
+  // single door between two walls is measured to a laser in the middle.
+  let laserAt: number | null = null; // the corner the laser stands over, by the run it starts
   views.forEach((view, i) => {
     const run = names[i];
-    const ends = runEndNames(state, i);
-    // A run between two corners has to say which corner. 'wall' then stands
-    // for the words that tell them apart.
-    const between = view.left === 'corner' && view.right === 'corner';
-    const left = { kind: view.left, wall: between ? 'left' : ends.start };
-    const right = { kind: view.right, wall: between ? 'right' : ends.end };
-    const heading = (text: string) => (multi ? `${cap(run)}: ${text}` : cap(text));
-    const along = multi ? run : options.overBath ? 'the bath rim' : 'the glass line';
+    const { left, right } = endsOf[i];
     const minWidth = view.door ? MIN_PLAUSIBLE_MM : MIN_PLAUSIBLE_RETURN_MM;
+    const corners = [view.left === 'corner' ? i : null, view.right === 'corner' ? i + 1 : null].filter((c): c is number => c !== null);
 
-    // How wide, in one pull of the tape, door or not. Only a single door
-    // between two walls is measured in halves to a laser in the middle.
-    {
+    if (corners.length === 0) {
       // A tape hooks on a wall, so the pull starts from whichever end has one.
       const [near, far] = right.kind === 'wall' && left.kind !== 'wall' ? [right, left] : [left, right];
       const opening = left.kind === 'wall' && right.kind === 'wall';
@@ -444,6 +462,28 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
         visual: { kind: 'run-width', view, part: 'whole' },
         field: { kind: 'width', run: i },
         inputLabel: `${cap(brief(near.kind, near.wall))} to ${place(far.kind, far.wall).replace(/^the mark where .*$/, 'your mark')}, along the ${floor}`,
+        minMm: minWidth,
+        maxMm: 3000,
+      });
+    } else {
+      const corner = laserAt !== null && corners.includes(laserAt) ? laserAt : corners[0];
+      const side = corner === i ? 'left' : 'right';
+      const [at, other] = side === 'left' ? [left, right] : [right, left];
+      const lead =
+        laserAt === corner
+          ? 'Leave the laser where it is. '
+          : laserAt === null
+            ? `Stand the laser over ${place('corner', at.wall)}, with its lines along both glass lines. `
+            : 'Move the laser over the other corner mark, with its lines along both glass lines. ';
+      laserAt = corner;
+      cards.push({
+        id: `width-${i}`,
+        kind: 'reading',
+        title: multi ? `How wide is ${run}?` : `How long is the ${glass}?`,
+        instruction: `${lead}${from(other.kind, other.wall)}, along the ${floor}, and read where the laser lights the blade.`,
+        visual: { kind: 'run-width', view, part: 'whole', laser: side },
+        field: { kind: 'width', run: i },
+        inputLabel: `${cap(brief(other.kind, other.wall))} to the laser, along the ${floor}`,
         minMm: minWidth,
         maxMm: 3000,
       });
@@ -465,9 +505,18 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
         maxMm: 4000,
       });
     }
+  });
 
-    // The bottom first, then the height.
-    if (i === 0 && height) cards.push(height);
+  // The bottom first, then the height (Matt, 12 November 2026).
+  if (height) cards.push(height);
+
+  // Then each run in turn: the floor under it, the ceiling where the glass
+  // reaches it, and the wall it ends on.
+  views.forEach((view, i) => {
+    const run = names[i];
+    const { left, right } = endsOf[i];
+    const heading = (text: string) => (multi ? `${cap(run)}: ${text}` : cap(text));
+    const along = multi ? run : options.overBath ? 'the bath rim' : 'the glass line';
 
     // The floor, as two readings up to the level line.
     const sides = [

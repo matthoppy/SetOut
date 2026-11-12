@@ -43,6 +43,13 @@ export function tapeFor(visual: RunPicture, glassTop: number): Tape {
 
   switch (visual.kind) {
     case 'run-width': {
+      if (visual.part === 'whole' && visual.laser) {
+        // The laser stands over the corner mark at one end, and the pull from the
+        // other end is read where its line lights the blade.
+        const at = visual.laser === 'left' ? left : right;
+        const from = visual.laser === 'left' ? right : left;
+        return { body: { x: at, y: along }, hook: { x: from, y: along }, lit: { x: at, y: along }, laser: at, line: 'upright', mark: { x: (from + at) / 2, y: along + 16 }, labelSide: 'before', words: `along the floor from the ${visual.laser === 'left' ? 'right' : 'left'} end to the laser at the corner` };
+      }
       if (visual.part === 'whole') {
         // The pull starts from a wall where the run has one.
         const fromRight = view.right === 'wall' && view.left !== 'wall';
