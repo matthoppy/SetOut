@@ -6,9 +6,9 @@
  * enough, a scanner would use it up before the person ever saw it.
  */
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, api } from '../lib/api';
-import { go } from '../lib/router';
+import { go, Link } from '../lib/router';
 
 type Asked = { state: 'idle' } | { state: 'sending' } | { state: 'sent'; email: string; link?: string } | { state: 'failed'; message: string };
 
@@ -26,6 +26,16 @@ function AskForLink() {
   // The email that says someone was added to a team opens this page with their address in.
   const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email') ?? '');
   const [asked, setAsked] = useState<Asked>({ state: 'idle' });
+  // The way to open a new company is offered only where sign-ups are open.
+  const [signUps, setSignUps] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    api.signUpConfig(controller.signal).then(
+      (config) => setSignUps(config.open),
+      () => undefined
+    );
+    return () => controller.abort();
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -89,6 +99,14 @@ function AskForLink() {
       >
         {asked.state === 'sending' ? 'Sending' : 'Email me a link'}
       </button>
+      {signUps && (
+        <p className="mt-6 text-sm text-quiet">
+          New to SetOut?{' '}
+          <Link to="/sign-up" className="font-medium text-accent underline underline-offset-2">
+            Set up your company
+          </Link>
+        </p>
+      )}
     </form>
   );
 }

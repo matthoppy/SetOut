@@ -10,7 +10,7 @@
  */
 
 import { CRL_CODE, crlFinishCode, IN_LINE_HINGE_STYLES, IN_LINE_HINGES, WALL_HINGE_STYLES, WALL_HINGES, type HingeStyle } from '@setout/engine';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import {
   api,
   ApiError,
@@ -26,6 +26,7 @@ import {
 } from '../lib/api';
 import { when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
+import { Link } from '../lib/router';
 import { Problem, Section } from './parts';
 
 type Limits = SettingsData['limits'];
@@ -64,6 +65,13 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
         What your customers can choose, who hears about each design, and how your quotes start.
         {owner ? ' Each part is saved on its own.' : ' Only an owner can change these.'}
       </p>
+      {owner && (
+        <p className="mt-2 text-sm">
+          <Link to="/set-up" className="font-medium text-accent underline underline-offset-2">
+            Set-up guide and the code for your website
+          </Link>
+        </p>
+      )}
 
       {settings.error && !data ? <Problem error={settings.error} retry={settings.reload} /> : null}
       {!data && !settings.error && (
@@ -132,6 +140,15 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 onSaved={() => onSaved(`emails:${designer.id}`)}
                 onReload={settings.reload}
               />
+              <WebsitesPart
+                key={designer.versions.websites}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `websites:${designer.id}`}
+                onSaved={() => onSaved(`websites:${designer.id}`)}
+                onReload={settings.reload}
+              />
             </div>
           ))}
           <QuotesPart
@@ -197,6 +214,13 @@ function useSave(onSaved: () => void) {
   return { ...state, save };
 }
 
+/**
+ * The set-up wizard is told whether the part on screen has changes waiting to
+ * be saved, so it never moves on and loses them. The settings page gives no
+ * one to tell.
+ */
+export const UnsavedContext = createContext<((unsaved: boolean) => void) | null>(null);
+
 function SaveRow({
   label,
   dirty,
@@ -216,6 +240,11 @@ function SaveRow({
   savedNote: string;
   onReload: () => void;
 }) {
+  const report = useContext(UnsavedContext);
+  useEffect(() => {
+    report?.(dirty);
+    return () => report?.(false);
+  }, [report, dirty]);
   return (
     <>
       {saving.error && (
@@ -428,7 +457,7 @@ interface DesignerPartProps extends PartProps {
   limits: Limits;
 }
 
-function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
+export function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.finishes.map(rowOf);
   const list = useOptionRows(original);
   const saving = useSave(onSaved);
@@ -549,7 +578,7 @@ function FinishesPart({ designer, owner, limits, justSaved, onSaved, onReload }:
 /** How the glass is made for a handle, which SetOut fixes by its id. */
 const drilling = (id: string) => (id === 'knob' ? 'Drilled with one hole, 950mm up' : 'Drilled with two holes, 203mm apart');
 
-function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
+export function HandlesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.handles.map(rowOf);
   const list = useOptionRows(original);
   const saving = useSave(onSaved);
@@ -731,7 +760,7 @@ const EMAIL = /^[^\s@<>,;:"]+@[^\s@<>,;:"]+\.[^\s@<>,;:"]+$/;
 const THICKNESSES = [8, 10, 12];
 const millimetres = (list: number[]) => listed(list.map((mm) => `${mm}mm`));
 
-function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
   const [offered, setOffered] = useState<number[]>(designer.glass.offered);
   const [standard, setStandard] = useState(designer.glass.standard);
   const saving = useSave(onSaved);
@@ -867,7 +896,7 @@ function HingeList<T extends string>({
   );
 }
 
-function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+export function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
   const [hinges, setHinges] = useState(designer.hinges);
   const saving = useSave(onSaved);
   const dirty = JSON.stringify(hinges) !== JSON.stringify(designer.hinges);
@@ -995,7 +1024,7 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
   );
 }
 
-function EmailsPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
+export function EmailsPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.notifyEmails.length ? designer.notifyEmails : [''];
   const [emails, setEmails] = useState<string[]>(original);
   const saving = useSave(onSaved);
@@ -1078,6 +1107,115 @@ function EmailsPart({ designer, owner, limits, justSaved, onSaved, onReload }: D
             onUndo={() => setEmails(original)}
             justSaved={justSaved}
             savedNote="Saved. The next design that arrives goes to these addresses."
+            onReload={onReload}
+          />
+        </form>
+      )}
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Websites
+// ---------------------------------------------------------------------------
+
+/** A website as the server keeps it: https and the site's own address, nothing after it. Null if it is not one. */
+export function websiteOf(typed: string): string | null {
+  const text = typed.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+    if (url.protocol !== 'https:' || url.username || url.password || !url.hostname.includes('.') || /^[\d.]+$/.test(url.hostname)) return null;
+    return `https://${url.host}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function WebsitesPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const original = designer.websites.length ? designer.websites : [''];
+  const [sites, setSites] = useState<string[]>(original);
+  const saving = useSave(onSaved);
+  const read = sites.map((site) => (site.trim() ? websiteOf(site) : ''));
+  const bad = read.map((site) => site === null);
+  const filled = [...new Set(read.filter((site): site is string => Boolean(site)))];
+  const dirty = JSON.stringify(filled) !== JSON.stringify(designer.websites);
+  const valid = !bad.some(Boolean) && filled.length <= limits.websites;
+  const none = designer.websites.length === 0;
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { websites: filled, basedOn: { websites: designer.versions.websites } }),
+      'The websites could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'The designer shows only on the websites listed here. A browser refuses to show it anywhere else, so nobody can put your designer on a site of their own. List each address your site answers on: with www and without are two addresses.';
+
+  return (
+    <Section title="Websites the designer appears on">
+      {!owner ? (
+        <div className={`${CARD} text-sm`}>
+          <Hint>{about}</Hint>
+          {none ? (
+            <p className="text-warn">No website is listed yet, so the designer shows nowhere.</p>
+          ) : (
+            <ul className="space-y-1">
+              {designer.websites.map((site) => (
+                <li key={site} className="break-all font-medium">
+                  {site}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <form onSubmit={submit} className={CARD}>
+          <Hint>{about}</Hint>
+          {none && <p className="mb-3 rounded-md border border-warn/40 bg-warn/10 p-3 text-sm">No website is listed yet, so the designer will not show on your site.</p>}
+          <ul className="space-y-2">
+            {sites.map((site, i) => (
+              <li key={i}>
+                <div className="flex items-center gap-2">
+                  <label className="min-w-0 flex-1">
+                    <span className="sr-only">Website {i + 1}</span>
+                    <input
+                      type="text"
+                      inputMode="url"
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      value={site}
+                      placeholder="https://www.yourcompany.co.uk"
+                      onChange={(e) => setSites(sites.map((v, j) => (j === i ? e.target.value : v)))}
+                      aria-invalid={bad[i] ? true : undefined}
+                      className={`${FIELD} ${bad[i] ? 'border-bad/60' : 'border-rule'}`}
+                    />
+                  </label>
+                  <RemoveButton label={site} disabled={sites.length === 1 && !site} onClick={() => setSites(sites.length === 1 ? [''] : sites.filter((_, j) => j !== i))} />
+                </div>
+                {bad[i] && <p className="mt-1 text-xs text-bad">That is not a website’s address. It should look like https://www.yourcompany.co.uk.</p>}
+                {!bad[i] && read[i] && read[i] !== site.trim() && <p className="mt-1 text-xs text-quiet">Kept as {read[i]}</p>}
+              </li>
+            ))}
+          </ul>
+          {sites.length < limits.websites ? (
+            <button type="button" onClick={() => setSites([...sites, ''])} className="mt-3 h-10 rounded-md border border-rule bg-surface px-3 text-sm font-medium">
+              Add a website
+            </button>
+          ) : (
+            <p className="mt-3 text-xs text-quiet">A designer can be shown on up to {limits.websites} websites.</p>
+          )}
+          <SaveRow
+            label="Save the websites"
+            dirty={dirty}
+            valid={valid}
+            saving={saving}
+            onUndo={() => setSites(original)}
+            justSaved={justSaved}
+            savedNote={filled.length ? 'Saved. The designer can be shown on these websites from now.' : 'Saved. The designer now shows nowhere.'}
             onReload={onReload}
           />
         </form>
@@ -1240,7 +1378,7 @@ function ColourField({ label, value, onChange }: { label: string; value: string;
   );
 }
 
-function BrandingPart({ company, owner, justSaved, onSaved, onReload }: CompanyPartProps) {
+export function BrandingPart({ company, owner, justSaved, onSaved, onReload }: CompanyPartProps) {
   const original = { primary: company.branding.primary, primaryForeground: company.branding.primaryForeground, logoUrl: company.branding.logoUrl ?? '' };
   const [form, setForm] = useState(original);
   const [logoBroken, setLogoBroken] = useState(false);
@@ -1358,7 +1496,7 @@ function BrandingPart({ company, owner, justSaved, onSaved, onReload }: CompanyP
 // The company's name
 // ---------------------------------------------------------------------------
 
-function NamePart({ company, owner, limits, justSaved, onSaved, onReload }: CompanyPartProps & { limits: Limits }) {
+export function NamePart({ company, owner, limits, justSaved, onSaved, onReload }: CompanyPartProps & { limits: Limits }) {
   const [name, setName] = useState(company.name);
   const saving = useSave(onSaved);
   const next = tidy(name);
@@ -1458,6 +1596,11 @@ function describe(item: SettingsChangeItem, by: string): string {
       return `${by} set VAT on new quotes to ${percent(item.to)}, from ${percent(item.from)}.`;
     case 'quoteValidDays':
       return `${by} set new quotes to stand for ${days(item.to)}, from ${days(item.from)}.`;
+    case 'websites': {
+      const added = item.added.length ? `let the designer show on ${listed(item.added)}` : '';
+      const removed = item.removed.length ? `stopped it showing on ${listed(item.removed)}` : '';
+      return `${by} ${[added, removed].filter(Boolean).join(' and ') || 'changed the websites'}.`;
+    }
     case 'glassOffered':
       return `${by} offered customers ${millimetres(item.to)} glass, from ${millimetres(item.from)}.`;
     case 'glassStandard':

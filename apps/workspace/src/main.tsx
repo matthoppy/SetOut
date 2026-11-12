@@ -2,8 +2,8 @@
  * The workspace: where a company's staff work the designs their customers
  * send.
  *
- * It asks the server who is signed in. Signed out, it shows the sign-in page;
- * signed in, the inbox and each job. /status still shows whether the engine
+ * It asks the server who is signed in. Signed out, it shows the sign-in page,
+ * or the page a new company signs up on; signed in, the inbox and each job. /status still shows whether the engine
  * here and the engine on the server agree.
  *
  * Signing in, signing out and moving to another company each load the page
@@ -17,6 +17,10 @@ import { SystemStatus } from '@setout/ui';
 import { Component, StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api, ApiError, signInAgain, SignedOut, type Me } from './lib/api';
+import { Billing, standingWords } from './pages/Billing';
+import { Platform } from './pages/Platform';
+import { SetUp } from './pages/SetUp';
+import { SignUp } from './pages/SignUp';
 import { useLoad } from './lib/load';
 import { go, Link, useLocation } from './lib/router';
 import { Inbox } from './pages/Inbox';
@@ -37,14 +41,21 @@ function App() {
   const me = useLoad<Me>('me', () => api.me());
   const signedOut = me.error instanceof SignedOut;
   const signingIn = path === '/sign-in';
+  const signingUp = path === '/sign-up';
   const hasToken = query.has('token');
+  // An owner who has not been through setting up is taken to it when they
+  // arrive, once. After that the inbox offers it and never insists.
+  const toSetUp = me.data?.role === 'owner' && me.data.setUp?.done === false && !me.data.billing?.locked;
+  const locked = me.data?.billing?.locked === true;
 
   useEffect(() => {
-    // Signed out: the sign-in page. Signed in: never the bare address, and the
-    // sign-in page only to use a new link.
-    if (signedOut && !signingIn) go('/sign-in', { replace: true });
-    if (me.data && (path === '/' || (signingIn && !hasToken))) go('/jobs', { replace: true });
-  }, [signedOut, signingIn, hasToken, me.data, path]);
+    // Signed out: the sign-in page, or signing up. Signed in: never the bare
+    // address, and the sign-in page only to use a new link.
+    if (signedOut && !signingIn && !signingUp) go('/sign-in', { replace: true });
+    if (me.data && (path === '/' || (signingIn && !hasToken))) go(toSetUp ? '/set-up' : '/jobs', { replace: true });
+    // A locked company's staff can reach billing and nothing else.
+    if (locked && path !== '/billing' && path !== '/platform' && !signingUp && !signingIn) go('/billing', { replace: true });
+  }, [signedOut, signingIn, signingUp, hasToken, me.data, path, toSetUp, locked]);
 
   if (path === '/status') {
     return (
@@ -54,6 +65,8 @@ function App() {
     );
   }
   if (signingIn && (signedOut || hasToken)) return <SignIn />;
+  // Someone already signed in can still open another company, with a link.
+  if (signingUp && (signedOut || hasToken || me.data)) return <SignUp />;
   if (me.error && !signedOut) {
     return (
       <div className="mx-auto max-w-md px-5 pt-16">
@@ -76,6 +89,12 @@ function App() {
   const page =
     path === '/team' ? (
       <Team me={me.data} />
+    ) : path === '/set-up' ? (
+      <SetUp me={me.data} onChanged={me.reload} />
+    ) : path === '/billing' ? (
+      <Billing me={me.data} />
+    ) : path === '/platform' ? (
+      <Platform />
     ) : path === '/settings' ? (
       <Settings me={me.data} onRenamed={me.reload} />
     ) : path === '/glass' ? (
@@ -93,8 +112,41 @@ function App() {
     );
   return (
     <Shell me={me.data}>
+      <Notices me={me.data} path={path} />
       <Boundary key={path}>{page}</Boundary>
     </Shell>
+  );
+}
+
+/**
+ * One line under the header when there is something the company should know:
+ * its trial is running out, a payment failed, or setting up is not finished.
+ * Billing's line shows only where billing is switched on.
+ */
+function Notices({ me, path }: { me: Me; path: string }) {
+  const billing = me.billing;
+  const showBilling = billing && path !== '/billing' && (billing.locked || billing.state === 'past_due' || (billing.state === 'trial' && (billing.trialDaysLeft ?? 0) <= 7));
+  const showSetUp = me.role === 'owner' && me.setUp?.done === false && path === '/jobs';
+  if (!showBilling && !showSetUp) return null;
+  return (
+    <div className="mx-auto max-w-3xl space-y-2 px-4 pt-3 sm:px-6 print:hidden">
+      {showBilling && billing && (
+        <p className={`rounded-lg border p-3 text-sm ${billing.state === 'trial' ? 'border-rule bg-surface' : 'border-warn/50 bg-warn/10'}`}>
+          {standingWords(billing)}{' '}
+          <Link to="/billing" className="font-semibold underline underline-offset-2">
+            {billing.state === 'past_due' ? 'Update the card' : 'Choose a plan'}
+          </Link>
+        </p>
+      )}
+      {showSetUp && (
+        <p className="rounded-lg border border-rule bg-surface p-3 text-sm">
+          Your designer is not on your website yet.{' '}
+          <Link to="/set-up" className="font-semibold underline underline-offset-2">
+            Carry on setting up
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -188,6 +240,16 @@ function Shell({ me, children }: { me: Me; children: ReactNode }) {
                 <Link to="/settings" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
                   Settings
                 </Link>
+                {me.billing && (
+                  <Link to="/billing" onClick={() => setMenu(false)} className="block rounded px-2 py-2 hover:bg-ground">
+                    Billing
+                  </Link>
+                )}
+                {me.platformAdmin && (
+                  <Link to="/platform" onClick={() => setMenu(false)} className="mt-1 block rounded border-t border-rule px-2 py-2 hover:bg-ground">
+                    Platform admin
+                  </Link>
+                )}
                 {me.companies.length > 1 && (
                   <div className="mt-1 border-t border-rule pt-1">
                     <p className="px-2 py-1 text-xs uppercase tracking-wide text-quiet">Companies</p>
