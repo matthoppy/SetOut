@@ -26,6 +26,7 @@ import { derivePlanes, runPanelIndices } from '@setout/engine';
 import { runNames } from '@setout/engine';
 import { rebalanceRun, scaleRunPanels } from '@setout/engine';
 import { createPanel, type ConfiguratorPanel, type PanelKind } from '@setout/engine';
+import { SlidingSizes } from './SlidingSizes';
 import type { StepProps } from './types';
 
 /** Name a panel the way a customer would point at it, not by index. */
@@ -45,7 +46,12 @@ function panelLabels(panels: ConfiguratorPanel[], junctions: { angle_deg: 90 | 1
   });
 }
 
-export function SizesStep({ state, update }: StepProps) {
+/** The layout step: a sliding door's own, or the panels and the hinged door. */
+export function SizesStep(props: StepProps) {
+  return props.state.sliding ? <SlidingSizes {...props} /> : <HingedSizes {...props} />;
+}
+
+function HingedSizes({ state, update }: StepProps) {
   const labels = useMemo(
     () => panelLabels(state.panels, state.junctions),
     [state.panels, state.junctions]

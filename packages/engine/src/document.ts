@@ -33,6 +33,7 @@ import {
   createInitialState,
   BELLAGIO_FITS,
   IN_LINE_HINGES,
+  SLIDING_SYSTEMS,
   VIENNA_CUTOUTS,
   WALL_HINGES,
   type ConfiguratorJunction,
@@ -79,7 +80,7 @@ export function applyTemplate(design: ConfiguratorState, template: ShowerTemplat
   // it, so the two never start out contradicting each other. Anything they
   // had already confirmed about the shape no longer applies.
   const widths = runWidthsMm(panels, junctions);
-  return {
+  const next: ConfiguratorState = {
     ...design,
     panels,
     junctions,
@@ -89,6 +90,11 @@ export function applyTemplate(design: ConfiguratorState, template: ShowerTemplat
     // New shape, new measurements, but the same person with the same tools.
     opening: keepSetup(design.opening, syncRuns(createOpeningMeasurements(widths), widths)),
   };
+  // A layout says whether its door slides; one that does not leaves no trace
+  // of the last one that did.
+  if (template.sliding) next.sliding = { ...template.sliding };
+  else delete next.sliding;
+  return next;
 }
 
 /** A fresh design in one of the standard layouts. */
@@ -383,5 +389,8 @@ function readDesign(v: unknown): ConfiguratorState {
   if (d.inLineHinge !== undefined) design.inLineHinge = oneOf(d.inLineHinge, IN_LINE_HINGES, 'inLineHinge');
   if (d.viennaCutout !== undefined) design.viennaCutout = oneOf(d.viennaCutout, VIENNA_CUTOUTS, 'viennaCutout');
   if (d.bellagioFit !== undefined) design.bellagioFit = oneOf(d.bellagioFit, BELLAGIO_FITS, 'bellagioFit');
+  if (d.sliding !== undefined && d.sliding !== null) {
+    design.sliding = { system: oneOf(object(d.sliding, 'sliding').system, SLIDING_SYSTEMS, 'sliding.system') };
+  }
   return design;
 }

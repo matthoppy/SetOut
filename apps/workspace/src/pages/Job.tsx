@@ -17,6 +17,7 @@ import { go, Link } from '../lib/router';
 import { lettersFor } from './PaneDrawing';
 import { QuoteStatusPill } from './QuotePage';
 import { Problem, Section, StagePill } from './parts';
+import { SlidingNotice } from './Sliding';
 
 export function Job({ id }: { id: string }) {
   const job = useLoad<JobDetail>(id, (signal) => api.job(id, signal));
@@ -346,6 +347,7 @@ function Shower({
         >
           Change this shower
         </a>
+        <SlidingNotice spec={spec} detail className="mt-3 rounded-md" />
         <Checks spec={spec} />
         {signOff}
       </Section>
@@ -384,7 +386,13 @@ function Shower({
           </Row>
           <Row label="Fixing">{design.mounting === 'channel' ? 'U-channel' : 'Glass clamps'}</Row>
           <Row label="Finish">{humanise(design.finishId)}</Row>
-          <Row label="Handle">{humanise(design.handleId)}</Row>
+          <Row label="Handle">{spec.sliding ? 'Through-glass pull, in the Serenity kit' : humanise(design.handleId)}</Row>
+          {spec.sliding && (
+            <Row label="Sliding door">
+              CRL Serenity kit {spec.sliding.kit}
+              {spec.sliding.returnKit ? ` with the ${spec.sliding.returnKit} return kit` : ''}, header bar {spec.sliding.header.lengthMm}mm
+            </Row>
+          )}
           {spec.panels.map((p, i) => {
             if (!p.door) return null;
             const style = hingeStyle(design, spec, i, hinges);

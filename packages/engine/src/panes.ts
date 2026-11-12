@@ -25,6 +25,7 @@ import { hingeMountOf, type HingeMount } from './fittings';
 import { cutoutDrawn, doorHingeOf, hingeStylesOf, STANDARD_HINGES, type HingeStyles } from './hinges';
 import { mateNotchHeightMm } from './rules';
 import { shapesOf, type PaneShape } from './shapes';
+import type { SlidingHolePart } from './sliding';
 
 export type PaneSide = 'left' | 'right';
 export type PaneCorner = 'bottom-left' | 'bottom-right';
@@ -41,8 +42,12 @@ interface Template {
   source: string | null;
 }
 
-/** What a cut-out is for: the door's own hinge, the panel a door hangs from, a pull handle, a knob. */
-export type PaneFeatureRole = 'door-hinge' | 'panel-hinge' | 'handle' | 'knob';
+/**
+ * What a cut-out is for: the door's own hinge, the panel a door hangs from, a
+ * pull handle, a knob; or, on a sliding shower, a roller, a track holder, the
+ * through-glass pull or the return's fitting.
+ */
+export type PaneFeatureRole = 'door-hinge' | 'panel-hinge' | 'handle' | 'knob' | SlidingHolePart;
 
 /** A notch cut into an edge for a glass hinge: so deep into the glass, so tall along the edge. */
 export interface PaneNotch extends Template {
@@ -66,7 +71,7 @@ export interface PaneNotch extends Template {
 /** A hole through the glass: one of a hinge's or a pull handle's pair, or a knob's one. */
 export interface PaneHole extends Template {
   kind: 'hole';
-  role: 'panel-hinge' | 'handle' | 'knob';
+  role: 'panel-hinge' | 'handle' | 'knob' | SlidingHolePart;
   /** For a hinge's holes, the hinge, as the orders name it. */
   hinge: string | null;
   side: PaneSide;
@@ -223,6 +228,27 @@ export function panesOf(
   }));
   // The side each pane's hinges are on, if it has any, for where its stamp goes.
   const hingeSide = new Map<number, PaneSide>();
+
+  // A sliding shower's holes are its maker's, already placed by its spec
+  // (sliding.ts). Its door has no `door` in the spec, so nothing below gives
+  // it a hinge notch or a handle hole.
+  spec.panels.forEach((panel, i) => {
+    for (const h of panel.sliding?.holes ?? []) {
+      panes[i].features.push({
+        kind: 'hole',
+        role: h.part,
+        template: `serenity/${h.part}`,
+        name: h.name,
+        source: h.source,
+        hinge: null,
+        side: h.side,
+        centreMm: h.upMm,
+        insetMm: h.insetMm,
+        diameterMm: h.diameterMm,
+        apartMm: h.apartMm,
+      });
+    }
+  });
 
   spec.panels.forEach((panel, i) => {
     const door = panel.door;

@@ -56,6 +56,11 @@ export interface DesignerConfig {
   /** The hinge styles the customer may choose for a door hung from a wall and one hung in line, and the standard of each. */
   hinges?: DesignerHinges;
   /**
+   * Whether the company offers the sliding door layouts (CRL Serenity). Off
+   * unless it has turned them on: their sizes are not confirmed yet.
+   */
+  sliding?: boolean;
+  /**
    * Shown on the review step and repeated to the company. Spells out who is
    * responsible for the measurements being right, which matters when glass is
    * cut from them.

@@ -14,6 +14,8 @@ import type { ConfiguratorJunction, ConfiguratorPanel } from '@setout/engine';
 interface TemplateThumbnailProps {
   panels: ConfiguratorPanel[];
   junctions: ConfiguratorJunction[];
+  /** A sliding door: drawn with no swing, since it has none. */
+  sliding?: boolean;
   width?: number;
   height?: number;
   accent?: string;
@@ -24,6 +26,7 @@ const PADDING = 26;
 export function TemplateThumbnail({
   panels,
   junctions,
+  sliding = false,
   width = 132,
   height = 96,
   accent = '#2563eb',
@@ -33,7 +36,7 @@ export function TemplateThumbnail({
   const { scale, offsetX, offsetY } = useMemo(() => {
     const anchor = panels[trace.anchorIndex];
     // Include the door's swing so the arc is not clipped, same as the plan view.
-    const swing = anchor?.kind === 'door' ? anchor.width_mm : 0;
+    const swing = anchor?.kind === 'door' && !sliding ? anchor.width_mm : 0;
     const minX = trace.minX;
     const minY = trace.minY;
     const contentW = trace.maxX - minX || 1000;
@@ -44,7 +47,7 @@ export function TemplateThumbnail({
       offsetX: width / 2 - (minX + contentW / 2) * s,
       offsetY: height / 2 - (minY + contentH / 2) * s,
     };
-  }, [trace, panels, width, height]);
+  }, [trace, panels, sliding, width, height]);
 
   if (panels.length === 0) return null;
 
@@ -53,7 +56,7 @@ export function TemplateThumbnail({
 
   const anchor = panels[trace.anchorIndex];
   const anchorSeg = trace.segments[trace.anchorIndex];
-  const hasDoor = anchor?.kind === 'door';
+  const hasDoor = anchor?.kind === 'door' && !sliding;
 
   return (
     <svg width={width} height={height} aria-hidden="true" className="shrink-0">

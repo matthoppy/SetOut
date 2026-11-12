@@ -92,7 +92,7 @@ All from CRL's sheets, measured as they print them, from the top of the glass an
 | 90° return kit | SER90 + finish | PS, MBL. Also AUSER90 in BS, BB |
 | U-channel or clamps for the fixed glass | As today (SDCD38) | Not in the kit |
 
-Polished chrome hardware takes the polished stainless kit, as chrome takes brite anodised channel: `[UNCONFIRMED]`. A finish CRL does not make the kit in is said so on the sheet, as for any other part. The spare parts (header SERH2, roller SERNR1, pull SERNHP2, wall track holder SERAHW2, fixed panel fitting SERFP2, door guide SERUG2, stopper SERNS1, L-seal DK98L) are listed in the kit's line, not ordered one by one.
+Polished chrome hardware takes the polished stainless kit, as chrome takes brite anodised channel: `[UNCONFIRMED]`, in `crl.ts`. A finish CRL does not make the kit in is said so on the sheet, as for any other part. The spare parts (header SERH2, roller SERNR1, pull SERNHP2, wall track holder SERAHW2, fixed panel fitting SERFP2, door guide SERUG2, stopper SERNS1, L-seal DK98L) are listed in the kit's line, not ordered one by one.
 
 ## What people see
 
@@ -102,12 +102,16 @@ Polished chrome hardware takes the polished stainless kit, as chrome takes brite
 
 **Workspace.** The job page, making sheet, glass order and installation sheet take the sliding panes from the same spec. Every sheet a sliding shower appears on says, at the top, that sliding door sizes are from CRL's Serenity sheets and are not yet confirmed: check them before glass is ordered. The installation sheet lists the kit with its CRL number, and the header's length, height and holes.
 
-## What is not built yet
+## What was built, and what was not
+
+Built, behind the setting: everything above. Also a line on a quote for the kit (and the return kit), unpriced until the company prices one, and the sliding door's holes and side in the new-design email.
+
+Not built yet:
 
 - The Senior kit, 12mm glass.
-- A quote line and price for the Serenity kit: the quote lines are being changed on main, so this waits.
-- The plan and elevation drawings in the designer still draw the door as a pane with no swing; they do not draw the header or rollers.
+- The plan and elevation drawings in the designer draw the sliding door as a pane with a round pull and no swing; they do not draw the header, the rollers or the lap. The installation sheet's elevation draws the panes where they lap.
 - Cutting sliding glass to an out of square opening.
+- Staff cannot turn a hinged shower into a sliding one in the workspace; they can change one that arrived sliding.
 
 ## Questions for Matt
 

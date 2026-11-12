@@ -88,6 +88,13 @@ const CHANNEL: Partial<Record<number, string>> = { 10: 'SDCD38', 12: 'SDCD12' };
 /** Aluminium is anodised, not chromed: the finish CRL makes channel in to go with chrome. */
 const ALUMINIUM: Record<string, string> = { CH: 'BA' };
 
+/**
+ * [UNCONFIRMED] SetOut's own. CRL makes the Serenity kits in stainless
+ * finishes, not chrome: polished chrome hardware takes the polished stainless
+ * kit, the nearest CRL makes, until Matt says which he orders.
+ */
+const SERENITY_INSTEAD: Record<string, string> = { CH: 'PS' };
+
 export type CrlPart =
   /** The number to order. */
   | { status: 'found'; code: string }
@@ -144,6 +151,9 @@ export function crlPartOf(fitting: Fitting, choices: CrlChoices): CrlPart | null
       const series = CHANNEL[choices.glassMm];
       return series ? inFinish(series, choices.finishCode, ALUMINIUM) : null;
     }
+    case 'sliding-kit':
+    case 'sliding-return-kit':
+      return inFinish(fitting.series, choices.finishCode, SERENITY_INSTEAD);
     case 'clamps':
     case 'support-bar':
     case 'support-panel':

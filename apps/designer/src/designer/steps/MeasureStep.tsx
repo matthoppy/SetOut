@@ -1325,7 +1325,8 @@ function SummaryScreen({
   const unresolved = checks.filter((c) => c.level === 'blocking' && c.code !== 'shape-unconfirmed');
   const spec = useMemo(() => buildSpec(state, engine), [state, engine]);
   const doors = spec.panels.filter((p) => p.door);
-  const hingeNotes = spec.warnings.filter((w) => /hinge|door/i.test(w));
+  // A sliding shower's notes are about its sizes, not a hinge: the review step shows them.
+  const hingeNotes = spec.sliding ? [] : spec.warnings.filter((w) => /hinge|door/i.test(w));
   const screenIndex = (id: string) => screens.findIndex((s) => s.id === id);
 
   return (

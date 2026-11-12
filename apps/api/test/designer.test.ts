@@ -357,3 +357,51 @@ describe('the bot check', () => {
     });
   });
 });
+
+describe('a sliding door', () => {
+  const sliding = (siteKey: string) =>
+    enquiry(siteKey, { document: createDocument(designFromTemplate('sliding-alcove')), templateId: 'sliding-alcove' });
+
+  test('is not offered, and not taken, until the company turns sliding doors on', async () => {
+    const shop = await company('Hidden Sliders', 'HS');
+    const told = (await (await config(shop.siteKey)).json()) as { sliding: boolean };
+    expect(told.sliding).toBe(false);
+    const before = await counts(shop.db);
+    const response = await send(sliding(shop.siteKey));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: string }).error).toBe('sliding_not_offered');
+    expect(await counts(shop.db)).toEqual(before);
+    // Its hinged designs are taken as ever.
+    expect((await send(enquiry(shop.siteKey))).status).toBe(201);
+  });
+
+  test('is taken once it is on, cut to CRL’s formula, and says its sizes are not confirmed', async () => {
+    const shop = await company('Open Sliders', 'OS', { slidingDoors: true });
+    const told = (await (await config(shop.siteKey)).json()) as { sliding: boolean };
+    expect(told.sliding).toBe(true);
+    expect((await send(sliding(shop.siteKey))).status).toBe(201);
+    const [revision] = await shop.db.find('design_revisions', { limit: 1 });
+    const computed = revision.computed as unknown as {
+      panels: { cutWidthMm: number; cutHeightMm: number; door?: unknown }[];
+      warnings: string[];
+      sliding?: { kit: string; overlapMm: number };
+    };
+    // A 1200 opening: 600 + 22 each, the fixed panel 5 and the door 8 short of 2000.
+    expect(computed.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual([
+      [622, 1995],
+      [622, 1992],
+    ]);
+    expect(computed.panels.some((p) => p.door)).toBe(false);
+    expect(computed.sliding).toMatchObject({ kit: 'SER78', overlapMm: 50 });
+    expect(computed.warnings[0]).toMatch(/^Sliding door: .*not confirmed yet\. Open Sliders will check every size/);
+    expect((revision.document as unknown as { design: { sliding: unknown } }).design.sliding).toEqual({ system: 'serenity' });
+  });
+
+  test('anything else called sliding is refused as a design that cannot be read', async () => {
+    const shop = await company('Odd Sliders', 'DS', { slidingDoors: true });
+    const document = createDocument({ ...designFromTemplate('sliding-alcove'), sliding: { system: 'other' as 'serenity' } });
+    const response = await send(enquiry(shop.siteKey, { document }));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: string }).error).toBe('invalid_design');
+  });
+});

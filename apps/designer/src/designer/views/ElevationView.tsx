@@ -30,6 +30,8 @@ interface ElevationViewProps {
   accent?: string;
   /** Measuring: the panels being measured right now; the rest step back. */
   highlightPanelIds?: string[] | null;
+  /** A sliding door: no hinges, and a round pull by the edge it closes on. */
+  sliding?: boolean;
 }
 
 const GAP_MM = 24;
@@ -48,6 +50,7 @@ export function ElevationView({
   onPanelClick,
   accent = '#2563eb',
   highlightPanelIds = null,
+  sliding = false,
 }: ElevationViewProps) {
   const engine = useEngine();
   const { fixed } = engine.rules;
@@ -111,8 +114,9 @@ export function ElevationView({
           'Z',
         ].join(' ');
 
-        const hinge = isDoor ? calculateHingePlacement(engine.rules, heightMm) : null;
-        const hingeOnLeft = panel.door?.hinge_side === 'left';
+        const hinge = isDoor && !sliding ? calculateHingePlacement(engine.rules, heightMm) : null;
+        // A sliding door's pull is by the edge away from the fixed panel it crosses.
+        const hingeOnLeft = sliding ? junctions[i - 1]?.angle_deg === 180 : panel.door?.hinge_side === 'left';
         const lit = !!highlightPanelIds?.includes(panel.id);
         const dimmed = highlightPanelIds !== null && !lit;
 
@@ -149,11 +153,11 @@ export function ElevationView({
             {/* Handle on the opposite edge to the hinges. A pull handle is
                 centred on the leaf; a knob keeps a fixed grab height. */}
             {isDoor &&
-              (handleId === 'knob' ? (
+              (sliding || handleId === 'knob' ? (
                 <circle
                   cx={hingeOnLeft ? x + wPx - 22 : x + 22}
-                  cy={baselineY - fixed.handle.knobCentreMm * scale}
-                  r={5}
+                  cy={baselineY - (sliding ? heightMm / 2 : fixed.handle.knobCentreMm) * scale}
+                  r={sliding ? 7 : 5}
                   fill={finishColor}
                 />
               ) : (

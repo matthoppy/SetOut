@@ -11,7 +11,7 @@
  * there for anyone who needs to go off-piste.
  */
 
-import type { ConfiguratorJunction, ConfiguratorPanel } from './types';
+import type { ConfiguratorJunction, ConfiguratorPanel, SlidingSystem } from './types';
 
 export interface ShowerTemplate {
   id: string;
@@ -24,6 +24,8 @@ export interface ShowerTemplate {
   rightWall: boolean;
   /** Overrides the default height — bath screens are shorter. */
   heightMm?: number;
+  /** Set when the layout's door slides. See sliding.ts. */
+  sliding?: { system: SlidingSystem };
 }
 
 const door = (id: string, width: number, hinge: 'left' | 'right' = 'right'): ConfiguratorPanel => ({
@@ -118,6 +120,42 @@ export const TEMPLATES: ShowerTemplate[] = [
   },
 ];
 
+/**
+ * The sliding layouts, on CRL's Serenity. [UNCONFIRMED] Kept apart from the
+ * standard layouts because a designer shows them only once its company has
+ * turned sliding doors on in Settings, which is off until Matt has confirmed
+ * the sizes against a job. The door slides across the fixed panel and closes
+ * against the wall at its own end. The two widths are only a starting
+ * opening: both panes are cut to CRL's formula from the whole of it.
+ */
+export const SLIDING_TEMPLATES: ShowerTemplate[] = [
+  {
+    id: 'sliding-alcove',
+    name: 'Sliding door',
+    description: 'A fixed panel and a sliding door, wall to wall.',
+    panels: [fixed('p1', 600), door('p2', 600)],
+    junctions: [straight],
+    leftWall: true,
+    rightWall: true,
+    sliding: { system: 'serenity' },
+  },
+  {
+    id: 'sliding-return',
+    name: 'Sliding door with a side panel',
+    description: 'A sliding door across the front with one side panel returning to the wall.',
+    panels: [fixed('p1', 800), fixed('p2', 600), door('p3', 600)],
+    junctions: [corner, straight],
+    leftWall: true,
+    rightWall: true,
+    sliding: { system: 'serenity' },
+  },
+];
+
+/** The layouts a designer offers: the standard ones, and the sliding ones where its company has turned them on. */
+export function templatesFor(offer: { sliding?: boolean } = {}): ShowerTemplate[] {
+  return offer.sliding ? [...TEMPLATES, ...SLIDING_TEMPLATES] : TEMPLATES;
+}
+
 export function getTemplate(id: string): ShowerTemplate | undefined {
-  return TEMPLATES.find((t) => t.id === id);
+  return TEMPLATES.find((t) => t.id === id) ?? SLIDING_TEMPLATES.find((t) => t.id === id);
 }

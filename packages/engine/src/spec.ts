@@ -50,6 +50,7 @@ import {
   type LimitCheck,
 } from './rules';
 import type { EngineContext } from './ruleset';
+import { buildSlidingSpec, type PanelSliding, type SlidingSpec } from './sliding';
 import type { ConfiguratorState } from './types';
 
 export interface PanelSpec {
@@ -92,6 +93,11 @@ export interface PanelSpec {
     handlePlacement: HandlePlacement;
     handleHoleHeightsMm: { lowerMm: number; upperMm: number };
   };
+  /**
+   * Only on a sliding shower's panes: what the pane is, where it stands and
+   * its holes. A sliding door has this and no `door`: it has no hinges.
+   */
+  sliding?: PanelSliding;
 }
 
 export interface ConfiguratorSpec {
@@ -115,6 +121,8 @@ export interface ConfiguratorSpec {
    * rather than burying it in a list the customer scrolls past.
    */
   blockingIssues: string[];
+  /** Only on a sliding shower: its kit, header and what is not yet confirmed. See sliding.ts. */
+  sliding?: SlidingSpec;
 }
 
 /** Bridge the configurator's panel shape into the fabrication library's. */
@@ -168,6 +176,9 @@ function panelLabel(index: number, kind: 'fixed' | 'door', plane: Plane): string
  * server runs this on every design it receives and stores its own answer.
  */
 export function buildSpec(state: ConfiguratorState, context: EngineContext): ConfiguratorSpec {
+  // A sliding shower is cut to its maker's formula, not by the deductions
+  // below. Nothing else takes this turn.
+  if (state.sliding) return buildSlidingSpec(state, context);
   const { rules, companyName } = context;
   const { making, fixed } = rules;
   const planes = derivePlanes(state.panels, state.junctions);

@@ -28,7 +28,8 @@ export function HardwareStep({ config, state, update }: StepProps) {
   const thicknesses = thicknessesOf(config);
   const standard = config.glassThicknessMm;
   const hinges = hingesOf(config);
-  const mounts = new Set(doorMountsOf(state));
+  // A sliding door has no hinges to choose, and its pull comes in its kit.
+  const mounts = new Set(state.sliding ? [] : doorMountsOf(state));
   const wallChoice = mounts.has('wall-to-glass') && hinges.wall.offered.length > 1;
   const inLineChoice = mounts.has('glass-to-glass-180') && hinges.inLine.offered.length > 1;
   return (
@@ -112,26 +113,35 @@ export function HardwareStep({ config, state, update }: StepProps) {
         />
       )}
 
-      <div className="space-y-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Handle
-        </Label>
-        <div className="grid gap-2">
-          {config.handles.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              onClick={() => update({ handleId: h.id })}
-              className={`rounded-lg border p-3 text-left transition-colors ${
-                state.handleId === h.id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
-              }`}
-            >
-              <div className="font-medium">{h.label}</div>
-              <div className="text-sm text-muted-foreground">{h.description}</div>
-            </button>
-          ))}
+      {state.sliding ? (
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Handle</Label>
+          <p className="rounded-lg border p-3 text-sm text-muted-foreground">
+            A sliding door has a round pull set through the glass, which comes with its sliding kit in the finish you choose.
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Handle
+          </Label>
+          <div className="grid gap-2">
+            {config.handles.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => update({ handleId: h.id })}
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  state.handleId === h.id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                }`}
+              >
+                <div className="font-medium">{h.label}</div>
+                <div className="text-sm text-muted-foreground">{h.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

@@ -16,6 +16,7 @@ import { useLoad } from '../lib/load';
 import { describeFeature, hingeStyle, panes as panesFor } from '../lib/panes';
 import { Link } from '../lib/router';
 import { lettersFor } from './PaneDrawing';
+import { SlidingNotice } from './Sliding';
 import { Problem } from './parts';
 
 const GLASS: Record<string, string> = { clear: 'clear', 'low-iron': 'low-iron', satin: 'satin', bronze: 'bronze tinted', grey: 'grey tinted' };
@@ -135,6 +136,8 @@ function Sheet({
         </div>
       </header>
 
+      <SlidingNotice spec={spec} detail questions className="mt-3" />
+
       <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
         <Fact label="Glass">{glass}</Fact>
         <Fact label="Panes">
@@ -147,7 +150,7 @@ function Sheet({
           {spec.heightMm}mm{spec.isFloorToCeiling ? ', floor to ceiling' : ''}
         </Fact>
         <Fact label="Finish">{finish}</Fact>
-        <Fact label="Handle">{humanise(design.handleId)}</Fact>
+        <Fact label="Handle">{spec.sliding ? 'Through-glass pull, in the Serenity kit' : humanise(design.handleId)}</Fact>
       </dl>
 
       <h2 className="mt-4 border-b border-black pb-0.5 text-sm font-bold uppercase tracking-wide">Cut list</h2>

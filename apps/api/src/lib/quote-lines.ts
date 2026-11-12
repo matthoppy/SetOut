@@ -95,6 +95,13 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       line(key, `${prefix}${panel.label} hinges: ${what}, ${finish}`, panel.door.hingeCount, 'each');
       line(`handle:${design.handleId}:${design.finishId}`, `${prefix}${panel.label} handle: ${named(labels.handles, design.handleId)}, ${finish}`, 1, 'each');
     }
+    // A sliding door's kit, in place of hinges and a handle. Unpriced until the company prices one.
+    if (spec.sliding) {
+      line(`sliding-kit:${spec.sliding.kit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity sliding door kit (CRL ${spec.sliding.kit}), ${finish}`, 1, 'each');
+      if (spec.sliding.returnKit) {
+        line(`sliding-kit:${spec.sliding.returnKit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity 90° return kit (CRL ${spec.sliding.returnKit}), ${finish}`, 1, 'each');
+      }
+    }
     if (spec.mounting === 'channel') {
       line(`channel:${design.finishId}`, `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');
     } else {
