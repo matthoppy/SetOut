@@ -237,7 +237,10 @@ export async function usersByIds(
 export interface DesignerSettings {
   finishes?: { id: string; label: string; swatch: string; code?: string }[];
   handles?: { id: string; label: string; description: string; code?: string }[];
+  /** The thickness a new design starts at. */
   glassThicknessMm?: number;
+  /** Every thickness customers may choose, the one above among them. */
+  glassThicknessesMm?: number[];
   measurementDisclaimer?: string;
   intro?: string;
   turnstileSiteKey?: string;

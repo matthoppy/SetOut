@@ -160,3 +160,22 @@ describe('every known design', () => {
     expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PC1090', 'SDCD38MBL']);
   });
 });
+
+describe('every standard layout in each thickness SetOut makes', () => {
+  const context = { rules: DEFAULT_RULESET, companyName: GOLDEN_COMPANY };
+  const kits = new Map(DEFAULT_RULESET.fixed.hinges.kits.map((k) => [k.name, k.glassMm as readonly number[]]));
+  const cases = TEMPLATES.flatMap((t) => ([8, 10, 12] as const).map((mm) => [t.id, mm, t] as const));
+  test.each(cases)('%s in %smm glass hangs its doors on hinges made for it, and CRL lists every part named', (_id, mm, template) => {
+    const state = applyTemplate(createInitialState(mm), template);
+    const spec = buildSpec(state, context);
+    expect(spec.glassThicknessMm).toBe(mm);
+    for (const panel of spec.panels) {
+      if (panel.door) expect(kits.get(panel.door.hingeBrand), panel.door.hingeBrand).toContain(mm);
+    }
+    for (const fitting of fittingsOf(state, spec, DEFAULT_RULESET.fixed)) {
+      const part = crlPartOf(fitting, choices('CH', mm));
+      if (part?.status === 'found') expect(skus.has(part.code), part.code).toBe(true);
+      if (fitting.kind === 'hinges') expect(part?.status).toBe('found');
+    }
+  });
+});

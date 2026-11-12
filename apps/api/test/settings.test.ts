@@ -31,9 +31,10 @@ interface DesignerBody {
   active: boolean;
   finishes: Finish[];
   handles: Handle[];
+  glass: { offered: number[]; standard: number };
   notifyEmails: string[];
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; notifyEmails: string };
+  versions: { finishes: string; handles: string; glass: string; notifyEmails: string };
 }
 interface Change {
   id: string;
@@ -57,6 +58,8 @@ interface PublicConfig {
   brand: { name: string; primary: string; primaryForeground: string; logoUrl?: string };
   finishes: Finish[];
   handles: Handle[];
+  glassThicknessMm: number;
+  glassThicknesses: number[];
   intro?: string;
 }
 
@@ -587,5 +590,57 @@ describe('CRL codes for the sheets', () => {
     expect(designer.finishes.some((f) => 'code' in f)).toBe(false);
     const { changes } = await read();
     expect(changes?.[0].data.changes).toEqual([{ field: 'finish', change: 'coded', id: before.finishes[0].id, label: before.finishes[0].label, from: 'BSC' }]);
+  });
+});
+
+describe('the glass a designer offers', () => {
+  test('is 10mm alone until an owner offers more, and a new design starts at 10mm', async () => {
+    expect((await ours()).glass).toEqual({ offered: [10], standard: 10 });
+    const config = await publicConfig(shop);
+    expect(config.glassThicknesses).toEqual([10]);
+    expect(config.glassThicknessMm).toBe(10);
+  });
+
+  test('an owner offers 8, 10 and 12mm, new designs still starting at 10mm, and the designer offers them at once', async () => {
+    const { designer } = await saved(await changeDesigner({ glass: { offered: [12, 8, 10, 10], standard: 10 } }));
+    expect(designer.glass).toEqual({ offered: [8, 10, 12], standard: 10 });
+    const config = await publicConfig(shop);
+    expect(config.glassThicknesses).toEqual([8, 10, 12]);
+    expect(config.glassThicknessMm).toBe(10);
+    // The rest of the designer's own settings are kept.
+    expect(config.intro).toBe('Design yours.');
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([{ field: 'glassOffered', from: [10], to: [8, 10, 12] }]);
+  });
+
+  test('new designs can start at another thickness on offer', async () => {
+    await saved(await changeDesigner({ glass: { offered: [8, 10, 12], standard: 12 } }));
+    expect((await publicConfig(shop)).glassThicknessMm).toBe(12);
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([{ field: 'glassStandard', from: 10, to: 12 }]);
+  });
+
+  test.each([
+    ['not a choice at all', 10],
+    ['a thickness SetOut does not make', { offered: [6, 10], standard: 10 }],
+    ['a thickness that is not a number', { offered: ['10mm'], standard: 10 }],
+    ['none offered', { offered: [], standard: 10 }],
+    ['new designs starting at one not offered', { offered: [8, 10], standard: 12 }],
+  ])('%s is refused, and nothing changes', async (_, glass) => {
+    const before = await ours();
+    expect(await errorOf(await changeDesigner({ glass }))).toEqual([400, 'invalid_glass']);
+    expect(await ours()).toEqual(before);
+  });
+
+  test('staff changing a shower may choose any thickness SetOut makes, whatever customers are offered', async () => {
+    await saved(await changeDesigner({ glass: { offered: [10], standard: 10 } }));
+    expect((await publicConfig(shop)).glassThicknesses).toEqual([10]);
+    const job = await firstJob();
+    const { designs } = await json<{ designs: { id: string }[] }>(await api(`/jobs/${job}`, { cookie: staff }));
+    const editor = await json<{ config: { glassThicknesses: number[]; glassThicknessMm: number } }>(
+      await api(`/jobs/${job}/designs/${designs[0].id}/editor`, { cookie: staff })
+    );
+    expect(editor.config.glassThicknesses).toEqual([8, 10, 12]);
+    expect(editor.config.glassThicknessMm).toBe(10);
   });
 });

@@ -1,8 +1,8 @@
 /**
  * A company's settings, as its owners change them in the workspace: its name,
  * the colours and logo its customers see, how a new quote starts, and, for
- * each designer, the finishes and handles it offers and who hears about each
- * design.
+ * each designer, the finishes, handles and glass it offers and who hears
+ * about each design.
  *
  * Everything sent is checked here before anything is saved, and a request
  * with one thing wrong changes nothing. What changed is worked out here too,
@@ -15,7 +15,7 @@
 import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
-import { BRANDING_DEFAULTS, offeredOptions } from './designer-config';
+import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, isThickness, offeredOptions, type Glass } from './designer-config';
 import { RequestError } from './enquiry';
 
 export interface Finish {
@@ -138,17 +138,20 @@ export interface DesignerView {
   active: boolean;
   finishes: Finish[];
   handles: Handle[];
+  glass: Glass;
   notifyEmails: string[];
 }
 
 export function designerView(stored: { id: string; name: string; status: string; config: string; notify_emails: string }): DesignerView {
-  const { finishes, handles } = offeredOptions(parsed(stored.config) as DesignerSettings);
+  const config = parsed(stored.config) as DesignerSettings;
+  const { finishes, handles } = offeredOptions(config);
   return {
     id: stored.id,
     name: stored.name,
     active: stored.status === 'active',
     finishes,
     handles,
+    glass: glassOf(config),
     notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
   };
 }
@@ -169,12 +172,13 @@ export async function companyVersions(company: CompanyView) {
 }
 
 export async function designerVersions(designer: DesignerView) {
-  const [finishes, handles, notifyEmails] = await Promise.all([
+  const [finishes, handles, glass, notifyEmails] = await Promise.all([
     versionOf(designer.finishes),
     versionOf(designer.handles),
+    versionOf(designer.glass),
     versionOf(designer.notifyEmails),
   ]);
-  return { finishes, handles, notifyEmails };
+  return { finishes, handles, glass, notifyEmails };
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +273,24 @@ export function readNotifyEmails(input: unknown): string[] {
     throw new RequestError(400, 'invalid_emails', 'Add at least one address, so each new design reaches someone.');
   }
   return emails;
+}
+
+/** The glass a designer offers, as an owner sent it: thicknesses SetOut makes, and one of them to start new designs at. */
+export function readGlass(input: unknown): Glass {
+  const made = GLASS_THICKNESSES.map((t) => `${t}mm`).join(', ');
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_glass', 'Send the thicknesses to offer, and the one a new design starts at.');
+  }
+  const g = input as Record<string, unknown>;
+  if (!Array.isArray(g.offered) || !g.offered.every(isThickness)) {
+    throw new RequestError(400, 'invalid_glass', `SetOut makes showers in ${made} glass. Offer those only.`);
+  }
+  const offered = GLASS_THICKNESSES.filter((t) => (g.offered as unknown[]).includes(t));
+  if (offered.length === 0) throw new RequestError(400, 'invalid_glass', 'Offer at least one thickness of glass.');
+  if (!isThickness(g.standard) || !offered.includes(g.standard)) {
+    throw new RequestError(400, 'invalid_glass', 'A new design must start at a thickness you offer.');
+  }
+  return { offered, standard: g.standard };
 }
 
 type Kind = 'finish' | 'handle';
@@ -406,6 +428,8 @@ export type SettingsChange =
       to?: string;
     }
   | { field: Kind; change: 'reordered' }
+  | { field: 'glassOffered'; from: number[]; to: number[] }
+  | { field: 'glassStandard'; from: number; to: number }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
@@ -436,6 +460,13 @@ export function optionChanges(kind: Kind, before: readonly Option[], after: read
   }
   const order = (options: readonly Option[], kept: Map<string, Option>) => options.filter((o) => kept.has(o.id)).map((o) => o.id).join('\n');
   if (order(before, now) !== order(after, was)) changes.push({ field: kind, change: 'reordered' });
+  return changes;
+}
+
+export function glassChanges(before: Glass, after: Glass): SettingsChange[] {
+  const changes: SettingsChange[] = [];
+  if (before.offered.join() !== after.offered.join()) changes.push({ field: 'glassOffered', from: before.offered, to: after.offered });
+  if (before.standard !== after.standard) changes.push({ field: 'glassStandard', from: before.standard, to: after.standard });
   return changes;
 }
 
@@ -484,10 +515,14 @@ export function storedSettings(text: string, before: QuoteSettings, after: Quote
   return JSON.stringify(stored);
 }
 
-/** The designer's config with new lists of finishes or handles, and everything else it holds kept. */
-export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[] }): string {
+/** The designer's config with new lists of finishes or handles, or new glass, and everything else it holds kept. */
+export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass }): string {
   const stored = parsed(text);
   if (changes.finishes) stored.finishes = changes.finishes;
   if (changes.handles) stored.handles = changes.handles;
+  if (changes.glass) {
+    stored.glassThicknessesMm = changes.glass.offered;
+    stored.glassThicknessMm = changes.glass.standard;
+  }
   return JSON.stringify(stored);
 }

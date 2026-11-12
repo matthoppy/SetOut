@@ -40,8 +40,10 @@ export interface DesignerConfig {
   brand: DesignerBrand;
   finishes: HardwareFinish[];
   handles: HandleOption[];
-  /** The thickness this company makes in. */
+  /** The thickness a new design starts at. */
   glassThicknessMm: GlassThickness;
+  /** Every thickness the customer may choose, thinnest first. Older servers send only the one above. */
+  glassThicknesses?: GlassThickness[];
   /**
    * Shown on the review step and repeated to the company. Spells out who is
    * responsible for the measurements being right, which matters when glass is
@@ -78,6 +80,7 @@ export const PREVIEW_CONFIG: DesignerConfig = {
     { id: 'knob', label: 'Knob', description: 'Single round knob, centred at 950mm.' },
   ],
   glassThicknessMm: 10,
+  glassThicknesses: [8, 10, 12],
   measurementDisclaimer:
     'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
   intro: 'Design your enclosure and send the measurements straight to the workshop.',
@@ -116,6 +119,12 @@ export function withOfferedHardware(state: ConfiguratorState, config: Pick<Desig
     finishId: config.finishes[0]?.id ?? state.finishId,
     handleId: config.handles[0]?.id ?? state.handleId,
   };
+}
+
+/** The thicknesses on offer: always at least the one a new design starts at. */
+export function thicknessesOf(config: Pick<DesignerConfig, 'glassThicknessMm' | 'glassThicknesses'>): GlassThickness[] {
+  const offered = config.glassThicknesses ?? [];
+  return offered.includes(config.glassThicknessMm) ? offered : [config.glassThicknessMm];
 }
 
 export function finishLabel(config: DesignerConfig, id: string): string {

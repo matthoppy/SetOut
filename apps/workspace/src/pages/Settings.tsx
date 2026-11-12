@@ -105,6 +105,15 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 onSaved={() => onSaved(`handles:${designer.id}`)}
                 onReload={settings.reload}
               />
+              <GlassPart
+                key={designer.versions.glass}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `glass:${designer.id}`}
+                onSaved={() => onSaved(`glass:${designer.id}`)}
+                onReload={settings.reload}
+              />
               <EmailsPart
                 key={designer.versions.notifyEmails}
                 designer={designer}
@@ -709,6 +718,96 @@ function CodeOf({ code }: { code: string | null }) {
 
 const EMAIL = /^[^\s@<>,;:"]+@[^\s@<>,;:"]+\.[^\s@<>,;:"]+$/;
 
+/** The thicknesses SetOut makes showers in. */
+const THICKNESSES = [8, 10, 12];
+const millimetres = (list: number[]) => listed(list.map((mm) => `${mm}mm`));
+
+function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const [offered, setOffered] = useState<number[]>(designer.glass.offered);
+  const [standard, setStandard] = useState(designer.glass.standard);
+  const saving = useSave(onSaved);
+  const dirty = offered.join() !== designer.glass.offered.join() || standard !== designer.glass.standard;
+  const valid = offered.length > 0 && offered.includes(standard);
+
+  const toggle = (mm: number) => {
+    const next = offered.includes(mm) ? offered.filter((t) => t !== mm) : [...offered, mm].sort((a, b) => a - b);
+    setOffered(next);
+    // New designs must start at a thickness on offer: 10mm if it is, or the first.
+    if (next.length && !next.includes(standard)) setStandard(next.includes(10) ? 10 : next[0]);
+  };
+  const undo = () => {
+    setOffered(designer.glass.offered);
+    setStandard(designer.glass.standard);
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { glass: { offered, standard }, basedOn: { glass: designer.versions.glass } }),
+      'The glass could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'Your customers choose from the thicknesses you offer, and a new design starts at your standard one. Staff can make any shower in any of them. A thickness you have not quoted before starts with its glass unpriced.';
+
+  if (!owner) {
+    return (
+      <Section title="Glass">
+        <div className={`${CARD} text-sm`}>
+          <Hint>{about}</Hint>
+          <p>
+            Offered: <span className="font-medium">{millimetres(designer.glass.offered)}</span>. A new design starts at{' '}
+            <span className="font-medium">{designer.glass.standard}mm</span>.
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Glass">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>{about}</Hint>
+        <fieldset>
+          <legend className="text-sm font-semibold">Thicknesses your customers can choose</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {THICKNESSES.map((mm) => (
+              <label key={mm} className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-ground px-3">
+                <input type="checkbox" checked={offered.includes(mm)} onChange={() => toggle(mm)} className="h-4 w-4" />
+                <span className="font-medium">{mm}mm</span>
+              </label>
+            ))}
+          </div>
+          {offered.length === 0 && <p className="mt-2 text-xs text-bad">Offer at least one thickness.</p>}
+        </fieldset>
+        {offered.length > 1 && (
+          <fieldset className="mt-4">
+            <legend className="text-sm font-semibold">A new design starts at</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {offered.map((mm) => (
+                <label key={mm} className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-ground px-3">
+                  <input type="radio" name={`standard-${designer.id}`} checked={standard === mm} onChange={() => setStandard(mm)} className="h-4 w-4" />
+                  <span className="font-medium">{mm}mm</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        <SaveRow
+          label="Save the glass"
+          dirty={dirty}
+          valid={valid}
+          saving={saving}
+          onUndo={undo}
+          justSaved={justSaved}
+          savedNote="Saved. Your designer offers these within a minute."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
 function EmailsPart({ designer, owner, limits, justSaved, onSaved, onReload }: DesignerPartProps) {
   const original = designer.notifyEmails.length ? designer.notifyEmails : [''];
   const [emails, setEmails] = useState<string[]>(original);
@@ -1172,6 +1271,10 @@ function describe(item: SettingsChangeItem, by: string): string {
       return `${by} set VAT on new quotes to ${percent(item.to)}, from ${percent(item.from)}.`;
     case 'quoteValidDays':
       return `${by} set new quotes to stand for ${days(item.to)}, from ${days(item.from)}.`;
+    case 'glassOffered':
+      return `${by} offered customers ${millimetres(item.to)} glass, from ${millimetres(item.from)}.`;
+    case 'glassStandard':
+      return `${by} started new designs at ${item.to}mm glass, from ${item.from}mm.`;
     case 'notifyEmails': {
       const parts = [
         ...(item.added.length ? [`started emailing ${listed(item.added)}`] : []),

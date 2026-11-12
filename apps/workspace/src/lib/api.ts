@@ -271,10 +271,12 @@ export interface DesignerSettings {
   active: boolean;
   finishes: Finish[];
   handles: Handle[];
+  /** The thicknesses customers may choose, thinnest first, and the one a new design starts at. */
+  glass: { offered: number[]; standard: number };
   notifyEmails: string[];
   /** How many showers on the company's jobs use each option, by id. */
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; notifyEmails: string };
+  versions: { finishes: string; handles: string; glass: string; notifyEmails: string };
 }
 
 export type SettingsChangeItem =
@@ -290,6 +292,8 @@ export type SettingsChangeItem =
       from?: string;
       to?: string;
     }
+  | { field: 'glassOffered'; from: number[]; to: number[] }
+  | { field: 'glassStandard'; from: number; to: number }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 export interface SettingsChange {
@@ -319,6 +323,7 @@ export interface CompanyChanges {
 export interface DesignerChanges {
   finishes?: NewOption<Finish>[];
   handles?: NewOption<Handle>[];
+  glass?: DesignerSettings['glass'];
   notifyEmails?: string[];
   basedOn: Partial<DesignerSettings['versions']>;
 }

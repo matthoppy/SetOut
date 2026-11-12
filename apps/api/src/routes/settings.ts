@@ -1,7 +1,8 @@
 /**
  * A company's settings, for its staff to see and its owners to change: the
  * company's name, its colours and logo, how a new quote starts, and for each
- * designer the finishes and handles it offers and who hears about each design.
+ * designer the finishes, handles and glass it offers and who hears about each
+ * design.
  *
  * Everything sent is checked before anything is saved, and a request with one
  * thing wrong changes nothing. Each change says which version of a setting it
@@ -25,11 +26,13 @@ import {
   designerVersions,
   designerView,
   emailChanges,
+  glassChanges,
   LIMITS,
   optionChanges,
   readBranding,
   readCompanyName,
   readFinishes,
+  readGlass,
   readHandles,
   readNotifyEmails,
   readQuoteSettings,
@@ -158,22 +161,22 @@ staffSettings.patch('/settings/company', ownersOnly, async (c) => {
 });
 
 /**
- * Change the finishes and handles a designer offers, or who it emails when a
- * design arrives. A list is sent whole, in the order the designer shows it.
- * Anything left out stays as it is.
+ * Change the finishes and handles a designer offers, the glass it offers, or
+ * who it emails when a design arrives. A list is sent whole, in the order the
+ * designer shows it. Anything left out stays as it is.
  */
 staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
   const session = c.get('session');
   try {
     const body = await bodyOf(c);
-    const sent = (['finishes', 'handles', 'notifyEmails'] as const).filter((part) => body[part] !== undefined);
+    const sent = (['finishes', 'handles', 'glass', 'notifyEmails'] as const).filter((part) => body[part] !== undefined);
     const basedOn = basedOnOf(body);
     const answer = await withRetry(async () => {
       const stored = await readSettings(c.env, session.companyId);
       const index = stored?.designers.findIndex((d) => d.id === c.req.param('id')) ?? -1;
       if (!stored || index < 0) return c.json(NO_DESIGNER, 404, PRIVATE);
       if (sent.length === 0) {
-        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles or the addresses to email.' }, 400, PRIVATE);
+        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass or the addresses to email.' }, 400, PRIVATE);
       }
       const row = stored.designers[index];
       const first = index === 0;
@@ -185,11 +188,13 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...before,
         finishes: body.finishes === undefined ? before.finishes : readFinishes(body.finishes, before.finishes),
         handles: body.handles === undefined ? before.handles : readHandles(body.handles, before.handles),
+        glass: body.glass === undefined ? before.glass : readGlass(body.glass),
         notifyEmails: body.notifyEmails === undefined ? before.notifyEmails : readNotifyEmails(body.notifyEmails),
       };
       const changes = [
         ...optionChanges('finish', before.finishes, after.finishes),
         ...optionChanges('handle', before.handles, after.handles),
+        ...glassChanges(before.glass, after.glass),
         ...emailChanges(before.notifyEmails, after.notifyEmails),
       ];
       if (changes.length === 0) {
@@ -199,9 +204,10 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
       const options = {
         ...(changes.some((ch) => ch.field === 'finish') ? { finishes: after.finishes } : {}),
         ...(changes.some((ch) => ch.field === 'handle') ? { handles: after.handles } : {}),
+        ...(changes.some((ch) => ch.field === 'glassOffered' || ch.field === 'glassStandard') ? { glass: after.glass } : {}),
       };
       const columns = {
-        ...(options.finishes || options.handles ? { config: { was: row.config, now: storedConfig(row.config, options) } } : {}),
+        ...(options.finishes || options.handles || options.glass ? { config: { was: row.config, now: storedConfig(row.config, options) } } : {}),
         ...(changes.some((ch) => ch.field === 'notifyEmails')
           ? { notify_emails: { was: row.notify_emails, now: JSON.stringify(after.notifyEmails) } }
           : {}),

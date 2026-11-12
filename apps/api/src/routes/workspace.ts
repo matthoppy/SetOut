@@ -31,7 +31,7 @@ import { companyDb } from '../db/company-db';
 import { usersByIds } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
-import { designerConfig, optionLabelsFor } from '../lib/designer-config';
+import { designerConfig, GLASS_THICKNESSES, optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -526,7 +526,8 @@ staff.get('/jobs/:id/designs/:designId/editor', async (c) => {
   ]);
   return c.json(
     {
-      config,
+      // Staff may make a shower in any glass SetOut makes, offered to customers or not.
+      config: { ...config, glassThicknesses: [...GLASS_THICKNESSES] },
       job: { id: job.id, reference: job.reference, customer: customer?.name ?? null },
       design: { id: design.id, label: design.label },
       revision: { number: revision.number, document: revision.document },

@@ -26,9 +26,31 @@ export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnst
     { id: 'knob', label: 'Knob', description: 'Single round knob, centred at 950mm.' },
   ],
   glassThicknessMm: 10,
+  glassThicknessesMm: [10],
   measurementDisclaimer:
     'I have measured this myself and the sizes above are correct. I understand the glass is toughened and made to these measurements, so it cannot be altered afterwards, and that if my measurements turn out to be wrong a replacement panel is a new order at my cost.',
 };
+
+/** The thicknesses SetOut makes showers in: those CRL's hinges take, Geneva's 8 to 12mm. */
+export const GLASS_THICKNESSES = [8, 10, 12] as const;
+export type Thickness = (typeof GLASS_THICKNESSES)[number];
+export const isThickness = (value: unknown): value is Thickness => GLASS_THICKNESSES.includes(value as Thickness);
+
+/** The glass a designer offers, thinnest first, and the thickness a new design starts at. */
+export interface Glass {
+  offered: Thickness[];
+  standard: Thickness;
+}
+
+/**
+ * The glass a designer offers: 10mm alone until the company chooses more, and
+ * a new design always starts at one of those offered.
+ */
+export function glassOf(settings: DesignerSettings): Glass {
+  const standard = isThickness(settings.glassThicknessMm) ? settings.glassThicknessMm : 10;
+  const chosen = new Set<number>([standard, ...(settings.glassThicknessesMm ?? [])]);
+  return { offered: GLASS_THICKNESSES.filter((t) => chosen.has(t)), standard };
+}
 
 /** The colours a company's pages use until it chooses its own. */
 export const BRANDING_DEFAULTS = { primary: '#1e293b', primaryForeground: '#ffffff' } as const;
@@ -56,6 +78,7 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
   const branding = company.branding;
   // The CRL codes are for the company's own sheets, not its customers.
   const { finishes, handles } = offeredOptions(settings);
+  const glass = glassOf(settings);
   return {
     id: row.id,
     siteKey: row.site_key,
@@ -67,7 +90,8 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     },
     finishes: finishes.map(({ id, label, swatch }) => ({ id, label, swatch })),
     handles: handles.map(({ id, label, description }) => ({ id, label, description })),
-    glassThicknessMm: settings.glassThicknessMm ?? DEFAULT_SETTINGS.glassThicknessMm,
+    glassThicknessMm: glass.standard,
+    glassThicknesses: glass.offered,
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
     ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),

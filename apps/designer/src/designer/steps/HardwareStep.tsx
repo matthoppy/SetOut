@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Check } from 'lucide-react';
 import type { StepProps } from './types';
 import type { GlassType, GlassCoating } from '@setout/engine';
+import { thicknessesOf } from '../config';
 
 const GLASS_TYPES: { id: GlassType; label: string; description: string }[] = [
   { id: 'clear', label: 'Clear', description: 'Standard clear glass' },
@@ -24,6 +25,8 @@ const GLASS_COATINGS: { id: GlassCoating; label: string; description: string }[]
 ];
 
 export function HardwareStep({ config, state, update }: StepProps) {
+  const thicknesses = thicknessesOf(config);
+  const standard = config.glassThicknessMm;
   return (
     <div className="space-y-6">
       <div className="space-y-3">
@@ -132,14 +135,33 @@ export function HardwareStep({ config, state, update }: StepProps) {
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Glass thickness
         </Label>
-        {/* One thickness, set by the config. Custom Showers fits 10mm only, so
-            there is nothing to choose. */}
-        <div className="rounded-lg border bg-muted p-3">
-          <div className="font-medium">{config.glassThicknessMm}mm toughened safety glass</div>
-          <div className="text-sm text-muted-foreground">
-            Every panel and door we make is {config.glassThicknessMm}mm.
+        {thicknesses.length > 1 ? (
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Glass thickness">
+            {thicknesses.map((mm) => (
+              <button
+                key={mm}
+                type="button"
+                role="radio"
+                aria-checked={state.glassThicknessMm === mm}
+                onClick={() => update({ glassThicknessMm: mm })}
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  state.glassThicknessMm === mm ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                }`}
+              >
+                <div className="font-medium">{mm}mm</div>
+                <div className="text-sm text-muted-foreground">
+                  {mm === standard ? 'Our standard' : mm < standard ? 'Lighter' : 'Heavier, more solid'}
+                </div>
+              </button>
+            ))}
           </div>
-        </div>
+        ) : (
+          // One thickness on offer, so there is nothing to choose.
+          <div className="rounded-lg border bg-muted p-3">
+            <div className="font-medium">{standard}mm toughened safety glass</div>
+            <div className="text-sm text-muted-foreground">Every panel and door we make is {standard}mm.</div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
