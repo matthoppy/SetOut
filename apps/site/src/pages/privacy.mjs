@@ -12,7 +12,8 @@ export const privacy = ({ to }) => `
     <section class="band">
       <div class="wrap narrow prose">
         <h2>Who we are</h2>
-        ${placeholder('legal-name', 'The legal name of the company or person that runs SetOut, its registered address, and its ICO registration if it has one.')}
+        <p>SetOut is run by Custom Showers, a frameless shower company in the UK, which built it for its own customers and its own workshop. For what you send through the get-started form on this website, Custom Showers is the controller: it decides what it is used for, and answers for it.</p>
+        ${placeholder('legal-details', 'Custom Showers’ registered company name and number, its registered address, and its ICO registration number if it has one.')}
 
         <h2>This website</h2>
         <h3>No tracking</h3>
@@ -38,7 +39,7 @@ export const privacy = ({ to }) => `
 
         <h2>Asking us about your data</h2>
         <p>You can ask us what we hold about you from this website, and ask us to correct or delete it.</p>
-        ${placeholder('privacy-contact', 'The email or postal address to write to about personal data.')}
+        <p>Email <a href="mailto:sales@customshowers.uk">sales@customshowers.uk</a>.</p>
         <p>If you are not happy with our answer, you can complain to the Information Commissioner’s Office, the UK’s data protection regulator, at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk</a>.</p>
       </div>
     </section>

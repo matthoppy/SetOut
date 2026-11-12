@@ -75,7 +75,7 @@ export function PlanView({
       offsetX: width / 2 - (minX + contentW / 2) * s,
       offsetY: height / 2 - (minY + contentH / 2) * s,
     };
-  }, [trace, panels, width, height]);
+  }, [trace, panels, sliding, width, height]);
 
   if (panels.length === 0) return null;
 

@@ -94,6 +94,11 @@ test('every link and file inside the site is there, from wherever the page is', 
         assert.ok(page.html.includes(`id="${ref.slice(1)}"`), `${page.path} links to ${ref}`);
         continue;
       }
+      if (ref.startsWith('mailto:')) {
+        // The one address on the site, where Matt said enquiries and privacy questions go.
+        assert.equal(ref, 'mailto:sales@customshowers.uk', `${page.path} emails ${ref}`);
+        continue;
+      }
       if (/^https?:/.test(ref)) {
         const allowed = OUTSIDE.includes(ref) || ref.startsWith('https://setoutglass.com/');
         assert.ok(allowed, `${page.path} links outside the site, to ${ref}`);
@@ -163,10 +168,8 @@ test('says nothing it must not', () => {
 
 test('lists what is still to be settled, so none of it goes live by accident', () => {
   assert.deepEqual(result.placeholders.sort(), [
-    '/: custom-showers-line',
     '/pricing/: prices',
     '/privacy/: enquiry-retention',
-    '/privacy/: legal-name',
-    '/privacy/: privacy-contact',
+    '/privacy/: legal-details',
   ]);
 });

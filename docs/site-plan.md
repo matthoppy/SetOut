@@ -119,6 +119,16 @@ No new secret. The route uses the two the Worker already has, `TURNSTILE_SECRET_
 
 ## Questions for Matt
 
+Answered by Matt on 12 November 2026:
+
+- **Prices** (1): "dont worry about price for now until it goes live". The placeholder stays until then.
+- **Naming Custom Showers** (2): "yeah thats fine". The home page's line stands, with no placeholder.
+- **Where enquiries go** (3): sales@customshowers.uk, set as `SITE_NOTIFY_EMAIL` for production. It is also the address on the privacy page.
+- **Who runs SetOut** (4): "Custom Showers can be the company behind set out as thats a company". The privacy page says so. Its registered name and number, registered address and ICO registration are still a placeholder.
+- **Naming CRL** (8): "yes".
+
+The rest are still open:
+
 1. **Prices.** What does SetOut cost, and how is it counted: a flat monthly price, or by enquiries as the roadmap says? Is there a free trial, and is set-up charged? The pricing page has a marked placeholder until this is settled.
 2. **Naming Custom Showers.** The home page says SetOut was built inside Custom Showers and runs on `customshowers.uk/design-shower`, with a link. Is that line all right, and is the wording right?
 3. **Where enquiries go.** Which inbox should `SITE_NOTIFY_EMAIL` be for production? It is empty there now. Staging is set to Resend's test inbox, `delivered@resend.dev`, as its designer already is.

@@ -111,8 +111,9 @@
         // above, which is Matt's call: see docs/deploying.md.
         "SITE_HOST": "setoutglass.com",
         "EMAIL_FROM": "hello@setoutglass.com",
-        // To be set, both of them: see docs/deploying.md.
-        "SITE_NOTIFY_EMAIL": "",
+        // Enquiries go to Custom Showers' sales inbox (Matt, 12 November 2026).
+        // The bot check's key is still to be set: see docs/deploying.md.
+        "SITE_NOTIFY_EMAIL": "sales@customshowers.uk",
         "SITE_TURNSTILE_SITE_KEY": ""
       },
       "d1_databases": [

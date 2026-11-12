@@ -1,4 +1,3 @@
-import { placeholder } from '../layout.mjs';
 
 export const home = ({ to, shot }) => `
     <section class="hero">
@@ -71,7 +70,6 @@ export const home = ({ to, shot }) => `
       <div class="wrap narrow">
         <h2>Built in a shower company</h2>
         <p>SetOut was built inside Custom Showers UK, a frameless shower company, for its own customers and its own workshop. Its website runs the SetOut designer: <a href="https://customshowers.uk/design-shower">customshowers.uk/design-shower</a>.</p>
-        ${placeholder('custom-showers-line', 'This paragraph names Custom Showers. It needs Matt’s OK before the site goes live.')}
       </div>
     </section>
 

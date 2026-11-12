@@ -148,8 +148,8 @@ The site is built and served, but `setoutglass.com` is not attached to the Worke
 
 **Before switching it on**
 
-1. Settle the placeholders. `npm run build` lists them, and they show on the pages in dashed boxes: the prices, the line naming Custom Showers, and the legal name, contact address and retention period on the privacy page. They are the open questions in [site-plan.md](site-plan.md).
-2. Set `SITE_NOTIFY_EMAIL` and `SITE_TURNSTILE_SITE_KEY` for production, in `apps/api/wrangler.jsonc`.
+1. Settle the placeholders. `npm run build` lists them, and they show on the pages in dashed boxes: the prices, and Custom Showers' registered details and the retention period on the privacy page. They are the open questions in [site-plan.md](site-plan.md).
+2. Set `SITE_TURNSTILE_SITE_KEY` for production, in `apps/api/wrangler.jsonc`. `SITE_NOTIFY_EMAIL` is set: enquiries go to sales@customshowers.uk.
 3. Check what `setoutglass.com` and `www.setoutglass.com` point at now. In the Cloudflare dashboard, open the `setoutglass.com` zone, then DNS. A custom domain is not attached over a record that is already there, so an existing `A`, `AAAA` or `CNAME` on either name has to be removed first, or the deploy stops and says so. The records Resend uses for email (`MX`, `TXT` and the `resend._domainkey` and `send` names) are separate and must be left alone.
 
 **The change**
