@@ -153,41 +153,42 @@ All colors MUST be HSL.
   --measure-accent: 199 45% 63%;
 }
 
-/* The measuring pictures: one room, one light, three measuring colours.
-   The room is pale stone and white, so the laser's red, the tape's yellow
+/* The measuring pictures: drawn as a technical illustration, one room, one
+   light, three measuring colours. Every edge is a fine dark line and every
+   surface a flat white or light grey, so the laser's red, the tape's yellow
    and the accent the measurement is drawn in are the only colours in it. */
 .mw-iso {
   --iso-paper: #ffffff;
-  --iso-backdrop: #f4f4f2;
-  --iso-floor: #e8e6e2;
-  --iso-floor-joint: #d5d2cc;
-  --iso-wall-lit: #f6f5f2;
-  --iso-wall-shade: #ecebe7;
-  --iso-wall-foot: #dedbd5;
-  --iso-wall-joint: #dcd9d3;
-  --iso-wall-end: #e2dfda;
-  --iso-cut: #fbfaf8;
-  --iso-cut-edge: #c2beb7;
-  --iso-ceiling: #f2f0ec;
-  --iso-edge: #b8b4ad;
+  --iso-backdrop: #fbfbfb;
+  --iso-line: #30363c;
+  --iso-line-soft: #c9ced3;
+  --iso-floor: #f3f4f5;
+  --iso-floor-joint: #d6dade;
+  --iso-wall-lit: #ffffff;
+  --iso-wall-shade: #eef0f2;
+  --iso-wall-end: #e1e4e7;
+  --iso-cut: #d3d8dc;
+  --iso-ceiling: #f4f5f6;
   --iso-tray: #ffffff;
-  --iso-tray-lit: #eceae7;
-  --iso-tray-shade: #dbd8d3;
-  --iso-tray-dish: #f7f6f4;
-  --iso-glass: #b9dfe3;
-  --iso-glass-edge: #7fb2b8;
-  --iso-metal: #d5d9dd;
-  --iso-metal-dark: #7f8892;
-  --iso-shadow: #3a332b;
+  --iso-tray-lit: #f1f3f4;
+  --iso-tray-shade: #e1e4e7;
+  --iso-tray-dish: #fafbfb;
+  --iso-glass: #c4d9e4;
+  --iso-glass-glint: #9fb6c3;
+  --iso-glass-edge: #47545e;
+  --iso-glass-top: #a9c0cc;
+  --iso-metal: #dde1e4;
+  --iso-metal-dark: #6b737c;
+  --iso-shadow: #4a5159;
   --iso-ink: hsl(var(--measure-accent));
   --iso-ink-text: #ffffff;
   --iso-laser: #ef1d45;
   --iso-laser-hot: #ffd9e0;
   --iso-tape: #f7c52b;
-  --iso-tape-edge: #c3940a;
+  --iso-tape-edge: #8a6a06;
   --iso-tape-ink: #2a2a2a;
   --iso-mask: #93c3ec;
-  --iso-mask-edge: #5d98cf;
+  --iso-mask-edge: #3f7fbd;
   --iso-pencil: #1e2227;
 }
 .dark .mw-iso {

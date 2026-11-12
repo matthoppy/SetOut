@@ -565,7 +565,7 @@ function UpToCeiling({ plan, run, side, value }: { plan: Plan; run: Run; side: '
             onFloor={<EndMask plan={plan} run={run} end={end} />}
             things={[
               { key: 'tape', node: <Tape hook={base} end={lift(base, top - 110)} face={run.out} />, at: base, reach: [read] },
-              { key: 'ceiling', node: <Face ps={patch(base, 320)} fill="var(--iso-ceiling)" stroke="var(--iso-cut-edge)" opacity={0.92} />, at: lift(base, top), reach: [] },
+              { key: 'ceiling', node: <Face ps={patch(base, 320)} fill="var(--iso-ceiling)" stroke="var(--iso-line)" opacity={0.95} />, at: lift(base, top), reach: [] },
             ]}
           />
         ),

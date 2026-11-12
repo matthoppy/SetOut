@@ -26,7 +26,7 @@ const yellow = (light: number) => `hsl(45 94% ${Math.round(38 + light * 20)}%)`;
  * A box in the room, square to three directions: u along it, w across it, n
  * up from its base. Only the faces turned to the eye are drawn.
  */
-export function Block({ base, u, w, n, su, sw, sn, paint, edge = 'rgba(15,23,42,0.35)' }: { base: V3; u: V3; w: V3; n: V3; su: number; sw: number; sn: number; paint: (light: number, normal: V3) => string; edge?: string }) {
+export function Block({ base, u, w, n, su, sw, sn, paint, edge = 'var(--iso-line)' }: { base: V3; u: V3; w: V3; n: V3; su: number; sw: number; sn: number; paint: (light: number, normal: V3) => string; edge?: string }) {
   const { cam } = useIso();
   const c = (a: number, b: number, h: number) => add(add(add(base, u, a * su), w, b * sw), n, h * sn);
   const faces: { normal: V3; ps: V3[] }[] = [
@@ -41,7 +41,7 @@ export function Block({ base, u, w, n, su, sw, sn, paint, edge = 'rgba(15,23,42,
       {faces
         .filter((f) => cam.facing(f.normal))
         .map((f, i) => (
-          <Face key={i} ps={f.ps} fill={paint(cam.light(f.normal), f.normal)} stroke={edge} width={0.6} />
+          <Face key={i} ps={f.ps} fill={paint(cam.light(f.normal), f.normal)} stroke={edge} width={0.8} />
         ))}
     </g>
   );
@@ -71,7 +71,7 @@ export function LaserBody({ at: p }: { at: V3 }) {
 }
 
 /** A soft shadow on the floor under something standing on it. */
-export function Contact({ at: p, r, strength = 0.28 }: { at: V3; r: number; strength?: number }) {
+export function Contact({ at: p, r, strength = 0.2 }: { at: V3; r: number; strength?: number }) {
   const { id } = useIso();
   const ps = Array.from({ length: 20 }, (_, i) => add(p, v(Math.cos((i / 20) * Math.PI * 2) * r, Math.sin((i / 20) * Math.PI * 2) * r)));
   return (
@@ -169,10 +169,10 @@ export function Tape({ hook, end, face, lit }: { hook: V3; end: V3; face: V3; li
   const across = (normal: V3) => Math.abs(normal.x * w.x + normal.y * w.y + normal.z * w.z) > 0.5;
   return (
     <g>
-      <Face ps={blade} fill="var(--iso-tape)" stroke="var(--iso-tape-edge)" width={0.8} />
+      <Face ps={blade} fill="var(--iso-tape)" stroke="var(--iso-tape-edge)" width={0.9} />
       {ticks}
       {/* The hook, bent square to the blade. */}
-      <Face ps={[add(hook, w, -half - 5), add(hook, w, half + 5), add(add(hook, w, half + 5), face, 18), add(add(hook, w, -half - 5), face, 18)].map(up)} fill="hsl(216 10% 34%)" stroke="hsl(216 10% 20%)" width={0.6} />
+      <Face ps={[add(hook, w, -half - 5), add(hook, w, half + 5), add(add(hook, w, half + 5), face, 18), add(add(hook, w, -half - 5), face, 18)].map(up)} fill="hsl(216 10% 34%)" stroke="var(--iso-line)" width={0.8} />
       <Block base={add(end, u, caseLen / 2)} u={u} w={w} n={face} su={caseLen} sw={60} sn={caseLen} paint={(l, normal) => (across(normal) ? yellow(l) : graphite(l))} />
       {lit !== undefined && <Beam a={up(add(add(hook, u, lit), w, -half - 22))} b={up(add(add(hook, u, lit), w, half + 22))} />}
     </g>

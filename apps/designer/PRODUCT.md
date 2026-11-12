@@ -68,6 +68,11 @@ to a card, and every reading checked against the others.
   clean and precise; laser lines unmistakable from physical edges; start and
   end of every measurement obvious; numbers large enough to read; the same
   camera, light, glass, materials, marks and type on every picture.
+- Matt's reference images, the same day, binding on the drawing style: crisp
+  isometric line illustrations of shower enclosures, with fine dark
+  outlines, white and light grey planes, a tiled floor and pale glass with
+  thin reflection lines; "rethink how the illustrations are actually drawn",
+  not a recolour.
 
 ## Evidence on Hand
 

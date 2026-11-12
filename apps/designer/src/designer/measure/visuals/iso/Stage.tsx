@@ -27,6 +27,13 @@ export interface Ctx {
 
 const IsoContext = createContext<Ctx | null>(null);
 
+/**
+ * Whether the glass is drawn. The lens shows its close-up as a cutaway,
+ * without the glass, so a reading taken behind a pane is as clear as one in
+ * front of it.
+ */
+export const GlassShown = createContext(true);
+
 export function useIso(): Ctx {
   const ctx = useContext(IsoContext);
   if (!ctx) throw new Error('useIso outside a Stage');
@@ -117,7 +124,14 @@ export function Stage({ plan, label, focus, draw }: { plan: Plan; label: string;
           <g mask={`url(#${ctx.id('edge')})`}>
             <g id={sceneId}>{drawn.scene}</g>
           </g>
-          {drawn.lens && <Lens spec={drawn.lens} sceneId={sceneId} />}
+          {drawn.lens && (
+            <defs>
+              <GlassShown.Provider value={false}>
+                <g id={ctx.id('cutaway')}>{drawn.scene}</g>
+              </GlassShown.Provider>
+            </defs>
+          )}
+          {drawn.lens && <Lens spec={drawn.lens} sceneId={ctx.id('cutaway')} />}
           {drawn.overlay}
         </IsoContext.Provider>
       </svg>
@@ -143,9 +157,8 @@ function Materials() {
         <feDropShadow dx={0} dy={px(1.5)} stdDeviation={px(2.2)} floodColor="#0f172a" floodOpacity={0.22} />
       </filter>
       <linearGradient id={id('glass')} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="var(--iso-glass)" stopOpacity={0.4} />
-        <stop offset="0.45" stopColor="var(--iso-glass)" stopOpacity={0.14} />
-        <stop offset="1" stopColor="var(--iso-glass)" stopOpacity={0.3} />
+        <stop offset="0" stopColor="var(--iso-glass)" stopOpacity={0.5} />
+        <stop offset="1" stopColor="var(--iso-glass)" stopOpacity={0.36} />
       </linearGradient>
       <linearGradient id={id('sheen')} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopColor="#fff" stopOpacity={0} />

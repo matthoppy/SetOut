@@ -2,27 +2,33 @@
  * The bathroom: the floor, the walls, the tray, the masking tape marks and
  * the glass that will stand on them.
  *
- * One light falls on every picture, from above the eye's left shoulder, and
- * every surface is drawn in the same few materials: pale stone tiles on the
- * floor and walls, a white tray, clear glass with a green edge. Physical
- * edges are thin and grey. Nothing in the room is drawn in the colours the
+ * Drawn as a technical illustration is (Matt's references, 12 November
+ * 2026): every edge a fine dark line, every surface a flat plane of white or
+ * light grey, the walls cut away with their thickness showing, a tiled floor,
+ * and pale glass with a few thin lines of reflection. One light falls from
+ * above the eye's left shoulder, so the faces turned to it are white and the
+ * others a shade greyer. Nothing in the room is drawn in the colours the
  * measuring is drawn in, so the laser and the tape always stand out from it.
  */
 
-import { Fragment } from 'react';
-import { useIso } from './Stage';
+import { Fragment, useContext } from 'react';
+import { GlassShown, useIso } from './Stage';
 import { MM, add, along, dir, glassTop, lift, roomTop, v, type P, type Pane, type Run, type V3 } from './space';
 
 export const pts = (ps: P[]) => ps.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
+/** The weight of an object's outline, and of the finer lines inside it, in screen pixels. */
+export const LINE = 1.05;
+export const FINE = 0.6;
+
 /** A flat face in the room, given its corners. */
-export function Face({ ps, fill, stroke, width = 0.75, opacity, className }: { ps: V3[]; fill: string; stroke?: string; width?: number; opacity?: number; className?: string }) {
+export function Face({ ps, fill, stroke, width = LINE, opacity, className }: { ps: V3[]; fill: string; stroke?: string; width?: number; opacity?: number; className?: string }) {
   const { at } = useIso();
   return <polygon points={pts(ps.map(at))} fill={fill} stroke={stroke} strokeWidth={stroke ? width : undefined} strokeLinejoin="round" opacity={opacity} className={className} />;
 }
 
 /** A straight line in the room. */
-export function Seg({ a, b, stroke, width = 0.75, opacity, cap = 'round' }: { a: V3; b: V3; stroke: string; width?: number; opacity?: number; cap?: 'round' | 'butt' }) {
+export function Seg({ a, b, stroke, width = LINE, opacity, cap = 'round' }: { a: V3; b: V3; stroke: string; width?: number; opacity?: number; cap?: 'round' | 'butt' }) {
   const { at } = useIso();
   const [p, q] = [at(a), at(b)];
   return <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={stroke} strokeWidth={width} strokeLinecap={cap} opacity={opacity} />;
@@ -33,7 +39,6 @@ export function Seg({ a, b, stroke, width = 0.75, opacity, cap = 'round' }: { a:
 // ---------------------------------------------------------------------------
 
 const TILE = 600;
-const WALL_TILE = { w: 600, h: 300 };
 
 export function Floor() {
   const { plan, at, id } = useIso();
@@ -62,7 +67,7 @@ export function Floor() {
       <g mask={`url(#${mask})`}>
         <Face ps={[v(x0, y0), v(x1, y0), v(x1, y1), v(x0, y1)]} fill="var(--iso-floor)" />
         {joints.map(([a, b], i) => (
-          <Seg key={i} a={a} b={b} stroke="var(--iso-floor-joint)" width={0.6} />
+          <Seg key={i} a={a} b={b} stroke="var(--iso-floor-joint)" width={FINE} />
         ))}
       </g>
     </g>
@@ -96,7 +101,7 @@ function Shade({ id, ps, from, to, z = 0 }: { id: string; ps: V3[]; from: V3; to
     <g>
       <defs>
         <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={a.x} y1={a.y} x2={b.x} y2={b.y}>
-          <stop offset="0" stopColor="var(--iso-shadow)" stopOpacity={0.16} />
+          <stop offset="0" stopColor="var(--iso-shadow)" stopOpacity={0.08} />
           <stop offset="1" stopColor="var(--iso-shadow)" stopOpacity={0} />
         </linearGradient>
       </defs>
@@ -105,32 +110,10 @@ function Shade({ id, ps, from, to, z = 0 }: { id: string; ps: V3[]; from: V3; to
   );
 }
 
-/** One wall's face toward the shower, with its tiles and the light falling down it. */
-function WallFace({ base, run, top, fill, gradient }: { base: V3; run: V3; top: number; fill: string; gradient: string }) {
-  const { at, id } = useIso();
+/** One wall's face toward the shower: a flat plane with a fine outline. */
+function WallFace({ base, run, top, fill }: { base: V3; run: V3; top: number; fill: string }) {
   const end = add(base, run);
-  const length = Math.hypot(run.x, run.y);
-  const u = dir(base, end);
-  const g = id(gradient);
-  const [hi, lo] = [at(lift(base, top)), at(base)];
-  const joints: [V3, V3][] = [];
-  for (let z = WALL_TILE.h; z < top - 40; z += WALL_TILE.h) joints.push([lift(base, z), lift(end, z)]);
-  for (let s = WALL_TILE.w; s < length - 40; s += WALL_TILE.w) joints.push([add(base, u, s), lift(add(base, u, s), top)]);
-  return (
-    <g>
-      <defs>
-        <linearGradient id={g} gradientUnits="userSpaceOnUse" x1={hi.x} y1={hi.y} x2={lo.x} y2={lo.y}>
-          <stop offset="0" stopColor={fill} />
-          <stop offset="1" stopColor="var(--iso-wall-foot)" />
-        </linearGradient>
-      </defs>
-      <Face ps={[base, end, lift(end, top), lift(base, top)]} fill={`url(#${g})`} />
-      {joints.map(([a, b], i) => (
-        <Seg key={i} a={a} b={b} stroke="var(--iso-wall-joint)" width={0.6} />
-      ))}
-      <Face ps={[base, end, lift(end, top), lift(base, top)]} fill="none" stroke="var(--iso-edge)" width={0.75} />
-    </g>
-  );
+  return <Face ps={[base, end, lift(end, top), lift(base, top)]} fill={fill} stroke="var(--iso-line)" />;
 }
 
 /** The walls behind the shower: the back wall and a side wall where the glass meets one, cut off at the top. */
@@ -149,33 +132,33 @@ export function Walls({ near = false }: { near?: boolean }) {
     const s = plan.near === 'left' ? -1 : 1;
     return (
       <g opacity={0.28}>
-        <Face ps={[v(x, front), v(x, B), v(x, B, top), v(x, front, top)]} fill="var(--iso-wall-lit)" stroke="var(--iso-edge)" />
-        <Face ps={[v(x, front, top), v(x, B + T, top), v(x + s * T, B + T, top), v(x + s * T, front, top)]} fill="var(--iso-cut)" stroke="var(--iso-cut-edge)" />
+        <Face ps={[v(x, front), v(x, B), v(x, B, top), v(x, front, top)]} fill="var(--iso-wall-lit)" stroke="var(--iso-line)" />
+        <Face ps={[v(x, front, top), v(x, B + T, top), v(x + s * T, B + T, top), v(x + s * T, front, top)]} fill="var(--iso-cut)" stroke="var(--iso-line)" />
       </g>
     );
   }
   const side = (which: 'left' | 'right') => plan.walls[which] && plan.near !== which;
   return (
     <g>
-      <WallFace base={v(x0, B)} run={v(x1 - x0, 0)} top={top} fill="var(--iso-wall-shade)" gradient="wallback" />
-      {side('left') && <WallFace base={v(0, front)} run={v(0, B - front)} top={top} fill="var(--iso-wall-lit)" gradient="wallleft" />}
-      {side('right') && <WallFace base={v(W, B)} run={v(0, front - B)} top={top} fill="var(--iso-wall-lit)" gradient="wallright" />}
+      <WallFace base={v(x0, B)} run={v(x1 - x0, 0)} top={top} fill="var(--iso-wall-shade)" />
+      {side('left') && <WallFace base={v(0, front)} run={v(0, B - front)} top={top} fill="var(--iso-wall-lit)" />}
+      {side('right') && <WallFace base={v(W, B)} run={v(0, front - B)} top={top} fill="var(--iso-wall-lit)" />}
       {/* The cut along the top of the walls, and the wall's end where the room is cut short. */}
-      <Face ps={[v(side('left') ? -T : x0, B, top), v(side('right') ? W + T : x1, B, top), v(side('right') ? W + T : x1, B + T, top), v(side('left') ? -T : x0, B + T, top)]} fill="var(--iso-cut)" stroke="var(--iso-cut-edge)" />
+      <Face ps={[v(side('left') ? -T : x0, B, top), v(side('right') ? W + T : x1, B, top), v(side('right') ? W + T : x1, B + T, top), v(side('left') ? -T : x0, B + T, top)]} fill="var(--iso-cut)" stroke="var(--iso-line)" />
       {side('left') && (
         <>
-          <Face ps={[v(-T, front, top), v(0, front, top), v(0, B, top), v(-T, B, top)]} fill="var(--iso-cut)" stroke="var(--iso-cut-edge)" />
-          <Face ps={[v(-T, front), v(0, front), v(0, front, top), v(-T, front, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-cut-edge)" />
+          <Face ps={[v(-T, front, top), v(0, front, top), v(0, B, top), v(-T, B, top)]} fill="var(--iso-cut)" stroke="var(--iso-line)" />
+          <Face ps={[v(-T, front), v(0, front), v(0, front, top), v(-T, front, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-line)" />
         </>
       )}
       {side('right') && (
         <>
-          <Face ps={[v(W, front, top), v(W + T, front, top), v(W + T, B, top), v(W, B, top)]} fill="var(--iso-cut)" stroke="var(--iso-cut-edge)" />
-          <Face ps={[v(W, front), v(W + T, front), v(W + T, front, top), v(W, front, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-cut-edge)" />
+          <Face ps={[v(W, front, top), v(W + T, front, top), v(W + T, B, top), v(W, B, top)]} fill="var(--iso-cut)" stroke="var(--iso-line)" />
+          <Face ps={[v(W, front), v(W + T, front), v(W + T, front, top), v(W, front, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-line)" />
         </>
       )}
-      {!plan.walls.left && plan.mirror === 1 && <Face ps={[v(x0, B), v(x0, B + T), v(x0, B + T, top), v(x0, B, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-cut-edge)" />}
-      {!plan.walls.right && plan.mirror === -1 && <Face ps={[v(x1, B), v(x1, B + T), v(x1, B + T, top), v(x1, B, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-cut-edge)" />}
+      {!plan.walls.left && plan.mirror === 1 && <Face ps={[v(x0, B), v(x0, B + T), v(x0, B + T, top), v(x0, B, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-line)" />}
+      {!plan.walls.right && plan.mirror === -1 && <Face ps={[v(x1, B), v(x1, B + T), v(x1, B + T, top), v(x1, B, top)]} fill="var(--iso-wall-end)" stroke="var(--iso-line)" />}
       {plan.toCeiling && <Ceiling />}
     </g>
   );
@@ -191,8 +174,8 @@ function Ceiling() {
   const reach = 300;
   return (
     <g>
-      <Face ps={[v(x0, B, top), v(x1, B, top), v(x1, B - reach, top), v(x0, B - reach, top)]} fill="var(--iso-ceiling)" stroke="var(--iso-cut-edge)" />
-      <Face ps={[v(x0, B - reach, top), v(x1, B - reach, top), v(x1, B - reach, top + slab), v(x0, B - reach, top + slab)]} fill="var(--iso-cut)" stroke="var(--iso-cut-edge)" />
+      <Face ps={[v(x0, B, top), v(x1, B, top), v(x1, B - reach, top), v(x0, B - reach, top)]} fill="var(--iso-ceiling)" stroke="var(--iso-line)" />
+      <Face ps={[v(x0, B - reach, top), v(x1, B - reach, top), v(x1, B - reach, top + slab), v(x0, B - reach, top + slab)]} fill="var(--iso-cut)" stroke="var(--iso-line)" />
     </g>
   );
 }
@@ -216,24 +199,24 @@ export function Tray() {
   const waste = v((left + right) / 2, y1 * 0.7, h);
   return (
     <g>
-      <g filter={`url(#${id('soft')})`} opacity={0.32}>
+      <g filter={`url(#${id('soft')})`} opacity={0.18}>
         <Face ps={shadow} fill="var(--iso-shadow)" />
       </g>
-      <Face ps={[v(left, y0), v(right, y0), v(right, y0, h), v(left, y0, h)]} fill="var(--iso-tray-shade)" stroke="var(--iso-edge)" width={0.6} />
-      {plan.mirror === 1 && !plan.walls.left && <Face ps={[v(left, y0), v(left, y1), v(left, y1, h), v(left, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-edge)" width={0.6} />}
-      {plan.mirror === -1 && !plan.walls.right && <Face ps={[v(right, y0), v(right, y1), v(right, y1, h), v(right, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-edge)" width={0.6} />}
-      <Face ps={top} fill="var(--iso-tray)" stroke="var(--iso-edge)" width={0.75} />
-      <Face ps={dish} fill="var(--iso-tray-dish)" />
-      <Disc at={waste} r={62} fill="var(--iso-metal)" stroke="var(--iso-metal-dark)" />
-      <Disc at={waste} r={34} fill="var(--iso-metal-dark)" opacity={0.35} />
+      <Face ps={[v(left, y0), v(right, y0), v(right, y0, h), v(left, y0, h)]} fill="var(--iso-tray-shade)" stroke="var(--iso-line)" />
+      {plan.mirror === 1 && !plan.walls.left && <Face ps={[v(left, y0), v(left, y1), v(left, y1, h), v(left, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-line)" />}
+      {plan.mirror === -1 && !plan.walls.right && <Face ps={[v(right, y0), v(right, y1), v(right, y1, h), v(right, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-line)" />}
+      <Face ps={top} fill="var(--iso-tray)" stroke="var(--iso-line)" />
+      <Face ps={dish} fill="var(--iso-tray-dish)" stroke="var(--iso-line-soft)" width={FINE} />
+      <Disc at={waste} r={58} fill="var(--iso-metal)" stroke="var(--iso-line)" width={FINE} />
+      <Disc at={waste} r={30} fill="var(--iso-metal-dark)" opacity={0.3} />
     </g>
   );
 }
 
 /** A flat round thing lying in the room, such as the waste in the tray. */
-export function Disc({ at: c, r, fill, stroke, opacity }: { at: V3; r: number; fill: string; stroke?: string; opacity?: number }) {
+export function Disc({ at: c, r, fill, stroke, width = FINE, opacity }: { at: V3; r: number; fill: string; stroke?: string; width?: number; opacity?: number }) {
   const ps = Array.from({ length: 28 }, (_, i) => add(c, v(Math.cos((i / 28) * Math.PI * 2) * r, Math.sin((i / 28) * Math.PI * 2) * r)));
-  return <Face ps={ps} fill={fill} stroke={stroke} width={0.6} opacity={opacity} />;
+  return <Face ps={ps} fill={fill} stroke={stroke} width={width} opacity={opacity} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -260,8 +243,8 @@ export function Mask({ at: p, along: u, cross, shift = 0, stop = false }: { at: 
   if (cross) lines.push([add(at, cross, -L * 0.85), add(at, cross, L * 0.85)]);
   return (
     <g>
-      <Face ps={strip(u, n)} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.6} />
-      {cross && <Face ps={strip(cross, v(-cross.y, cross.x))} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.6} />}
+      <Face ps={strip(u, n)} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.8} />
+      {cross && <Face ps={strip(cross, v(-cross.y, cross.x))} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.8} />}
       {lines.map(([a, b], i) => (
         <Seg key={i} a={a} b={b} stroke="var(--iso-pencil)" width={2} />
       ))}
@@ -277,7 +260,7 @@ export function WallMask({ at: p, face, along: u }: { at: V3; face: V3; along: V
   const c = add(p, face, 2);
   return (
     <g>
-      <Face ps={[add(add(c, u, -L), UPv, -w), add(add(c, u, L), UPv, -w), add(add(c, u, L), UPv, w), add(add(c, u, -L), UPv, w)]} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.6} />
+      <Face ps={[add(add(c, u, -L), UPv, -w), add(add(c, u, L), UPv, -w), add(add(c, u, L), UPv, w), add(add(c, u, -L), UPv, w)]} fill="var(--iso-mask)" stroke="var(--iso-mask-edge)" width={0.8} />
       <Seg a={add(c, u, -L * 0.85)} b={add(c, u, L * 0.85)} stroke="var(--iso-pencil)" width={1.6} />
     </g>
   );
@@ -298,38 +281,34 @@ export function GlassPane({ pane, run, sliding }: { pane: Pane; run: Run; slidin
   const t = MM.glassThick;
   const at = (p: V3, z: number) => lift(p, z);
   const height = top - base;
-  // A streak of light across the pane, and a fainter one beside it.
-  const streak = (t0: number, t1: number, z0: number, z1: number, lean: number) => [
-    at(along(a, b, t0 + lean), base + height * z1),
-    at(along(a, b, t1 + lean), base + height * z1),
-    at(along(a, b, t1), base + height * z0),
-    at(along(a, b, t0), base + height * z0),
-  ];
+  // Thin lines of reflection across the pane, leaning the same way on every pane.
+  const glint = (t0: number, z0: number, t1: number, z1: number) => [at(along(a, b, t0), base + height * z0), at(along(a, b, t1), base + height * z1)] as const;
   const hingeEnd = pane.hinge === 'a' ? a : pane.hinge === 'b' ? b : null;
   const handleAt = pane.hinge === 'a' ? along(a, b, 0.88) : along(a, b, 0.12);
   const u = dir(a, b);
   return (
     <g>
       <Face ps={[a, b, at(b, top), at(a, top)]} fill={`url(#${id('glass')})`} />
-      <Face ps={streak(0.1, 0.16, 0.3, 0.95, 0.12)} fill="#fff" opacity={0.26} />
-      <Face ps={streak(0.2, 0.22, 0.4, 0.9, 0.11)} fill="#fff" opacity={0.18} />
-      {/* The edges, and the top edge's thickness catching the light. */}
-      <Face ps={[at(a, top), at(b, top), at(add(b, out, t), top), at(add(a, out, t), top)]} fill="var(--iso-glass-edge)" />
-      <Seg a={at(a, top)} b={at(b, top)} stroke="var(--iso-glass-edge)" width={1.1} />
-      <Seg a={a} b={at(a, top)} stroke="var(--iso-glass-edge)" width={1} />
-      <Seg a={b} b={at(b, top)} stroke="var(--iso-glass-edge)" width={1} />
-      <Seg a={a} b={b} stroke="var(--iso-glass-edge)" width={0.8} opacity={0.6} />
+      {[glint(0.12, 0.34, 0.3, 0.92), glint(0.19, 0.3, 0.37, 0.88), glint(0.6, 0.12, 0.72, 0.4)].map(([p, q], i) => (
+        <Seg key={i} a={p} b={q} stroke="var(--iso-glass-glint)" width={i === 1 ? FINE : 0.9} />
+      ))}
+      {/* The edges, and the top edge's thickness. */}
+      <Face ps={[at(a, top), at(b, top), at(add(b, out, t), top), at(add(a, out, t), top)]} fill="var(--iso-glass-top)" stroke="var(--iso-glass-edge)" width={FINE} />
+      <Seg a={at(a, top)} b={at(b, top)} stroke="var(--iso-glass-edge)" />
+      <Seg a={a} b={at(a, top)} stroke="var(--iso-glass-edge)" />
+      <Seg a={b} b={at(b, top)} stroke="var(--iso-glass-edge)" />
+      <Seg a={a} b={b} stroke="var(--iso-glass-edge)" width={FINE} />
       {pane.kind === 'door' && !sliding && hingeEnd && (
         <>
           {[0.14, 0.82].map((h) => (
-            <Face key={h} ps={[at(add(hingeEnd, u, pane.hinge === 'a' ? 0 : -70), base + height * h), at(add(hingeEnd, u, pane.hinge === 'a' ? 70 : 0), base + height * h), at(add(hingeEnd, u, pane.hinge === 'a' ? 70 : 0), base + height * h + 110), at(add(hingeEnd, u, pane.hinge === 'a' ? 0 : -70), base + height * h + 110)]} fill="var(--iso-metal)" stroke="var(--iso-metal-dark)" width={0.6} />
+            <Face key={h} ps={[at(add(hingeEnd, u, pane.hinge === 'a' ? 0 : -70), base + height * h), at(add(hingeEnd, u, pane.hinge === 'a' ? 70 : 0), base + height * h), at(add(hingeEnd, u, pane.hinge === 'a' ? 70 : 0), base + height * h + 110), at(add(hingeEnd, u, pane.hinge === 'a' ? 0 : -70), base + height * h + 110)]} fill="var(--iso-metal)" stroke="var(--iso-line)" width={FINE} />
           ))}
         </>
       )}
       {pane.kind === 'door' && (
         <>
-          <Seg a={at(add(handleAt, out, 45), base + height * 0.42)} b={at(add(handleAt, out, 45), base + height * 0.6)} stroke="var(--iso-metal-dark)" width={3} />
-          <Seg a={at(add(handleAt, out, 45), base + height * 0.42)} b={at(add(handleAt, out, 45), base + height * 0.6)} stroke="var(--iso-metal)" width={1.3} />
+          <Seg a={at(add(handleAt, out, 45), base + height * 0.42)} b={at(add(handleAt, out, 45), base + height * 0.6)} stroke="var(--iso-line)" width={3.2} />
+          <Seg a={at(add(handleAt, out, 45), base + height * 0.42)} b={at(add(handleAt, out, 45), base + height * 0.6)} stroke="var(--iso-metal)" width={1.4} />
         </>
       )}
     </g>
@@ -342,7 +321,7 @@ export function Channel({ at: p, run }: { at: V3; run: Run }) {
   const top = glassTop(plan);
   return (
     <g>
-      <Seg a={lift(add(p, run.out, 10), MM.tray)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-metal-dark)" width={2.6} cap="butt" />
+      <Seg a={lift(add(p, run.out, 10), MM.tray)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-line)" width={2.8} cap="butt" />
       <Seg a={lift(add(p, run.out, 10), MM.tray)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-metal)" width={1.2} cap="butt" />
     </g>
   );
@@ -351,7 +330,9 @@ export function Channel({ at: p, run }: { at: V3; run: Run }) {
 /** Every pane of a run, and the rail a sliding door hangs from. */
 export function RunGlass({ run }: { run: Run }) {
   const { plan } = useIso();
+  const shown = useContext(GlassShown);
   const top = glassTop(plan);
+  if (!shown) return null;
   return (
     <g>
       {run.panes.map((pane, i) => (
@@ -361,7 +342,7 @@ export function RunGlass({ run }: { run: Run }) {
       {run.view.right === 'wall' && <Channel at={run.b} run={run} />}
       {plan.sliding && run.panes.some((p) => p.kind === 'door') && (
         <Fragment>
-          <Seg a={lift(add(run.a, run.out, 30), top + 20)} b={lift(add(run.b, run.out, 30), top + 20)} stroke="var(--iso-metal-dark)" width={4} cap="butt" />
+          <Seg a={lift(add(run.a, run.out, 30), top + 20)} b={lift(add(run.b, run.out, 30), top + 20)} stroke="var(--iso-line)" width={4} cap="butt" />
           <Seg a={lift(add(run.a, run.out, 30), top + 20)} b={lift(add(run.b, run.out, 30), top + 20)} stroke="var(--iso-metal)" width={2} cap="butt" />
         </Fragment>
       )}

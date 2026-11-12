@@ -21,7 +21,7 @@ Unresolved: whether the single-door and bath-screen decks move to the same room;
 
 THESIS: The measuring card is a technical illustration, not a diagram: one pale architectural room, seen from one isometric angle, in which only the act of measuring has colour. It refuses the flat, face-on CAD drawing with grey slabs and dashed lines that these cards replaced.
 
-OWN-WORLD: Pale stone room, white tray, clear green-edged glass, soft contact shadows, one light over the eye's left shoulder. Three meaning colours only: laser red that glows (light, never an edge), tape yellow with black ticks, measuring navy for arrows, points and the number pill. Thin grey physical edges; strokes fixed in screen pixels.
+OWN-WORLD: A technical line illustration in the manner of Matt's reference images (12 November 2026): every edge a fine dark line, flat white and light grey planes, walls cut away with their thickness showing, a tiled floor, pale blue-grey glass with thin lines of reflection, soft contact shadows only, one light over the eye's left shoulder. Three meaning colours only: laser red that glows (light, never an edge), tape yellow with black ticks, measuring navy for arrows, points and the number pill. Strokes fixed in screen pixels: 1.05 for outlines, 0.6 for fine lines.
 
 STORY: The customer sees their own shower shape, sees where the laser stands and where the tape runs, sees the solid start point and the red read ring, reads the number, types it, moves on, and never loses their bearings because the room and the angle never change.
 
