@@ -82,7 +82,7 @@ const widened = (state: ConfiguratorState, widthMm: number): ConfiguratorState =
 });
 
 describe('each hinge is cut to its own template', () => {
-  test('a Geneva door: CRL’s notch with its ears, and two 16mm holes in the panel it hangs from', () => {
+  test('a Geneva door hung in line: CRL’s notch with its ears, in the door and in the panel it hangs from', () => {
     const state = panelAndDoor('left', 'knob');
     const spec = buildSpec(state, context);
     expect(spec.panels[1].door!.hingeBrand).toBe('Geneva');
@@ -90,23 +90,13 @@ describe('each hinge is cut to its own template', () => {
     const template = fixed.hinges.cutouts.geneva;
     const notches = door.features.filter((f) => f.kind === 'notch');
     expect(notches).toHaveLength(spec.panels[1].door!.hingeCount);
-    expect(notches[0]).toMatchObject({
-      role: 'door-hinge',
-      hinge: 'Gen - G/G',
-      depthMm: 44,
-      heightMm: 63,
-      ears: { diameterMm: 16, inMm: 38, apartMm: 57 },
-      name: template.door!.name,
-      source: template.door!.source,
-    });
-    // Two holes for each hinge, 57 apart, centred where the spec puts the mating notch.
-    const holes = panel.features.filter((f) => f.kind === 'hole');
-    expect(holes).toHaveLength(2 * spec.panels[1].door!.hingeCount);
-    expect(holes.every((h) => h.kind === 'hole' && h.diameterMm === 16 && h.insetMm === 37 && h.apartMm === 57 && h.hinge === 'Gen - G/G')).toBe(true);
-    const mates = spec.panels[0].cutouts.map((c) => c.heightMm).sort((a, b) => a - b);
-    const centres = holes.map((h) => (h.kind === 'hole' ? h.centreMm : 0));
-    expect([(centres[0] + centres[1]) / 2, (centres[2] + centres[3]) / 2]).toEqual(mates);
-    expect(centres[1] - centres[0]).toBe(57);
+    const eared = { depthMm: 44, heightMm: 63, ears: { diameterMm: 16, inMm: 38, apartMm: 57 }, hinge: 'Gen - G/G' };
+    expect(notches[0]).toMatchObject({ role: 'door-hinge', ...eared, name: template.door!.name, source: template.door!.source });
+    // The same hinge either side: the same cut-out in the panel, at the spec's own mating heights.
+    const mates = panel.features.filter((f) => f.kind === 'notch');
+    expect(mates).toHaveLength(spec.panels[1].door!.hingeCount);
+    expect(mates[0]).toMatchObject({ role: 'panel-hinge', ...eared });
+    expect(panel.features.some((f) => f.kind === 'hole')).toBe(false);
     // A knob goes through one hole at its own height.
     expect(door.features.filter((f) => f.kind === 'hole')).toEqual([
       {
@@ -126,6 +116,23 @@ describe('each hinge is cut to its own template', () => {
     expect(spec.panels[1].door!.handlePlacement.handleHeight).toBe(fixed.handle.knobCentreMm);
   });
 
+  test('a Geneva door hung round a corner: two 16mm holes in the panel, 57 apart, either side of the spec’s mating height', () => {
+    const golden = GOLDENS.find((g) => g.name === 'layout-three-sided');
+    if (!golden) throw new Error('missing golden');
+    const design = structuredClone(golden.document.design);
+    const spec = buildSpec(design, context);
+    const doorAt = spec.panels.findIndex((p) => p.door);
+    const hangsFrom = spec.panels[doorAt].door!.hingeSide === 'left' ? doorAt - 1 : doorAt + 1;
+    expect(spec.panels[doorAt].door!.hingeBrand).toBe('Geneva');
+    const panes = panesOf(design, spec, fixed);
+    const holes = panes[hangsFrom].features.filter((f) => f.kind === 'hole');
+    expect(holes).toHaveLength(2 * spec.panels[doorAt].door!.hingeCount);
+    expect(holes.every((h) => h.kind === 'hole' && h.diameterMm === 16 && h.insetMm === 37 && h.apartMm === 57 && h.hinge === 'Gen - G/G - 90°')).toBe(true);
+    const centres = holes.map((h) => (h.kind === 'hole' ? h.centreMm : 0));
+    expect(centres[1] - centres[0]).toBe(57);
+    expect(panes[hangsFrom].features.some((f) => f.kind === 'notch')).toBe(false);
+  });
+
   test('a door hung from the wall is named for it, and cut to the same template', () => {
     const template = TEMPLATES.find((t) => t.id === 'alcove-panel-door');
     if (!template) throw new Error('no alcove template');
@@ -135,13 +142,14 @@ describe('each hinge is cut to its own template', () => {
     expect(door.features.find((f) => f.kind === 'notch')).toMatchObject({ hinge: 'Gen - G/W', heightMm: 63 });
   });
 
-  test('a Vienna door: CRL’s V1E037 notch, and SetOut’s own notch in the panel until there is a template for it', () => {
+  test('a Vienna door hung in line: CRL’s V1E037 notch in the door and the panel', () => {
     const state = widened(panelAndDoor('left'), 800);
     const spec = buildSpec(state, context);
     expect(spec.panels[1].door!.hingeBrand).toBe('Vienna');
     const [panel, door] = panesOf(state, spec, fixed);
-    expect(door.features.find((f) => f.kind === 'notch')).toMatchObject({ hinge: 'Vienna - G/G', heightMm: 76, depthMm: 46, ears: { diameterMm: 16, inMm: 40, apartMm: 70 } });
-    expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ template: 'fixed-hinge', source: null, depthMm: 52, heightMm: 33, radiusMm: 8 });
+    const eared = { heightMm: 76, depthMm: 46, ears: { diameterMm: 16, inMm: 40, apartMm: 70 }, hinge: 'Vienna - G/G' };
+    expect(door.features.find((f) => f.kind === 'notch')).toMatchObject(eared);
+    expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ role: 'panel-hinge', ...eared });
   });
 
   test('a Bellagio door: SetOut’s own notches, marked as having no template yet', () => {

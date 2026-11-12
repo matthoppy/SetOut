@@ -319,23 +319,34 @@ export const FIXED_RULES: FixedRules = {
           source: 'CRL GEN037 and GEN180 glass fabrication templates',
           shape: { kind: 'notch-ears', heightMm: 63, depthMm: 44, earDiameterMm: 16, earInMm: 38, earApartMm: 57 },
         },
-        // The panel takes two holes. CRL's GEN180 template has them 1-7/16"
-        // in; Custom Showers' Geneva 90° orders give 37mm and 16mm holes.
+        // In line (GEN180) the panel takes the same cut-out as the door: the
+        // hinge is the same either side. Only the 90° hinge (GEN092) takes two
+        // holes in the fixed panel instead (CRL's UK brochure, SDH17UKA p.7):
+        // 16mm, 37mm in as on Custom Showers' Geneva 90° orders, and 57 apart
+        // as the hinge's screws are on CRL's GEN180 drawing.
         panelInLine: {
-          name: 'Geneva hinge holes',
-          source: 'CRL GEN180 glass fabrication template; 37mm in as on Custom Showers’ orders',
-          shape: { kind: 'holes', diameterMm: 16, inMm: 37, apartMm: 57 },
+          name: 'Geneva hinge notch',
+          source: 'CRL GEN037 and GEN180 glass fabrication templates',
+          shape: { kind: 'notch-ears', heightMm: 63, depthMm: 44, earDiameterMm: 16, earInMm: 38, earApartMm: 57 },
         },
         panelAtCorner: {
-          name: 'Geneva hinge holes',
-          source: 'CRL GEN180 glass fabrication template; 37mm in as on Custom Showers’ orders',
+          name: 'Geneva 90° hinge holes',
+          source: 'CRL GEN092 (two holes in the fixed panel); 16mm, 37mm in as on Custom Showers’ orders',
           shape: { kind: 'holes', diameterMm: 16, inMm: 37, apartMm: 57 },
         },
       },
       vienna: {
         // CRL's V1E037 template, in inches: 3" overall, ears 2-3/4" apart
-        // and 1-9/16" in, 1-13/16" deep, 5/8" ears. To the nearest mm.
+        // and 1-9/16" in, 1-13/16" deep, 5/8" ears. To the nearest mm. In
+        // line (V1E180) the panel takes the same cut-out, as with Geneva; the
+        // 90° hinge (V1E092) takes two holes in the panel, whose sizes are not
+        // published, so SetOut's own notch stands in for those, flagged.
         door: {
+          name: 'Vienna hinge notch',
+          source: 'CRL V1E037 glass fabrication template',
+          shape: { kind: 'notch-ears', heightMm: 76, depthMm: 46, earDiameterMm: 16, earInMm: 40, earApartMm: 70 },
+        },
+        panelInLine: {
           name: 'Vienna hinge notch',
           source: 'CRL V1E037 glass fabrication template',
           shape: { kind: 'notch-ears', heightMm: 76, depthMm: 46, earDiameterMm: 16, earInMm: 40, earApartMm: 70 },

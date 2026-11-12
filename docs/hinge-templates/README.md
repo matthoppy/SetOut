@@ -11,8 +11,8 @@ Saved 11 November 2026, from CRL's public document store.
 | File | Hinge | What SetOut takes from it |
 | --- | --- | --- |
 | `crl-gen037-geneva-wall-mount.pdf` | Geneva wall mount, full back plate (GEN037) | The Geneva door notch, in CRL's own mm: 63 high, 44 deep, with two Ø16 relief holes ("mouse ears") 57 apart and 38 in from the glass edge |
-| `crl-gen180-geneva-180-glass-to-glass.pdf` | Geneva 180° glass to glass (GEN180) | The same door notch, and the panel's two Ø16 (5/8") holes, 57 (2-1/4") apart. CRL gives them 1-7/16" (36.5mm) in; SetOut uses 37, as Custom Showers' orders do |
-| `crl-gen092-geneva-90-glass-to-glass.pdf` | Geneva 90° glass to glass (GEN092) | The front of the sheet only: a cut-out in the door and holes in the panel. Its template is on the back, which is not online. SetOut uses the Geneva door notch and panel holes above, which Custom Showers' Geneva 90° orders match (Ø16, 37 in) |
+| `crl-gen180-geneva-180-glass-to-glass.pdf` | Geneva 180° glass to glass (GEN180) | The same notch, in the door and in the panel it hangs from: the hinge is the same either side. Its screws are 57 (2-1/4") apart and 1-7/16" (36.5mm) from the glass edge |
+| `crl-gen092-geneva-90-glass-to-glass.pdf` | Geneva 90° glass to glass (GEN092) | The front of the sheet only: a cut-out in the door and two holes in the fixed panel. Its template is on the back, which is not online. SetOut uses the Geneva door notch, and two Ø16 holes 37mm in and 57 apart in the panel, as Custom Showers' Geneva 90° orders have them |
 | `crl-v1e037-vienna-wall-mount.pdf` | Vienna wall mount, full back plate (V1E037) | The Vienna door notch, from inches to the nearest mm: 76 high, 46 deep, with Ø16 ears 70 apart and 40 in |
 | `crl-bel344-bellagio-wall-mount-offset.pdf` | Bellagio wall mount, offset back plate (BEL344, CRL North America) | Nothing yet. Its standard cut-out is 58 high × 47 deep with 6mm corners: the same two numbers as SetOut's own door notch (58 deep × 47 high, 8mm corners) turned round. Waiting on Matt before SetOut changes |
 
