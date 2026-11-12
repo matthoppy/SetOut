@@ -27,6 +27,6 @@ STORY: The customer sees their own shower shape, sees where the laser stands and
 
 FIRST VIEWPORT: A phone card: title and instruction above; the picture fills the space between them and the number box, framed close on the card's action at the deck's one angle; the dimension with arrows and the navy number pill is the largest mark in it; tiny readings (the 50mm wall gap, the 10mm glass line) shown in a lens with the number under it.
 
-FORM: Isometric technical illustration, drawn in SVG from the design's shape, the only entry on the list because the client's brief pinned it. No concept roll was run, so there is no seed: none (direction pinned by the client brief, no roll).
+FORM: Isometric technical illustration drawn in SVG from the design's shape; the only entry on the list, because the client's brief pinned it. seed: none (no concept roll was run; the direction was pinned by the client brief).
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

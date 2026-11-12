@@ -254,11 +254,19 @@ export function Dimension({ from, to, off, by, value, project, inside, avoid = [
     // The points themselves stay in sight, whatever else must be kept clear.
     const keep = [...avoid, ...[at(from), at(to)].map((q) => ({ x: q.x - px(16), y: q.y - px(16), w: px(32), h: px(32) }))];
     const m = px(6);
-    const clear = (p: P) => {
+    // How badly a label here would sit: off the page, outside the lens, or over the points or the laser.
+    const clash = (p: P) => {
       const box = { x: p.x - w / 2, y: p.y - h / 2, w, h };
-      if (box.x < view.x + m || box.y < view.y + m || box.x + box.w > view.x + view.w - m || box.y + box.h > view.y + view.h - m) return false;
-      if (inside && Math.hypot(p.x - inside.c.x, p.y - inside.c.y) > inside.r - m - Math.hypot(w / 2, h / 2)) return false;
-      return keep.every((o) => box.x > o.x + o.w || o.x > box.x + box.w || box.y > o.y + o.h || o.y > box.y + box.h);
+      let bad = 0;
+      const out = Math.max(0, view.x + m - box.x) + Math.max(0, view.y + m - box.y) + Math.max(0, box.x + box.w - (view.x + view.w - m)) + Math.max(0, box.y + box.h - (view.y + view.h - m));
+      bad += out * h * 4;
+      if (inside) bad += Math.max(0, Math.hypot(p.x - inside.c.x, p.y - inside.c.y) - (inside.r - m - Math.hypot(w / 2, h / 2))) * h * 4;
+      for (const o of keep) {
+        const ox = Math.max(0, Math.min(box.x + box.w, o.x + o.w) - Math.max(box.x, o.x));
+        const oy = Math.max(0, Math.min(box.y + box.h, o.y + o.h) - Math.max(box.y, o.y));
+        bad += ox * oy;
+      }
+      return bad;
     };
     // On the line where it is long enough, nearest the middle first; else beside it, away from what was measured first.
     const onLine = long >= px(size.w + 34) ? [0.5, 0.36, 0.64, 0.24, 0.76].map((t) => ({ x: pa.x + (pb.x - pa.x) * t, y: pa.y + (pb.y - pa.y) * t })) : [];
@@ -267,8 +275,10 @@ export function Dimension({ from, to, off, by, value, project, inside, avoid = [
     const d = Math.hypot(o.x - base.x, o.y - base.y) || 1;
     const [dx, dy] = [(o.x - base.x) / d, (o.y - base.y) / d];
     const reach = px(size.h / 2 + 10) + Math.abs(dx * px(size.w / 2));
-    const beside = [1, 1.6, 2.3, -1, -1.6].flatMap((k) => [0, 0.6, -0.6].map((slide) => ({ x: mid.x + dx * reach * k + (pb.x - pa.x) * slide * 0.5, y: mid.y + dy * reach * k + (pb.y - pa.y) * slide * 0.5 })));
-    const spot = [...onLine, ...beside].find(clear) ?? onLine[0] ?? beside[0];
+    const beside = [1, 1.6, 2.3, -1, -1.6, -2.3].flatMap((k) => [0, 0.6, -0.6].map((slide) => ({ x: mid.x + dx * reach * k + (pb.x - pa.x) * slide * 0.5, y: mid.y + dy * reach * k + (pb.y - pa.y) * slide * 0.5 })));
+    // The first place with nothing in the way; failing that, the place where least is.
+    const all = [...onLine, ...beside];
+    const spot = all.find((q) => clash(q) === 0) ?? [...all].sort((a, b) => clash(a) - clash(b))[0];
     const on = onLine.includes(spot);
     label = <Value at={spot} value={value} leader={on ? undefined : mid} inside={inside} />;
   }

@@ -249,7 +249,8 @@ export function Disc({ at: c, r, fill, stroke, opacity }: { at: V3; r: number; f
 export function Mask({ at: p, along: u, cross, shift = 0, stop = false }: { at: V3; along: V3; cross?: V3; shift?: number; stop?: boolean }) {
   const h = MM.tray + 1;
   const n = v(-u.y, u.x);
-  const L = MM.maskLong / 2;
+  // At a corner the pieces are longer, so the marks show past a laser standing on them.
+  const L = (cross ? MM.maskLong * 1.5 : MM.maskLong) / 2;
   const w = MM.maskWide / 2;
   const centre = lift(add(p, u, shift * L), h);
   // The tape is laid along the line, and over a corner both ways.

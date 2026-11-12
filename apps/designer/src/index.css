@@ -196,6 +196,12 @@ All colors MUST be HSL.
   --iso-ink: hsl(210 50% 23%);
   --iso-backdrop: #e6e4e0;
 }
+.mw-iso-panel {
+  display: none;
+}
+.dark .mw-iso-panel {
+  display: inline;
+}
 /* Lines keep their weight on the screen however much of the room is shown. */
 .mw-iso line,
 .mw-iso polygon,

@@ -128,6 +128,13 @@ function endOf(run: Run, end: 'left' | 'right') {
   return end === 'left' ? { at: run.a, kind: run.view.left, other: run.b } : { at: run.b, kind: run.view.right, other: run.a };
 }
 
+/** The masking tape at one end of a run: against a wall, crossed at a corner, with a stop where the glass stops. */
+function EndMask({ plan, run, end }: { plan: Plan; run: Run; end: { at: V3; kind: string; other: V3 } }) {
+  const into = dir(end.at, end.other);
+  const turn = end.kind === 'corner' ? linesAt(plan, end.at).find((l) => l.run !== run) : undefined;
+  return <Mask at={end.at} along={into} cross={turn ? dir(end.at, turn.far) : undefined} shift={end.kind === 'wall' ? 1 : 0} stop={end.kind === 'open'} />;
+}
+
 /** Every glass line through a corner: the runs that meet there, each with its far end. */
 function linesAt(plan: Plan, corner: V3) {
   return plan.runs.flatMap((r) => {
@@ -473,8 +480,8 @@ function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; 
   // Next to a wall the tape stands a hand's width in from it.
   const foot = add(end.at, into, end.kind === 'wall' ? 70 : 0);
   const laser = levelLaser(plan, run, side, laserAt);
-  // Where the laser stands on this very mark, the tape stands just out from it, clear of it.
-  const base = lift(add(foot, run.out, !laser.tripod && near(laser.at, end.at) ? 210 : MM.tapeOut), H);
+  // Where the laser stands on this very mark, the tape is hooked on the mark tight against it.
+  const base = lift(add(foot, run.out, !laser.tripod && near(laser.at, end.at) ? BODY.size / 2 + MM.blade / 2 + 6 : MM.tapeOut), H);
   const read = lift(base, laser.level);
   const tapeTop = lift(base, laser.level + 300);
   const m: Measured = { from: base, to: read, off: run.out, by: 230, laser: true, value, avoid: [laserReach(laser.at, laser.tripod)] };
@@ -498,7 +505,7 @@ function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; 
             ctx={ctx}
             onFloor={
               <>
-                <Mask at={end.at} along={into} shift={end.kind === 'wall' ? 1 : 0} stop={end.kind === 'open'} />
+                <EndMask plan={plan} run={run} end={end} />
                 {wallEnds.map((w, i) => (
                   <Beam key={i} a={lift(add(w, run.out, -300), laser.level)} b={lift(add(w, run.out, 420), laser.level)} />
                 ))}
@@ -516,11 +523,11 @@ function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; 
         overlay: small ? undefined : <MeasureMarks m={m} ctx={ctx} />,
         lens: small
           ? {
-              target: along(base, read, 0.5),
+              target: along(base, read, 0.44),
               zoom: [base, read],
               overlay: (to) => (
                 <g>
-                  <Dimension from={base} to={read} off={m.off} by={110} project={to} />
+                  <Dimension from={base} to={read} off={m.off} by={52} project={to} />
                   <StartPoint at={to(base)} />
                   <ReadPoint at={to(read)} laser />
                 </g>
@@ -555,7 +562,7 @@ function UpToCeiling({ plan, run, side, value }: { plan: Plan; run: Run; side: '
         scene: (
           <RoomWith
             ctx={ctx}
-            onFloor={<Mask at={end.at} along={into} shift={end.kind === 'wall' ? 1 : 0} stop={end.kind === 'open'} />}
+            onFloor={<EndMask plan={plan} run={run} end={end} />}
             things={[
               { key: 'tape', node: <Tape hook={base} end={lift(base, top - 110)} face={run.out} />, at: base, reach: [read] },
               { key: 'ceiling', node: <Face ps={patch(base, 320)} fill="var(--iso-ceiling)" stroke="var(--iso-cut-edge)" opacity={0.92} />, at: lift(base, top), reach: [] },

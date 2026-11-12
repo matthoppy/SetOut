@@ -112,6 +112,8 @@ export function Stage({ plan, label, focus, draw }: { plan: Plan; label: string;
             <stop offset="1" stopColor="var(--iso-backdrop)" stopOpacity={0} />
           </radialGradient>
           <rect x={view.x} y={view.y} width={view.w} height={view.h} fill={`url(#${ctx.id('ground')})`} />
+          {/* On a dark page the room sits on a clean light panel of its own instead. */}
+          <rect className="mw-iso-panel" x={view.x} y={view.y} width={view.w} height={view.h} rx={ctx.px(14)} fill="var(--iso-backdrop)" />
           <g mask={`url(#${ctx.id('edge')})`}>
             <g id={sceneId}>{drawn.scene}</g>
           </g>
