@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>SetOut Brand Identity</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a brand book in one left-aligned reading column (max 1160px). Specimens are fixed-colour plates set into the page; every product mock is drawn at full size and scaled to the column. The page itself follows the viewer's theme. */
+:root {
+  /* Brand colours: the same in every theme */
+  --navy: #101D2B;
+  --navy-raised: #16263A;
+  --navy-line: #24364B;
+  --mint: #65D5C0;
+  --mint-deep: #1C776C;
+  --mint-wash: #DDF4EF;
+  --paper: #F3F5F4;
+  --white: #FFFFFF;
+  --hair: #DCE2E0;
+  --slate: #65717D;
+  --slate-deep: #5A6570;
+  --slate-light: #A3AEB8;
+  --ok: #1E7B45;
+  --warn: #9A5B00;
+  --bad: #B42318;
+  --tenant: #1F4E79;
+  /* Page colours: follow the theme */
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --fg: #101D2B;
+  --muted: #5A6570;
+  --line: #DCE2E0;
+  --link: #1C776C;
+  --edge: rgba(16, 29, 43, 0);
+  /* Type */
+  --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1520; --surface: #13212F; --fg: #F3F5F4; --muted: #A3AEB8; --line: #24364B; --link: #65D5C0; --edge: #24364B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1520; --surface: #13212F; --fg: #F3F5F4; --muted: #A3AEB8; --line: #24364B; --link: #65D5C0; --edge: #24364B;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: var(--link); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; line-height: 1.08; letter-spacing: -0.025em; text-wrap: balance; margin: 0; }
+p, ul, ol, figure { margin: 0; }
+.eyebrow { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: clamp(17px, 2vw, 20px); line-height: 1.55; max-width: 62ch; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Brand atoms */
+.wm { font-family: var(--display); font-weight: 600; letter-spacing: -0.045em; line-height: 1; white-space: nowrap; display: inline-flex; align-items: baseline; }
+.pt { display: inline-block; width: .16em; height: .16em; background: var(--mint); margin-left: .1em; flex: none; }
+.wm .pt { margin-left: .11em; }
+.on-mint .pt { background: var(--navy); }
+.dl { position: relative; display: inline-block; font-family: var(--mono); font-weight: 500; letter-spacing: .22em; padding: 0 0 .62em .22em; line-height: 1; white-space: nowrap; }
+.dl i { position: absolute; display: block; }
+.dl .ln { left: 0; right: 0; bottom: .2em; height: .07em; min-height: 1.5px; background: var(--mint); }
+.dl .ex { bottom: 0; width: .06em; min-width: 1px; height: .62em; background: currentColor; opacity: .55; }
+.dl .ex.l { left: 0; }
+.dl .ex.r { right: 0; }
+.dl .tk { bottom: .02em; width: .07em; min-width: 1.5px; height: .42em; background: var(--mint); transform: rotate(45deg); }
+.dl .tk.l { left: -.02em; }
+.dl .tk.r { right: -.02em; }
+.mk { display: block; flex: none; }
+
+/* Buttons and controls used in plates and mocks */
+.u-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--body); font-weight: 600; font-size: 15px; line-height: 1; padding: 12px 18px; border-radius: 5px; background: var(--mint); color: var(--navy); white-space: nowrap; border: 1px solid transparent; }
+.u-btn.line { background: transparent; color: inherit; border-color: currentColor; }
+.u-btn.lg { font-size: 17px; padding: 16px 24px; }
+.u-btn.sm { font-size: 13px; padding: 9px 14px; }
+.u-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 4px; white-space: nowrap; line-height: 1.3; }
+.u-chip::before { content: ""; width: 6px; height: 6px; background: currentColor; flex: none; }
+.u-chip.new { background: var(--mint-wash); color: var(--mint-deep); }
+.u-chip.check { background: #F6EBD9; color: var(--warn); }
+.u-chip.quoted { background: #E6EBF0; color: var(--navy); }
+.u-chip.ordered { background: #E2F1E8; color: var(--ok); }
+.u-chip.fitted { background: #ECEFF1; color: var(--slate-deep); }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .top { background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+}
+.top .wrap { display: flex; align-items: center; gap: 24px; padding-block: 14px; }
+.top .wm { font-size: 24px; color: var(--fg); }
+.top .what { font-size: 14px; color: var(--muted); }
+.top nav { display: flex; gap: 22px; overflow-x: auto; margin-left: auto; scrollbar-width: none; min-width: 0; }
+.top nav::-webkit-scrollbar { display: none; }
+.top nav a { color: var(--fg); text-decoration: none; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.top nav a:hover { color: var(--link); }
+@media (max-width: 720px) { .top .what { display: none; } .top .wrap { gap: 16px; } }
+
+/* Sections */
+section { padding-block: clamp(56px, 8vw, 104px); }
+section + section { border-top: 1px solid var(--line); }
+.sec-head { display: grid; gap: 16px; margin-bottom: clamp(32px, 5vw, 56px); max-width: 780px; }
+.sec-head h2 { font-size: clamp(30px, 4.2vw, 46px); }
+.sub { margin-top: clamp(48px, 7vw, 80px); }
+.sub > h3 { font-size: clamp(22px, 2.6vw, 28px); margin-bottom: 10px; }
+.sub > .lede { margin-bottom: 28px; font-size: 17px; color: var(--muted); }
+
+/* Hero */
+.hero { padding-block: clamp(48px, 9vw, 120px) clamp(48px, 7vw, 88px); }
+.hero h1 { font-size: clamp(42px, 7.4vw, 92px); letter-spacing: -0.04em; max-width: 13ch; margin-top: 22px; line-height: 1.02; }
+.hero .lede { margin-top: 28px; }
+.triad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: clamp(40px, 6vw, 64px); }
+@media (max-width: 800px) { .triad { grid-template-columns: minmax(0, 1fr); } }
+.triad figure { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 22px; display: grid; gap: 16px; align-content: start; }
+.triad svg { width: 100%; height: 132px; color: var(--fg); }
+.triad figcaption { font-size: 15px; color: var(--muted); }
+.triad figcaption b { display: block; font-family: var(--display); font-size: 21px; font-weight: 600; color: var(--fg); letter-spacing: -0.02em; margin-bottom: 6px; }
+.dw { font-family: var(--mono); }
+.dw .thin { stroke: currentColor; stroke-width: 1; fill: none; }
+.dw .thick { stroke: currentColor; stroke-width: 2; fill: none; }
+.dw text { fill: currentColor; font-family: var(--mono); font-size: 11px; }
+
+/* Directions */
+.dir { display: grid; gap: 28px; padding-block: clamp(40px, 6vw, 64px); border-top: 1px solid var(--line); }
+.dir:first-of-type { border-top: 0; padding-top: 0; }
+.dir-head { display: grid; gap: 10px; max-width: 760px; }
+.dir-head h3 { font-size: clamp(30px, 3.8vw, 42px); }
+.dir-head p { font-size: 17px; color: var(--muted); max-width: 62ch; }
+.plates { display: grid; grid-template-columns: 1.35fr 1.35fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .plates { grid-template-columns: minmax(0, 1fr); } }
+.plate { border-radius: 6px; min-height: 210px; display: grid; place-items: center; padding: 32px 20px; position: relative; overflow: hidden; }
+.plate.light { background: var(--paper); color: var(--navy); box-shadow: inset 0 0 0 1px var(--hair); }
+.plate.white { background: var(--white); color: var(--navy); box-shadow: inset 0 0 0 1px var(--hair); }
+.plate.dark { background: var(--navy); color: var(--paper); box-shadow: inset 0 0 0 1px var(--edge); }
+.plate.mintbg { background: var(--mint); color: var(--navy); }
+.plate .tag { position: absolute; left: 14px; bottom: 11px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .62; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+@media (max-width: 860px) { .facts { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+.fact { min-width: 0; }
+.fact h4 { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.fact p { font-size: 15px; }
+.ratio { display: flex; height: 26px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); margin-bottom: 10px; }
+.ratio span { display: block; height: 100%; }
+.ratio-key { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+.specimen { display: grid; gap: 6px; margin-bottom: 12px; }
+.specimen .big { font-size: 34px; line-height: 1.05; }
+
+/* Stages: full-size mocks, scaled to the column */
+.stage { position: relative; width: 100%; aspect-ratio: var(--ar); overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); background: var(--paper); }
+.stage > .canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; }
+.cap { margin-top: 12px; font-size: 14px; color: var(--muted); max-width: 72ch; }
+
+/* Recommendation */
+.verdict > * { min-width: 0; }
+.verdict { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+@media (max-width: 900px) { .verdict { grid-template-columns: minmax(0, 1fr); } }
+.reasons { display: grid; gap: 18px; }
+.reasons li { list-style: none; display: grid; grid-template-columns: 14px 1fr; gap: 14px; font-size: 16px; }
+.reasons li::before { content: ""; width: 9px; height: 9px; background: var(--mint); margin-top: 8px; }
+.reasons { padding: 0; }
+.reasons b { font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.compare-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table.compare { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 14px; }
+.compare th, .compare td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.compare tr:last-child td, .compare tr:last-child th { border-bottom: 0; }
+.compare thead th { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.compare tbody th { font-weight: 500; }
+.compare .win { background: color-mix(in srgb, var(--mint) 14%, transparent); }
+.sq { display: inline-block; width: 12px; height: 12px; border: 1.5px solid currentColor; vertical-align: -1px; }
+.sq.full { background: currentColor; }
+.sq.half { background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--muted); margin-top: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+
+/* System */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid-3 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+.lockups { display: grid; gap: 22px; justify-items: start; }
+.lockup { display: inline-flex; align-items: baseline; gap: .32em; font-size: clamp(22px, 5.4vw, 34px); }
+.lockup .prod { font-family: var(--display); font-weight: 400; letter-spacing: -0.03em; color: var(--slate); line-height: 1; }
+.plate.dark .lockup .prod { color: var(--slate-light); }
+.icons-row { display: flex; align-items: flex-end; gap: clamp(14px, 3vw, 32px); flex-wrap: wrap; }
+.icons-row figure { display: grid; gap: 8px; justify-items: center; }
+.icons-row figcaption { font-family: var(--mono); font-size: 11px; color: inherit; opacity: .7; }
+.rules { display: grid; gap: 10px; padding: 0; font-size: 15px; }
+.rules li { list-style: none; padding-left: 20px; position: relative; }
+.rules li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--fg); }
+.misuse { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .misuse { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.misuse figure { display: grid; gap: 8px; }
+.misuse .plate { min-height: 120px; padding: 18px 10px; }
+.misuse figcaption { font-size: 13px; color: var(--muted); }
+.misuse figcaption b { color: var(--bad); font-weight: 600; }
+:root[data-theme="dark"] .misuse figcaption b { color: #F08A80; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .misuse figcaption b { color: #F08A80; } }
+
+.swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.swatch { border-radius: 6px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); display: grid; grid-template-rows: auto 1fr; }
+.swatch .chipc { height: 150px; position: relative; }
+.swatch .info { padding: 14px 14px 16px; display: grid; gap: 4px; font-size: 13px; align-content: start; }
+.swatch .info b { font-family: var(--display); font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.swatch .info .mono { font-size: 12.5px; color: var(--muted); }
+.swatch button { justify-self: start; margin-top: 8px; font: 500 12px var(--mono); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.swatch button:hover { border-color: var(--fg); }
+.swatches.small .chipc { height: 72px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table.data { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 14px; }
+.data th, .data td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.data tr:last-child td { border-bottom: 0; }
+.data thead th { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.pair { display: inline-flex; align-items: center; justify-content: center; min-width: 74px; height: 34px; border-radius: 4px; font-weight: 600; font-size: 15px; padding: 0 10px; }
+.verdict-ok { color: var(--fg); }
+.verdict-no { color: var(--muted); }
+.typescale { display: grid; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.typescale .row { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line); align-items: baseline; }
+.typescale .row:last-child { border-bottom: 0; }
+.typescale .spec { font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.5; }
+.typescale .sample { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .typescale .row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.tile svg { width: 100%; height: 110px; color: var(--fg); }
+.tile h4 { font-size: 19px; }
+.tile p { font-size: 14px; color: var(--muted); }
+.voice { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 800px) { .voice { grid-template-columns: minmax(0, 1fr); } }
+.say { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+.say h4 { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.say .tag-l { font-family: var(--display); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; }
+.pairs { display: grid; gap: 12px; padding: 0; }
+.pairs li { list-style: none; display: grid; gap: 4px; font-size: 15px; }
+.pairs .yes::before { content: "Write"; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--link); margin-right: .7em; }
+.pairs .no { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.pairs .no::before { content: "Not"; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-decoration: none; display: inline-block; margin-right: .7em; }
+.ui-plates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 860px) { .ui-plates { grid-template-columns: minmax(0, 1fr); } }
+.ui-plates .plate { place-items: stretch; align-content: start; gap: 22px; padding: 26px; min-height: 0; }
+.ui-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ui-label { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+.field { display: grid; gap: 8px; max-width: 320px; }
+.field .q { font-family: var(--display); font-size: 19px; font-weight: 600; letter-spacing: -0.015em; }
+.mfield { display: flex; align-items: baseline; gap: 8px; border: 2px solid currentColor; border-radius: 6px; padding: 10px 16px; }
+.mfield .v { font-family: var(--mono); font-size: 40px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.mfield .u { font-family: var(--mono); font-size: 16px; opacity: .65; margin-left: auto; }
+.mfield.focus { border-color: var(--mint); box-shadow: 0 0 0 3px rgba(101, 213, 192, .35); }
+.hint { font-size: 13px; opacity: .75; }
+.steps { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; font-weight: 500; padding: 0; }
+.steps li { list-style: none; display: inline-flex; align-items: baseline; gap: 7px; opacity: .55; }
+.steps li.done { opacity: .85; }
+.steps li.on { opacity: 1; }
+.steps li.on::after { content: ""; width: 7px; height: 7px; background: var(--mint); }
+.plate.light .steps li.on::after, .plate.white .steps li.on::after { background: var(--mint-deep); }
+
+.construct { padding: 44px 16px 48px; }
+.clear { position: relative; display: inline-block; font-size: clamp(40px, 7vw, 80px); padding: .5em; outline: 1px dashed var(--slate); }
+.clear .wm { box-shadow: 0 0 0 1px var(--hair); }
+.clear .xm { position: absolute; font-style: normal; color: var(--mint-deep); }
+.clear .xm.t { left: 50%; top: 0; height: .5em; border-left: 1px solid currentColor; }
+.clear .xm.l { top: 50%; left: 0; width: .5em; border-top: 1px solid currentColor; }
+.clear .xm b { position: absolute; font: 500 12px var(--mono); }
+.clear .xm.t b { left: 6px; top: 50%; transform: translateY(-50%); }
+.clear .xm.l b { top: 4px; left: 50%; transform: translateX(-50%); }
+.tile-ill { height: 110px; display: grid; align-content: center; gap: 14px; }
+
+/* Applications */
+.apps { display: grid; gap: clamp(48px, 7vw, 80px); }
+.app-head { display: grid; gap: 6px; margin-bottom: 18px; max-width: 760px; }
+.app-head h3 { font-size: clamp(22px, 2.6vw, 28px); }
+.app-head p { color: var(--muted); font-size: 15px; }
+
+.handover { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .handover { grid-template-columns: minmax(0, 1fr); } }
+.handover .tile b { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.handover .tile .mono { font-size: 12px; color: var(--muted); }
+footer.end { padding-block: 40px 64px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer.end .wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline; justify-content: space-between; }
+footer.end .wm { font-size: 22px; color: var(--fg); }
+
+/* ===== Mocks (inside scaled canvases; px are design pixels) ===== */
+.canvas { font-family: var(--body); color: var(--navy); }
+.phone { width: 290px; height: 600px; border-radius: 44px; background: #0A131D; padding: 11px; box-shadow: 0 30px 60px -20px rgba(16, 29, 43, .35); }
+.phone .screen { width: 100%; height: 100%; border-radius: 34px; background: var(--white); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.phone .notch { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 86px; height: 24px; border-radius: 14px; background: #0A131D; }
+.scr { padding: 46px 20px 18px; display: flex; flex-direction: column; gap: 12px; height: 100%; }
+.scr .prog { display: flex; justify-content: space-between; font: 500 10px var(--mono); letter-spacing: .08em; color: var(--slate-deep); }
+.scr .bar { height: 3px; background: var(--hair); border-radius: 2px; overflow: hidden; }
+.scr .bar span { display: block; height: 100%; background: var(--navy); }
+.scr h5 { font: 600 21px/1.15 var(--display); letter-spacing: -0.02em; margin: 2px 0 0; }
+.scr .t { font-size: 12.5px; line-height: 1.5; color: var(--slate-deep); }
+.scr .lbl { font-size: 12px; font-weight: 600; }
+.scr .mf { display: flex; align-items: baseline; border: 2px solid var(--navy); border-radius: 6px; padding: 8px 12px; }
+.scr .mf b { font: 500 30px/1.1 var(--mono); }
+.scr .mf span { margin-left: auto; font: 13px var(--mono); color: var(--slate); }
+.scr .helper { font-size: 11px; color: var(--slate-deep); }
+.scr .nav { margin-top: auto; display: flex; gap: 8px; }
+.scr .nav .back { width: 46px; height: 44px; border: 1.5px solid var(--navy); border-radius: 5px; display: grid; place-items: center; font-size: 18px; }
+.scr .nav .next { flex: 1; height: 44px; border-radius: 5px; background: var(--mint); color: var(--navy); font-weight: 700; font-size: 14px; display: grid; place-items: center; letter-spacing: .02em; }
+
+/* A: Point website */
+.ma { background: var(--paper); }
+.ma-nav { display: flex; align-items: center; gap: 44px; padding: 30px 56px; }
+.ma-nav .wm { font-size: 30px; }
+.ma-links { display: flex; gap: 30px; font-size: 15px; color: var(--slate-deep); }
+.ma-right { margin-left: auto; display: flex; align-items: center; gap: 26px; font-size: 15px; font-weight: 500; }
+.ma-body { display: grid; grid-template-columns: 590px 1fr; padding: 34px 56px 0; }
+.ma-eye { font: 500 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mint-deep); }
+.ma-h { font: 600 80px/0.98 var(--display); letter-spacing: -0.045em; margin-top: 20px; }
+.ma-h .pt { margin-left: .06em; }
+.ma-sub { font-size: 19px; line-height: 1.55; color: var(--slate-deep); max-width: 460px; margin-top: 30px; }
+.ma-ctas { display: flex; gap: 12px; margin-top: 34px; }
+.ma-visual { position: relative; }
+.ma-sheet { position: absolute; left: 0; top: 18px; width: 340px; height: 470px; background: var(--white); border-radius: 6px; box-shadow: 0 0 0 1px var(--hair), 0 24px 50px -24px rgba(16, 29, 43, .25); padding: 16px 18px; display: flex; flex-direction: column; }
+.ma-sheet .head { display: flex; justify-content: space-between; font: 500 10px var(--mono); letter-spacing: .08em; color: var(--slate-deep); text-transform: uppercase; }
+.ma-sheet svg { flex: 1; color: var(--navy); }
+.ma-phone { position: absolute; right: 0; top: -6px; transform: scale(.9); transform-origin: top right; }
+
+/* B: Pane website */
+.mb { background: var(--navy); color: var(--paper); }
+.mb-nav { display: flex; align-items: center; gap: 44px; padding: 30px 56px; }
+.mb-brand { display: flex; align-items: center; gap: 12px; font: 700 26px var(--display); letter-spacing: -0.03em; }
+.mb-links { display: flex; gap: 30px; font-size: 15px; color: var(--slate-light); }
+.mb-right { margin-left: auto; display: flex; align-items: center; gap: 26px; font-size: 15px; font-weight: 500; }
+.mb-body { display: grid; grid-template-columns: 560px 1fr; padding: 40px 56px 0; }
+.mb-h { font: 700 66px/1.02 var(--display); letter-spacing: -0.04em; margin-top: 18px; }
+.mb-sub { font-size: 19px; line-height: 1.55; color: var(--slate-light); max-width: 470px; margin-top: 26px; }
+.mb-ctas { display: flex; gap: 12px; margin-top: 34px; }
+.mb-feats { display: flex; gap: 36px; margin-top: 54px; font-size: 14px; color: var(--slate-light); }
+.mb-feats b { display: block; color: var(--paper); font: 600 16px var(--display); margin-bottom: 4px; }
+.mb-art { position: relative; }
+.mb-chip { position: absolute; background: var(--navy-raised); border: 1px solid var(--navy-line); border-radius: 6px; padding: 10px 14px; font: 500 13px var(--mono); color: var(--paper); box-shadow: 0 16px 30px -12px rgba(0, 0, 0, .5); }
+.mb-chip small { display: block; font: 500 10px var(--mono); letter-spacing: .1em; color: var(--slate-light); text-transform: uppercase; margin-bottom: 3px; }
+
+/* C: Line website */
+.mc { background-color: var(--navy); color: var(--paper);
+  background-image: linear-gradient(rgba(163, 174, 184, .1) 1px, transparent 1px), linear-gradient(90deg, rgba(163, 174, 184, .1) 1px, transparent 1px), linear-gradient(var(--navy-line) 1px, transparent 1px), linear-gradient(90deg, var(--navy-line) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px; }
+.mc-nav { display: flex; align-items: center; gap: 44px; padding: 30px 56px; }
+.mc-nav .dl { font-size: 20px; }
+.mc-links { display: flex; gap: 28px; font: 500 12px var(--mono); letter-spacing: .12em; color: var(--slate-light); }
+.mc-right { margin-left: auto; }
+.mc-right .u-btn { background: transparent; color: var(--mint); border-color: var(--mint); font-family: var(--mono); font-size: 13px; letter-spacing: .06em; }
+.mc-body { display: grid; grid-template-columns: 560px 1fr; padding: 30px 56px 0; }
+.mc-eye { font: 500 12px var(--mono); letter-spacing: .14em; color: var(--mint); }
+.mc-h { font: 600 64px/1.02 var(--display); letter-spacing: -0.04em; margin-top: 20px; }
+.mc-sub { font-size: 18px; line-height: 1.55; color: var(--slate-light); max-width: 450px; margin-top: 24px; }
+.mc-ctas { display: flex; gap: 12px; margin-top: 32px; }
+.mc-draw { position: relative; height: 520px; }
+.mc-draw svg { position: absolute; left: 60px; top: -16px; width: calc(100% - 100px); height: 490px; color: var(--paper); }
+.mc-tb { position: absolute; left: 56px; right: 56px; bottom: 26px; display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 1fr; border: 1px solid rgba(163, 174, 184, .45); font: 500 12px var(--mono); }
+.mc-tb div { padding: 9px 12px; border-left: 1px solid rgba(163, 174, 184, .45); }
+.mc-tb div:first-child { border-left: 0; }
+.mc-tb small { display: block; font-size: 9px; letter-spacing: .14em; color: var(--slate-light); margin-bottom: 2px; }
+
+/* App 1: website */
+.w1 { background: var(--paper); }
+.w1-hero { display: grid; grid-template-columns: 560px 1fr; gap: 20px; padding: 30px 56px 56px; }
+.w1-band { background: var(--white); border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding: 56px; }
+.w1-band h6 { font: 600 40px/1.05 var(--display); letter-spacing: -0.035em; margin: 10px 0 34px; }
+.w1-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.w1-step { padding: 0 32px 0 0; display: grid; gap: 12px; align-content: start; }
+.w1-step + .w1-step { padding-left: 32px; border-left: 1px solid var(--hair); }
+.w1-step .n { font: 500 12px var(--mono); color: var(--mint-deep); letter-spacing: .1em; }
+.w1-step b { font: 600 24px var(--display); letter-spacing: -0.02em; }
+.w1-step p { font-size: 15px; color: var(--slate-deep); line-height: 1.55; }
+.w1-step svg { height: 120px; width: 100%; color: var(--navy); margin-bottom: 6px; }
+.w1-fam { padding: 50px 56px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+.w1-fam > div { border-top: 2px solid var(--navy); padding-top: 16px; display: grid; gap: 8px; }
+.w1-fam .lockup { font-size: 24px; }
+.w1-fam p { font-size: 14px; color: var(--slate-deep); }
+.w1-fam .soon { font: 500 10px var(--mono); letter-spacing: .1em; color: var(--slate); text-transform: uppercase; }
+
+/* App 2: dashboard */
+.db { background: var(--paper); display: grid; grid-template-columns: 220px 1fr 360px; }
+.db-side { background: var(--navy); color: var(--paper); padding: 26px 18px; display: flex; flex-direction: column; gap: 6px; }
+.db-side .wm { font-size: 26px; margin: 0 10px 22px; }
+.db-co { margin: 0 6px 18px; padding: 10px 12px; border: 1px solid var(--navy-line); border-radius: 6px; font-size: 13px; display: flex; justify-content: space-between; }
+.db-co small { display: block; font-size: 10px; color: var(--slate-light); font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.db-nav { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 5px; font-size: 14px; font-weight: 500; color: var(--slate-light); }
+.db-nav.on { background: var(--navy-raised); color: var(--paper); }
+.db-nav.on::before { content: ""; width: 7px; height: 7px; background: var(--mint); }
+.db-nav:not(.on)::before { content: ""; width: 7px; height: 7px; }
+.db-nav .n { margin-left: auto; font: 500 11px var(--mono); color: var(--mint); }
+.db-main { padding: 28px 28px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.db-top { display: flex; align-items: center; gap: 16px; }
+.db-top h6 { font: 600 28px var(--display); letter-spacing: -0.03em; margin: 0; }
+.db-search { margin-left: auto; width: 240px; height: 38px; border: 1px solid var(--hair); background: var(--white); border-radius: 5px; font-size: 13px; color: var(--slate); display: flex; align-items: center; padding: 0 12px; }
+.db-filters { display: flex; gap: 8px; }
+.db-filters span { font-size: 13px; font-weight: 500; padding: 7px 12px; border-radius: 4px; border: 1px solid var(--hair); background: var(--white); color: var(--slate-deep); }
+.db-filters span.on { background: var(--navy); color: var(--paper); border-color: var(--navy); }
+.db-filters span b { font: 500 11px var(--mono); margin-left: 6px; opacity: .8; }
+.db-table { background: var(--white); border: 1px solid var(--hair); border-radius: 6px; overflow: hidden; }
+.db-row { display: grid; grid-template-columns: 78px 1fr 1.7fr 96px 52px; gap: 12px; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--hair); font-size: 13.5px; }
+.db-row:last-child { border-bottom: 0; }
+.db-row.h { font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--slate-deep); background: var(--paper); padding-block: 10px; }
+.db-row.sel { background: #EAF6F3; box-shadow: inset 2px 0 0 var(--mint-deep); }
+.db-row .ref { font: 500 12.5px var(--mono); }
+.db-row .d { font: 12px var(--mono); color: var(--slate-deep); }
+.db-row .muted2 { color: var(--slate-deep); }
+.db-detail { background: var(--white); border-left: 1px solid var(--hair); padding: 26px 24px; display: flex; flex-direction: column; gap: 14px; }
+.db-detail .ref { font: 500 12px var(--mono); color: var(--slate-deep); letter-spacing: .06em; }
+.db-detail h6 { font: 600 24px var(--display); letter-spacing: -0.025em; margin: 0; }
+.db-detail .who { font-size: 13px; color: var(--slate-deep); margin-top: -8px; }
+.db-detail svg { height: 250px; width: 100%; color: var(--navy); }
+.db-sizes { border-top: 1px solid var(--hair); }
+.db-sizes div { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--hair); font-size: 13px; }
+.db-sizes div span:last-child { font: 500 13px var(--mono); }
+.db-actions { display: flex; gap: 8px; margin-top: auto; }
+
+/* App 3: embedded configurator */
+.emb { background: #E6E9EC; padding: 22px 30px 30px; }
+.emb-win { background: var(--white); border-radius: 10px; overflow: hidden; height: 100%; box-shadow: 0 20px 50px -20px rgba(16, 29, 43, .3); display: flex; flex-direction: column; }
+.emb-bar { height: 42px; background: #F1F3F5; border-bottom: 1px solid #E1E5E8; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+.emb-bar i { width: 11px; height: 11px; border-radius: 50%; background: #CDD3D8; display: block; }
+.emb-bar .url { margin-left: 18px; background: var(--white); border: 1px solid #E1E5E8; border-radius: 6px; padding: 5px 14px; font: 12.5px var(--mono); color: var(--slate-deep); width: 420px; }
+.emb-site { display: flex; align-items: center; gap: 36px; padding: 20px 40px; border-bottom: 1px solid #ECEFF1; }
+.emb-site .logo { font: 700 22px Georgia, "Times New Roman", serif; color: var(--tenant); letter-spacing: -0.01em; }
+.emb-site span { font-size: 14px; color: #4A5560; }
+.emb-site .call { margin-left: auto; font-weight: 600; color: var(--tenant); }
+.emb-body { display: grid; grid-template-columns: 300px 1fr; gap: 36px; padding: 30px 40px; flex: 1; min-height: 0; }
+.emb-copy h6 { font: 700 34px/1.1 Georgia, "Times New Roman", serif; color: #1D2A36; margin: 0 0 14px; }
+.emb-copy p { font-size: 15px; color: #4A5560; line-height: 1.6; }
+.emb-frame { border: 1px solid var(--hair); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+.emb-steps { display: flex; gap: 22px; padding: 14px 22px; border-bottom: 1px solid var(--hair); font-size: 13px; font-weight: 500; }
+.emb-steps span { color: var(--slate); display: inline-flex; align-items: baseline; gap: 7px; }
+.emb-steps span.done { color: var(--navy); }
+.emb-steps span.on { color: var(--navy); }
+.emb-steps span.on::after { content: ""; width: 7px; height: 7px; background: var(--tenant); }
+.emb-main { display: grid; grid-template-columns: 1fr 250px; gap: 22px; padding: 20px 22px; flex: 1; }
+.emb-main h6 { font: 600 22px var(--display); letter-spacing: -0.02em; margin: 0 0 6px; color: var(--navy); }
+.emb-main .t { font-size: 13px; color: var(--slate-deep); }
+.emb-q { margin-top: 16px; font-size: 13px; font-weight: 600; }
+.emb-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.emb-opts span { border: 1.5px solid var(--hair); border-radius: 5px; padding: 11px; text-align: center; font-size: 14px; font-weight: 600; }
+.emb-opts span.on { border-color: var(--tenant); background: #EEF3F8; color: var(--tenant); }
+.emb-sizes { margin-top: 16px; border: 1px solid var(--hair); border-radius: 6px; }
+.emb-sizes div { display: flex; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--hair); font-size: 13px; }
+.emb-sizes div:last-child { border-bottom: 0; }
+.emb-sizes div span:last-child { font: 500 13px var(--mono); }
+.emb-main svg { width: 100%; height: 260px; color: var(--navy); }
+.emb-foot { display: flex; align-items: center; gap: 10px; padding: 12px 22px; border-top: 1px solid var(--hair); }
+.emb-foot .powered { font-size: 11.5px; color: var(--slate); display: inline-flex; align-items: baseline; gap: 6px; }
+.emb-foot .powered .wm { font-size: 14px; color: var(--slate-deep); }
+.emb-foot .go { margin-left: auto; display: flex; gap: 8px; }
+.emb-foot .go span { padding: 10px 18px; border-radius: 5px; font-size: 14px; font-weight: 600; }
+.emb-foot .go .bk { border: 1.5px solid var(--navy); }
+.emb-foot .go .nx { background: var(--tenant); color: var(--white); }
+
+/* App 4: mobile */
+.mob { background: var(--paper); display: flex; gap: 70px; justify-content: center; align-items: center; padding: 40px; }
+.mob-note { width: 230px; display: grid; gap: 18px; align-self: center; }
+.mob-note div { display: grid; gap: 4px; }
+.mob-note b { font: 600 16px var(--display); letter-spacing: -0.01em; }
+.mob-note span { font-size: 13.5px; color: var(--slate-deep); line-height: 1.5; }
+.mob-note .k { font: 500 10px var(--mono); letter-spacing: .12em; color: var(--mint-deep); }
+
+/* App 5: icons */
+.ic { background: var(--paper); padding: 44px 56px; display: grid; grid-template-rows: auto 1fr; gap: 36px; }
+.ic-sizes { display: flex; align-items: flex-end; gap: 38px; }
+.ic-sizes figure { display: grid; justify-items: center; gap: 10px; }
+.ic-sizes figcaption { font: 500 11px var(--mono); color: var(--slate-deep); }
+.ic-row { display: grid; grid-template-columns: 1.25fr 1fr; gap: 24px; }
+.ic-tabs { background: #DFE3E6; border-radius: 10px; padding: 12px 12px 0; display: flex; gap: 4px; align-items: flex-end; align-self: start; }
+.ic-tab { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border-radius: 9px 9px 0 0; font-size: 13px; color: #3C4752; width: 220px; }
+.ic-tab.on { background: var(--white); color: var(--navy); }
+.ic-tab .x { margin-left: auto; color: var(--slate); }
+.ic-home { background: var(--navy-raised); border-radius: 14px; padding: 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 10px; }
+.ic-home figure { display: grid; justify-items: center; gap: 6px; font-size: 11px; color: var(--paper); }
+.ic-home .ghost { width: 58px; height: 58px; border-radius: 14px; background: rgba(243, 245, 244, .12); }
+
+/* App 6: sheets */
+.sh { background: #E3E7EA; display: flex; gap: 40px; justify-content: center; align-items: flex-start; padding: 40px; }
+.a4 { width: 520px; height: 735px; background: var(--white); box-shadow: 0 18px 40px -18px rgba(16, 29, 43, .35); padding: 34px 36px; display: flex; flex-direction: column; position: relative; }
+.a4-head { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1.5px solid var(--navy); padding-bottom: 12px; }
+.a4-head .wm { font-size: 24px; }
+.a4-head .what { text-align: right; font: 500 10px var(--mono); letter-spacing: .1em; color: var(--slate-deep); text-transform: uppercase; }
+.a4-head .what b { display: block; font: 600 17px var(--display); color: var(--navy); letter-spacing: -0.02em; text-transform: none; margin-top: 2px; }
+.a4 svg.pane { flex: 1; width: 100%; color: var(--navy); margin: 8px 0; }
+.tb { display: grid; grid-template-columns: repeat(4, 1fr); border: 1.5px solid var(--navy); font: 500 10px var(--mono); }
+.tb div { padding: 6px 8px; border-left: 1px solid var(--navy); border-top: 1px solid var(--navy); }
+.tb div:nth-child(4n + 1) { border-left: 0; }
+.tb div:nth-child(-n + 4) { border-top: 0; }
+.tb small { display: block; font-size: 7.5px; letter-spacing: .12em; color: var(--slate-deep); margin-bottom: 1px; }
+.tb .big { grid-column: span 2; font-size: 12px; }
+.qt-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.qt-head .logo { font: 700 24px Georgia, "Times New Roman", serif; color: var(--tenant); }
+.qt-head .meta { text-align: right; font-size: 10.5px; color: var(--slate-deep); line-height: 1.6; }
+.qt-head .meta b { font: 600 18px var(--display); color: var(--navy); letter-spacing: -0.02em; display: block; }
+.qt-to { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; font-size: 11px; line-height: 1.6; color: var(--slate-deep); }
+.qt-to b { display: block; font: 500 8.5px var(--mono); letter-spacing: .12em; color: var(--slate); margin-bottom: 2px; text-transform: uppercase; }
+.qt-to span { color: var(--navy); }
+.qt-lines { margin-top: 22px; font-size: 11.5px; }
+.qt-lines div { display: grid; grid-template-columns: 1fr 44px 74px; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--hair); }
+.qt-lines div.h { font: 500 8.5px var(--mono); letter-spacing: .12em; color: var(--slate-deep); border-bottom: 1.5px solid var(--navy); text-transform: uppercase; }
+.qt-lines div span:nth-child(2), .qt-lines div span:nth-child(3) { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.qt-lines small { display: block; font: 10px var(--mono); color: var(--slate-deep); margin-top: 2px; }
+.qt-tot { margin-left: auto; width: 230px; margin-top: 12px; font-size: 12px; }
+.qt-tot div { display: flex; justify-content: space-between; padding: 5px 0; }
+.qt-tot div span:last-child { font-family: var(--mono); }
+.qt-tot .grand { border-top: 1.5px solid var(--navy); margin-top: 4px; padding-top: 9px; font-weight: 700; font-size: 14px; }
+.qt-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; font-size: 9.5px; color: var(--slate-deep); border-top: 1px solid var(--hair); padding-top: 10px; }
+.qt-foot .wm { font-size: 13px; color: var(--slate-deep); }
+.qt-mark { position: absolute; top: 14px; left: 36px; font: 500 8.5px var(--mono); letter-spacing: .14em; color: var(--slate); text-transform: uppercase; }
+
+/* App 7: email */
+.em { background: #E9ECEF; padding: 36px 56px; }
+.em-win { background: var(--white); border-radius: 10px; height: 100%; box-shadow: 0 16px 40px -18px rgba(16, 29, 43, .25); padding: 26px 34px; display: flex; flex-direction: column; gap: 14px; font-size: 14.5px; color: #26313C; }
+.em-meta { display: grid; gap: 4px; font-size: 13px; color: var(--slate-deep); border-bottom: 1px solid #EDF0F2; padding-bottom: 14px; }
+.em-meta b { color: var(--navy); font-weight: 600; }
+.sig { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--hair); max-width: 560px; }
+.sig-name { font: 600 16px var(--display); letter-spacing: -0.01em; color: var(--navy); }
+.sig-role { font-size: 13px; color: var(--slate-deep); }
+.sig-line { margin-top: 8px; display: flex; gap: 14px; font: 12px var(--mono); color: var(--slate-deep); }
+.sig-tag { font-size: 12px; color: var(--navy); margin-top: 3px; font-weight: 500; }
+.sig-rule { width: 1px; align-self: stretch; background: var(--hair); }
+
+/* App 8: social */
+.so { background: var(--paper); padding: 40px 48px; display: grid; grid-template-columns: 1fr; gap: 28px; }
+.so-banner { height: 276px; background: var(--navy); color: var(--paper); border-radius: 6px; position: relative; overflow: hidden; display: flex; align-items: center; padding: 0 64px; }
+.so-banner .wm { font-size: 64px; }
+.so-banner .tl { margin-left: auto; font: 600 30px var(--display); letter-spacing: -0.03em; text-align: right; line-height: 1.15; }
+.so-banner svg { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; color: var(--slate-light); opacity: .35; }
+.so-row { display: grid; grid-template-columns: 440px 440px 1fr; gap: 28px; align-items: start; }
+.so-post { width: 440px; height: 440px; border-radius: 6px; padding: 34px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.so-post.p1 { background: var(--white); box-shadow: 0 0 0 1px var(--hair); }
+.so-post.p2 { background: var(--navy); color: var(--paper); }
+.so-post h6 { font: 600 36px/1.04 var(--display); letter-spacing: -0.04em; margin: 0; }
+.so-post .k { font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mint-deep); margin-bottom: 12px; }
+.so-post.p2 .k { color: var(--mint); }
+.so-post svg { flex: 1; width: 100%; color: currentColor; margin-top: 10px; }
+.so-post .foot { display: flex; justify-content: space-between; align-items: baseline; font: 11px var(--mono); }
+.so-post .foot .wm { font-size: 20px; }
+.so-avatars { display: grid; gap: 18px; justify-items: start; }
+.so-avatars figure { display: grid; gap: 8px; justify-items: center; font: 500 11px var(--mono); color: var(--slate-deep); }
+
+/* App 9: slides */
+.sl { background: #E3E7EA; padding: 34px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.slide { aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; position: relative; padding: 34px 38px; display: flex; flex-direction: column; box-shadow: 0 14px 30px -16px rgba(16, 29, 43, .35); }
+.slide.s1 { background: var(--navy); color: var(--paper); }
+.slide.s2 { background: var(--paper); color: var(--navy); }
+.slide .wm { font-size: 22px; }
+.slide h6 { font: 600 38px/1.04 var(--display); letter-spacing: -0.04em; margin: auto 0 10px; max-width: 13ch; }
+.slide .meta { font: 500 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--slate-light); }
+.slide.s2 .k { font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mint-deep); }
+.slide.s2 h6 { font-size: 28px; margin: 6px 0 16px; max-width: none; }
+.slide .docs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; margin-bottom: 18px; }
+.slide .doc { background: var(--white); box-shadow: 0 0 0 1px var(--hair); border-radius: 3px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.slide .doc svg { flex: 1; width: 100%; color: var(--navy); }
+.slide .doc b { font: 600 12px var(--display); }
+.slide .doc span { font: 9.5px var(--mono); color: var(--slate-deep); }
+.slide .pg { position: absolute; right: 22px; bottom: 16px; font: 500 9.5px var(--mono); color: var(--slate); display: flex; gap: 10px; align-items: baseline; }
+.slide .pg .wm { font-size: 12px; color: var(--navy); }
+.slide.s1 .lines { position: absolute; right: 30px; top: 34px; bottom: 34px; width: 230px; color: var(--slate-light); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero h1 .pt { animation: drop .7s cubic-bezier(.2, .7, .2, 1) .15s both; }
+  @keyframes drop { from { transform: translateY(-.5em); } to { transform: none; } }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="1"/>
+    </pattern>
+    <!-- Elevation of a panel and door, 1100 opening, glass 1980 high (SetOut's own self-check sizes) -->
+    <symbol id="elev" viewBox="0 0 300 400">
+      <rect x="48" y="40" width="12" height="312" fill="url(#hatch)" opacity=".55"/>
+      <rect x="227" y="40" width="12" height="312" fill="url(#hatch)" opacity=".55"/>
+      <line x1="60" y1="40" x2="60" y2="352" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="227" y1="40" x2="227" y2="352" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="36" y="350" width="216" height="9" fill="url(#hatch)" opacity=".55"/>
+      <line x1="36" y1="350" x2="252" y2="350" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="110" y1="22" x2="110" y2="372" style="stroke: var(--laser, transparent)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <rect x="61.5" y="53" width="59" height="297" style="fill: var(--glass, transparent)" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="123" y="53" width="103" height="297" style="fill: var(--glass, transparent)" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="116" y="86" width="12" height="9" fill="currentColor"/>
+      <rect x="116" y="308" width="12" height="9" fill="currentColor"/>
+      <rect x="212" y="171" width="3" height="42" rx="1.5" fill="none" stroke="currentColor" stroke-width="1"/>
+      <circle cx="213.5" cy="177" r="1.7" fill="currentColor"/>
+      <circle cx="213.5" cy="207" r="1.7" fill="currentColor"/>
+      <g stroke="currentColor" stroke-width="1" fill="none">
+        <line x1="60" y1="36" x2="60" y2="20"/><line x1="227" y1="36" x2="227" y2="20"/>
+        <line x1="56" y1="28" x2="231" y2="28"/>
+        <line x1="56" y1="32" x2="64" y2="24"/><line x1="223" y1="32" x2="231" y2="24"/>
+        <line x1="61.5" y1="356" x2="61.5" y2="378"/><line x1="120.5" y1="356" x2="120.5" y2="378"/><line x1="123" y1="356" x2="123" y2="378"/><line x1="226" y1="356" x2="226" y2="378"/>
+        <line x1="58" y1="372" x2="124" y2="372"/><line x1="119" y1="372" x2="230" y2="372"/>
+        <line x1="57.5" y1="376" x2="65.5" y2="368"/><line x1="116.5" y1="376" x2="124.5" y2="368"/><line x1="119" y1="376" x2="127" y2="368"/><line x1="222" y1="376" x2="230" y2="368"/>
+        <line x1="231" y1="53" x2="262" y2="53"/><line x1="231" y1="350" x2="262" y2="350"/>
+        <line x1="256" y1="49" x2="256" y2="354"/>
+        <line x1="252" y1="57" x2="260" y2="49"/><line x1="252" y1="354" x2="260" y2="346"/>
+      </g>
+      <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">
+        <text x="143.5" y="22">1100</text>
+        <text x="91" y="392">395</text>
+        <text x="174.5" y="392">690</text>
+        <text x="268" y="205" transform="rotate(-90 268 205)">1980</text>
+        <text x="92" y="205" opacity=".7" font-size="9">P1</text>
+        <text x="174.5" y="205" opacity=".7" font-size="9">P2</text>
+      </g>
+    </symbol>
+    <!-- Direction B mark: an S drawn as five panes in plan, with the gaps a frameless joint leaves -->
+    <symbol id="mark-pane" viewBox="0 0 48 48">
+      <rect x="9" y="8" width="6" height="19" fill="currentColor"/>
+      <rect x="17" y="8" width="22" height="6" fill="currentColor"/>
+      <rect x="17" y="21" width="14" height="6" fill="#65D5C0"/>
+      <rect x="33" y="21" width="6" height="19" fill="currentColor"/>
+      <rect x="9" y="34" width="22" height="6" fill="currentColor"/>
+    </symbol>
+    <!-- Direction C icon: a dimension with drawing ticks -->
+    <symbol id="mark-line" viewBox="0 0 48 48">
+      <rect x="11" y="13" width="2.4" height="22" fill="currentColor" opacity=".6"/>
+      <rect x="34.6" y="13" width="2.4" height="22" fill="currentColor" opacity=".6"/>
+      <rect x="9" y="22.8" width="30" height="2.4" fill="#65D5C0"/>
+      <rect x="11" y="18" width="2.6" height="12" fill="#65D5C0" transform="rotate(45 12.3 24)"/>
+      <rect x="34.4" y="18" width="2.6" height="12" fill="#65D5C0" transform="rotate(45 35.7 24)"/>
+    </symbol>
+    <!-- The recommended app icon: the first letter and the point -->
+    <symbol id="app-icon" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="23" fill="#101D2B"/>
+      <text x="25" y="68.5" font-family="Space Grotesk, Helvetica Neue, Arial, sans-serif" font-weight="600" font-size="70" letter-spacing="-2" fill="#F3F5F4">s</text>
+      <rect x="62" y="58.5" width="10.5" height="10" fill="#65D5C0"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <span class="wm" aria-label="setout.">setout<i class="pt"></i></span>
+    <span class="what">Brand identity</span>
+    <nav aria-label="Sections">
+      <a href="#idea">Idea</a>
+      <a href="#directions">Directions</a>
+      <a href="#recommendation">Recommendation</a>
+      <a href="#system">System</a>
+      <a href="#applications">Applications</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero" id="idea" style="border-top:0">
+  <div class="wrap">
+    <p class="eyebrow">SetOut · Brand identity · Version 1 · November 2026</p>
+    <h1>Every set‑out starts from a point<i class="pt" aria-hidden="true"></i></h1>
+    <p class="lede">SetOut makes software for the glass industry. Before any pane is cut, someone sets it out: they mark a point, measure a line from it, and order glass to a size. The identity is built from those three things, so it belongs to the trade it serves and looks like none of the companies in it.</p>
+    <div class="triad">
+      <figure>
+        <svg class="dw" viewBox="0 0 300 132" role="img" aria-label="A corner of two walls in plan, with a set-out cross 50 millimetres from the wall and a mint square at its centre">
+          <rect x="20" y="18" width="10" height="104" fill="url(#hatch)" opacity=".5"/>
+          <rect x="20" y="112" width="260" height="10" fill="url(#hatch)" opacity=".5"/>
+          <line class="thick" x1="30" y1="18" x2="30" y2="112"/>
+          <line class="thick" x1="30" y1="112" x2="280" y2="112"/>
+          <line class="thin" x1="66" y1="40" x2="66" y2="100" stroke-dasharray="3 3"/>
+          <line class="thin" x1="44" y1="70" x2="250" y2="70" stroke-dasharray="3 3"/>
+          <rect x="61" y="65" width="10" height="10" fill="#65D5C0"/>
+          <line class="thin" x1="30" y1="36" x2="66" y2="36"/>
+          <line class="thin" x1="26" y1="40" x2="34" y2="32"/><line class="thin" x1="62" y1="40" x2="70" y2="32"/>
+          <text x="48" y="30" text-anchor="middle">50</text>
+          <text x="250" y="60" text-anchor="end" opacity=".7">SET-OUT POINT</text>
+        </svg>
+        <figcaption><b>Point</b>The datum. On site, every measurement starts from a marked point. In the identity it is the square mint full stop at the end of the name.</figcaption>
+      </figure>
+      <figure>
+        <svg class="dw" viewBox="0 0 300 132" role="img" aria-label="A dimension line between two extension lines, with 45 degree ticks and the figure 1100">
+          <line class="thin" x1="40" y1="30" x2="40" y2="112" opacity=".6"/>
+          <line class="thin" x1="260" y1="30" x2="260" y2="112" opacity=".6"/>
+          <line class="thin" x1="34" y1="64" x2="266" y2="64"/>
+          <line x1="34" y1="70" x2="46" y2="58" stroke="#65D5C0" stroke-width="2"/>
+          <line x1="254" y1="70" x2="266" y2="58" stroke="#65D5C0" stroke-width="2"/>
+          <text x="150" y="56" text-anchor="middle" font-size="16">1100</text>
+          <text x="150" y="96" text-anchor="middle" opacity=".7">WIDTH FIRST, THEN HEIGHT</text>
+        </svg>
+        <figcaption><b>Line</b>The dimension. Two ticks and a number turn a guess into a size. It is the drawing language for everything SetOut prints.</figcaption>
+      </figure>
+      <figure>
+        <svg class="dw" viewBox="0 0 300 132" role="img" aria-label="A pane of glass seen at an angle, its cut edge shown in mint">
+          <polygon points="96,22 196,10 196,118 96,124" fill="currentColor" opacity=".07"/>
+          <polygon points="96,22 196,10 196,118 96,124" class="thin"/>
+          <polygon points="196,10 206,14 206,120 196,118" fill="#65D5C0"/>
+          <polygon points="96,22 106,25 206,14 196,10" fill="#65D5C0" opacity=".55"/>
+          <text x="214" y="70" opacity=".7">10 MM EDGE</text>
+        </svg>
+        <figcaption><b>Edge</b>The material. Clear glass shows green at its cut edge. SetOut Mint comes from that edge, and it is used as sparingly as an edge is seen.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="directions">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Three directions</p>
+      <h2>One idea each, the same colours and typefaces</h2>
+      <p class="lede muted">All three use the brief's palette and its three typefaces. They differ in the idea the logo carries, and in how much of each colour they spend.</p>
+    </div>
+
+    <!-- A: POINT -->
+    <article class="dir" id="dir-point" aria-labelledby="dir-point-h">
+      <div class="dir-head">
+        <p class="eyebrow">Direction A · Minimal wordmark</p>
+        <h3 id="dir-point-h">Point</h3>
+        <p>The name in lowercase, ending in a square mint point: the mark a setter-out makes on the floor before anything is fitted. Read aloud it is also an instruction. Set out.</p>
+      </div>
+      <div class="plates">
+        <div class="plate light"><span class="wm" style="font-size:clamp(52px, 8vw, 88px)" role="img" aria-label="setout. wordmark">setout<i class="pt"></i></span><span class="tag">Soft White</span></div>
+        <div class="plate dark"><span class="wm" style="font-size:clamp(52px, 8vw, 88px)" role="img" aria-label="setout. wordmark, reversed">setout<i class="pt"></i></span><span class="tag">Midnight Navy</span></div>
+        <div class="plate light"><svg width="112" height="112" role="img" aria-label="App icon: s and the point"><use href="#app-icon"/></svg><span class="tag">App icon</span></div>
+      </div>
+      <div class="facts">
+        <div class="fact">
+          <h4>Colour</h4>
+          <div class="ratio" aria-hidden="true"><span style="flex:62;background:var(--paper)"></span><span style="flex:26;background:var(--navy)"></span><span style="flex:8;background:var(--slate)"></span><span style="flex:4;background:var(--mint)"></span></div>
+          <p class="ratio-key">Soft White 62 · Navy 26 · Slate 8 · Mint 4</p>
+          <p>Soft White carries the page and Navy does the talking. Mint appears once or twice a screen: the point, the main button, the field you're in.</p>
+        </div>
+        <div class="fact">
+          <h4>Type</h4>
+          <div class="specimen"><span class="big" style="font-family:var(--display);font-weight:600;letter-spacing:-0.04em">measure, design</span><span style="font-size:15px">Inter for everything people read.</span><span class="mono" style="font-size:14px">690 × 1980 mm</span></div>
+          <p>Space Grotesk 600, tight and lowercase for the name and the biggest lines. JetBrains Mono only for sizes.</p>
+        </div>
+        <div class="fact">
+          <h4>Personality</h4>
+          <p style="font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-0.02em;line-height:1.25;margin-bottom:10px">Calm. Exact. Assured.</p>
+          <p>Quiet until it matters. It feels like software that has been around for years and gets measurements right.</p>
+        </div>
+      </div>
+      <div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 700">
+          <div class="canvas ma" style="width:1200px;height:700px" aria-label="Example website in direction A" role="img">
+            <div class="ma-nav">
+              <span class="wm">setout<i class="pt"></i></span>
+              <span class="ma-links"><span>Product</span><span>How it works</span><span>Pricing</span></span>
+              <span class="ma-right"><span>Sign in</span><span class="u-btn">Get started</span></span>
+            </div>
+            <div class="ma-body">
+              <div>
+                <p class="ma-eye">SetOut Showers</p>
+                <p class="ma-h">Measure<i class="pt"></i><br>Design<i class="pt"></i><br>Manufacture<i class="pt"></i></p>
+                <p class="ma-sub">Customers measure and design their own frameless shower on your website. You get a design you can check, quote and send to the toughener.</p>
+                <p class="ma-ctas"><span class="u-btn lg">Get started</span><span class="u-btn line lg">See how it works</span></p>
+              </div>
+              <div class="ma-visual">
+                <div class="ma-sheet">
+                  <div class="head"><span>DS-0148 · Panel and door</span><span>1:20</span></div>
+                  <svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--glass: rgba(101,213,192,.10)"/></svg>
+                </div>
+                <div class="phone ma-phone">
+                  <div class="screen">
+                    <div class="notch"></div>
+                    <div class="scr">
+                      <div class="prog"><span>READING 6 OF 9</span><span>8 / 12</span></div>
+                      <div class="bar"><span style="width:62%"></span></div>
+                      <h5>Left wall, at the bottom</h5>
+                      <p class="t">Hold the tape against the wall at the floor and read where the laser line crosses it.</p>
+                      <svg viewBox="0 0 250 120" class="dw" style="color:var(--navy);height:120px" aria-hidden="true">
+                        <rect x="20" y="6" width="10" height="100" fill="url(#hatch)" opacity=".5"/>
+                        <line class="thick" x1="30" y1="6" x2="30" y2="106"/>
+                        <rect x="20" y="104" width="220" height="8" fill="url(#hatch)" opacity=".5"/>
+                        <line class="thick" x1="20" y1="104" x2="240" y2="104"/>
+                        <line x1="82" y1="4" x2="82" y2="108" stroke="#65D5C0" stroke-width="2" stroke-dasharray="5 4"/>
+                        <rect x="30" y="88" width="64" height="10" fill="#EEC872" stroke="#9A5B00" stroke-width=".8"/>
+                        <text x="56" y="80" text-anchor="middle" font-size="12" font-weight="600">50</text>
+                      </svg>
+                      <p class="lbl">Left wall to the laser, at the floor</p>
+                      <div class="mf"><b>50</b><span>mm</span></div>
+                      <p class="helper">It should read about 50.</p>
+                      <div class="nav"><span class="back">←</span><span class="next">NEXT</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Website, direction A. A pale page, one strong line of type, and the product itself as the picture: the customer's phone and the drawing the company receives.</p>
+      </div>
+    </article>
+
+    <!-- B: PANE -->
+    <article class="dir" id="dir-pane" aria-labelledby="dir-pane-h">
+      <div class="dir-head">
+        <p class="eyebrow">Direction B · Architectural geometry</p>
+        <h3 id="dir-pane-h">Pane</h3>
+        <p>An S drawn as five panes of glass seen from above, with the small gaps a frameless joint leaves between them. The middle pane is mint: the one being designed.</p>
+      </div>
+      <div class="plates">
+        <div class="plate light"><span style="display:inline-flex;align-items:center;gap:.28em;font-size:clamp(46px, 7vw, 76px)" role="img" aria-label="Pane mark with SetOut"><svg class="mk" style="width:1em;height:1em;color:var(--navy)" viewBox="0 0 48 48"><use href="#mark-pane"/></svg><span style="font-family:var(--display);font-weight:700;letter-spacing:-0.04em;line-height:1">SetOut</span></span><span class="tag">Soft White</span></div>
+        <div class="plate dark"><span style="display:inline-flex;align-items:center;gap:.28em;font-size:clamp(46px, 7vw, 76px)" role="img" aria-label="Pane mark with SetOut, reversed"><svg class="mk" style="width:1em;height:1em;color:var(--paper)" viewBox="0 0 48 48"><use href="#mark-pane"/></svg><span style="font-family:var(--display);font-weight:700;letter-spacing:-0.04em;line-height:1">SetOut</span></span><span class="tag">Midnight Navy</span></div>
+        <div class="plate light"><svg width="112" height="112" viewBox="0 0 100 100" role="img" aria-label="App icon: the pane mark"><rect width="100" height="100" rx="23" fill="#101D2B"/><svg x="14" y="14" width="72" height="72" viewBox="0 0 48 48" style="color:#F3F5F4"><use href="#mark-pane"/></svg></svg><span class="tag">App icon</span></div>
+      </div>
+      <div class="facts">
+        <div class="fact">
+          <h4>Colour</h4>
+          <div class="ratio" aria-hidden="true"><span style="flex:58;background:var(--navy)"></span><span style="flex:26;background:var(--paper)"></span><span style="flex:10;background:var(--mint)"></span><span style="flex:6;background:var(--slate)"></span></div>
+          <p class="ratio-key">Navy 58 · Soft White 26 · Mint 10 · Slate 6</p>
+          <p>Navy carries the brand. Mint draws the edges of things: panes, outlines, the line under a link. Soft White is kept for type and product surfaces.</p>
+        </div>
+        <div class="fact">
+          <h4>Type</h4>
+          <div class="specimen"><span class="big" style="font-family:var(--display);font-weight:700;letter-spacing:-0.045em">Design glass</span><span style="font-size:15px">Inter for everything people read.</span><span class="mono" style="font-size:14px">P2 · 690 × 1980 mm</span></div>
+          <p>Space Grotesk 700 in title case, set large and tight. A heavier voice for a brand that leads with a symbol.</p>
+        </div>
+        <div class="fact">
+          <h4>Personality</h4>
+          <p style="font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-0.02em;line-height:1.25;margin-bottom:10px">Architectural. Bold. Product-led.</p>
+          <p>The most visual of the three. It looks like a design tool and wants to be seen on screens and stands.</p>
+        </div>
+      </div>
+      <div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 700">
+          <div class="canvas mb" style="width:1200px;height:700px" role="img" aria-label="Example website in direction B">
+            <div class="mb-nav">
+              <span class="mb-brand"><svg class="mk" width="32" height="32" viewBox="0 0 48 48" style="color:var(--paper)"><use href="#mark-pane"/></svg>SetOut</span>
+              <span class="mb-links"><span>Product</span><span>Industries</span><span>Pricing</span></span>
+              <span class="mb-right"><span>Sign in</span><span class="u-btn">Start free</span></span>
+            </div>
+            <div class="mb-body">
+              <div>
+                <p class="mb-h">The smarter way to design glass.</p>
+                <p class="mb-sub">Configure, measure and design bespoke glass with your customers, then hand the factory a drawing it can cut from.</p>
+                <p class="mb-ctas"><span class="u-btn lg">Start free</span><span class="u-btn line lg" style="color:var(--paper)">Book a demo</span></p>
+                <div class="mb-feats"><div><b>Showers</b>Live now</div><div><b>Balustrades</b>Next</div><div><b>Connect</b>For suppliers</div></div>
+              </div>
+              <div class="mb-art">
+                <svg viewBox="0 0 560 560" width="560" height="560" style="position:absolute;left:0;top:-30px" aria-hidden="true">
+                  <g>
+                    <polygon points="70,170 290,110 290,470 70,530" fill="#F3F5F4" opacity=".05" stroke="#F3F5F4" stroke-opacity=".28"/>
+                    <polygon points="290,110 302,114 302,474 290,470" fill="#65D5C0" opacity=".9"/>
+                    <polygon points="70,170 82,174 302,114 290,110" fill="#65D5C0" opacity=".45"/>
+                  </g>
+                  <g>
+                    <polygon points="160,130 380,70 380,430 160,490" fill="#F3F5F4" opacity=".07" stroke="#F3F5F4" stroke-opacity=".32"/>
+                    <polygon points="380,70 392,74 392,434 380,430" fill="#65D5C0"/>
+                    <polygon points="160,130 172,134 392,74 380,70" fill="#65D5C0" opacity=".5"/>
+                  </g>
+                  <g>
+                    <polygon points="250,90 470,30 470,390 250,450" fill="#F3F5F4" opacity=".1" stroke="#F3F5F4" stroke-opacity=".38"/>
+                    <polygon points="470,30 482,34 482,394 470,390" fill="#65D5C0"/>
+                    <polygon points="250,90 262,94 482,34 470,30" fill="#65D5C0" opacity=".55"/>
+                  </g>
+                </svg>
+                <div class="mb-chip" style="left:330px;top:420px"><small>Pane P2 · Door</small>690 × 1980 mm</div>
+                <div class="mb-chip" style="left:40px;top:40px"><small>Glass</small>10 mm toughened, clear</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Website, direction B. Dark and architectural, with panes stacked like glass at the toughener and their edges in mint. Striking, and the heaviest to keep consistent across every screen.</p>
+      </div>
+    </article>
+
+    <!-- C: LINE -->
+    <article class="dir" id="dir-line" aria-labelledby="dir-line-h">
+      <div class="dir-head">
+        <p class="eyebrow">Direction C · Technical set-out</p>
+        <h3 id="dir-line-h">Line</h3>
+        <p>The name set as a dimension: SETOUT measured between two extension lines, with drawing ticks at each end, exactly as a size sits on a drawing.</p>
+      </div>
+      <div class="plates">
+        <div class="plate light"><span class="dl" style="font-size:clamp(30px, 4.6vw, 50px)" role="img" aria-label="SETOUT set above a dimension line">SETOUT<i class="ln"></i><i class="ex l"></i><i class="ex r"></i><i class="tk l"></i><i class="tk r"></i></span><span class="tag">Soft White</span></div>
+        <div class="plate dark"><span class="dl" style="font-size:clamp(30px, 4.6vw, 50px)" role="img" aria-label="SETOUT set above a dimension line, reversed">SETOUT<i class="ln"></i><i class="ex l"></i><i class="ex r"></i><i class="tk l"></i><i class="tk r"></i></span><span class="tag">Midnight Navy</span></div>
+        <div class="plate light"><svg width="112" height="112" viewBox="0 0 100 100" role="img" aria-label="App icon: a dimension with ticks"><rect width="100" height="100" rx="23" fill="#101D2B"/><svg x="10" y="10" width="80" height="80" viewBox="0 0 48 48" style="color:#F3F5F4"><use href="#mark-line"/></svg></svg><span class="tag">App icon</span></div>
+      </div>
+      <div class="facts">
+        <div class="fact">
+          <h4>Colour</h4>
+          <div class="ratio" aria-hidden="true"><span style="flex:70;background:var(--navy)"></span><span style="flex:16;background:var(--paper)"></span><span style="flex:10;background:var(--slate)"></span><span style="flex:4;background:var(--mint)"></span></div>
+          <p class="ratio-key">Navy 70 · Soft White 16 · Slate 10 · Mint 4</p>
+          <p>A blueprint. Navy ground with a faint drafting grid, Soft White linework, Slate for construction lines, Mint for live values and the laser line.</p>
+        </div>
+        <div class="fact">
+          <h4>Type</h4>
+          <div class="specimen"><span class="big mono" style="font-size:28px;letter-spacing:.06em">MEASURE 1:20</span><span style="font-size:15px">Inter for paragraphs only.</span><span style="font-family:var(--display);font-size:18px;font-weight:600">Space Grotesk for headlines</span></div>
+          <p>JetBrains Mono leads: labels, figures, navigation. The other two support it.</p>
+        </div>
+        <div class="fact">
+          <h4>Personality</h4>
+          <p style="font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-0.02em;line-height:1.25;margin-bottom:10px">Engineered. Rigorous. Transparent.</p>
+          <p>It shows its working. Installers and factories will trust it at once; a customer on their phone may find it cold.</p>
+        </div>
+      </div>
+      <div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 700">
+          <div class="canvas mc" style="width:1200px;height:700px" role="img" aria-label="Example website in direction C">
+            <div class="mc-nav">
+              <span class="dl">SETOUT<i class="ln"></i><i class="ex l"></i><i class="ex r"></i><i class="tk l"></i><i class="tk r"></i></span>
+              <span class="mc-links"><span>PRODUCT</span><span>DRAWINGS</span><span>PRICING</span></span>
+              <span class="mc-right"><span class="u-btn">REQUEST ACCESS</span></span>
+            </div>
+            <div class="mc-body">
+              <div>
+                <p class="mc-eye">DWG 001 · SETOUT SHOWERS</p>
+                <p class="mc-h">Precision starts here.</p>
+                <p class="mc-sub">Every reading your customer takes becomes a dimensioned drawing your toughener can cut from. Every size is worked out twice.</p>
+                <p class="mc-ctas"><span class="u-btn lg">See a drawing</span><span class="u-btn line lg">How it measures</span></p>
+                <p style="margin-top:44px;display:flex;align-items:center;gap:12px;font:500 11px var(--mono);letter-spacing:.12em;color:var(--slate-light)"><i style="width:30px;border-top:2px dashed var(--mint);display:inline-block"></i>LASER LINE, 50 OFF THE WALL</p>
+              </div>
+              <div class="mc-draw">
+                <svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--laser:#65D5C0;--glass:rgba(243,245,244,.05)"/></svg>
+              </div>
+            </div>
+            <div class="mc-tb">
+              <div><small>PROJECT</small>SetOut Showers</div>
+              <div><small>DRAWING</small>Panel and door, elevation</div>
+              <div><small>SCALE</small>1:20</div>
+              <div><small>REV</small>A</div>
+              <div><small>DATE</small>11.2026</div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Website, direction C. A blueprint with a title block for a footer. It is the most convincing to a factory and the least welcoming to a homeowner.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section id="recommendation">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Recommendation</p>
+      <h2>Point, drawn in Line's language</h2>
+      <p class="lede">Point is the identity. Line becomes the drawing language for everything professional users print, check and send to a factory. Edge stays as the reason the brand is mint.</p>
+    </div>
+    <div class="verdict">
+      <ul class="reasons">
+        <li><span><b>It looks established on day one.</b> Six letters and one square. Brands that have been around for years reduce to a name and one owned detail; startups reach for symbols.</span></li>
+        <li><span><b>The point works for a living.</b> In the product it marks the step you are on, the field you are filling in and the figure that matters. The logo's detail and the interface's signal are the same thing.</span></li>
+        <li><span><b>It holds at every size.</b> The app icon is the first letter and the point. It reads in a 16 px browser tab and on the side of a van, with no second logo to manage.</span></li>
+        <li><span><b>It leaves the industry open.</b> There is no pane, door or shower in it, so SetOut Balustrades and SetOut Connect sit under it as naturally as SetOut Showers.</span></li>
+        <li><span><b>Line covers its one weakness.</b> Point is light on technical depth. Dimension lines, drawing ticks, mono figures and title blocks give the sheets, quotes and drawings the authority a factory expects.</span></li>
+      </ul>
+      <div>
+        <div class="compare-wrap">
+          <table class="compare">
+            <caption class="sr">How the three directions meet the brief</caption>
+            <thead><tr><th scope="col">Against the brief</th><th scope="col" class="win">Point</th><th scope="col">Pane</th><th scope="col">Line</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Simple to remember</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td></tr>
+              <tr><th scope="row">Clear at 16 px</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq" aria-hidden="true"></span><span class="sr">Weak</span></td></tr>
+              <tr><th scope="row">Works as an app icon</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td></tr>
+              <tr><th scope="row">Feels established</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td></tr>
+              <tr><th scope="row">Room for other glass products</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td></tr>
+              <tr><th scope="row">Welcoming to customers</th><td class="win"><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td></tr>
+              <tr><th scope="row">Ownable on its own</th><td class="win"><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td></tr>
+              <tr><th scope="row">Technical depth</th><td class="win"><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq half" aria-hidden="true"></span><span class="sr">Partly</span></td><td><span class="sq full" aria-hidden="true"></span><span class="sr">Strong</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="legend"><span><i class="sq full"></i>Strong</span><span><i class="sq half"></i>Partly</span><span><i class="sq"></i>Weak</span></div>
+        <p class="cap">Point's two partial marks are where the system does the work: the square point is registered as the distinctive asset, and Line's drawing language supplies the technical depth.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="system">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">The brand system</p>
+      <h2>setout<i class="pt" aria-hidden="true"></i> as a working system</h2>
+      <p class="lede muted">The rules that keep the identity the same on a website, a measuring card on a phone, a glass order and a van.</p>
+    </div>
+
+    <div class="sub" style="margin-top:0">
+      <h3>Logo</h3>
+      <p class="lede">The wordmark is the logo. The point is square, as wide as the letters' stems, on the baseline, one stem's width from the t. In sentences the name is written SetOut; lowercase is for the logo only.</p>
+      <div class="grid-2">
+        <div class="plate light" style="min-height:240px"><span class="wm" style="font-size:clamp(56px, 9vw, 110px)" role="img" aria-label="setout. on Soft White">setout<i class="pt"></i></span><span class="tag">Primary · Navy on Soft White</span></div>
+        <div class="plate dark" style="min-height:240px"><span class="wm" style="font-size:clamp(56px, 9vw, 110px)" role="img" aria-label="setout. on Midnight Navy">setout<i class="pt"></i></span><span class="tag">Reversed · Soft White on Navy</span></div>
+        <div class="plate white" style="min-height:180px"><span style="display:grid;gap:14px;justify-items:start" role="img" aria-label="setout. with the tagline"><span class="wm" style="font-size:clamp(42px, 10vw, 56px)">setout<i class="pt"></i></span><span style="font-family:var(--display);font-weight:500;font-size:19px;letter-spacing:-0.01em;color:var(--slate-deep)">Measure. Design. Manufacture.</span></span><span class="tag">With the tagline</span></div>
+        <div class="plate mintbg on-mint" style="min-height:180px"><span class="wm" style="font-size:clamp(46px, 12vw, 72px)" role="img" aria-label="setout. on SetOut Mint, with a navy point">setout<i class="pt"></i></span><span class="tag">On Mint the point turns Navy</span></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div class="plate white" style="place-items:start;padding:30px">
+          <div class="lockups" role="img" aria-label="Product lockups: setout. showers, balustrades, design, connect">
+            <span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">showers</span></span>
+            <span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">balustrades</span></span>
+            <span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">design</span></span>
+            <span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">connect</span></span>
+          </div>
+          <span class="tag">Product names</span>
+        </div>
+        <div class="plate dark" style="place-items:start;padding:30px;align-content:start">
+          <div class="icons-row" role="img" aria-label="App icon at 160, 96, 64, 32 and 16 pixels">
+            <figure><svg width="160" height="160"><use href="#app-icon"/></svg><figcaption>1024</figcaption></figure>
+            <figure><svg width="96" height="96"><use href="#app-icon"/></svg><figcaption>180</figcaption></figure>
+            <figure><svg width="64" height="64"><use href="#app-icon"/></svg><figcaption>64</figcaption></figure>
+            <figure><svg width="32" height="32"><use href="#app-icon"/></svg><figcaption>32</figcaption></figure>
+            <figure><svg width="16" height="16"><use href="#app-icon"/></svg><figcaption>16</figcaption></figure>
+          </div>
+          <span class="tag">App icon and favicon</span>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px;align-items:start">
+        <div class="plate white construct">
+          <span class="clear" role="img" aria-label="Construction: clear space equal to the height of the o on every side of the wordmark">
+            <span class="wm">setout<i class="pt"></i></span>
+            <i class="xm t" aria-hidden="true"><b>x</b></i>
+            <i class="xm l" aria-hidden="true"><b>x</b></i>
+          </span>
+          <span class="tag">Construction · x = the height of the o</span>
+        </div>
+        <div style="display:grid;gap:18px">
+          <ul class="rules">
+            <li>Clear space is the height of the o on every side. Nothing else enters it.</li>
+            <li>Smallest wordmark: 72 px wide on screen, 18 mm in print. Below that, use the app icon.</li>
+            <li>Navy on light grounds, Soft White on dark ones. The point is always Mint, except on Mint, where it turns Navy.</li>
+            <li>Product names follow in Space Grotesk Regular, in Slate Grey, separated by a word space.</li>
+            <li>The logo files are drawn as outlines, so they never depend on a font being installed.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="misuse" style="margin-top:12px">
+        <figure><div class="plate light"><span class="wm" style="font-size:40px">setout<i class="pt" style="border-radius:50%"></i></span></div><figcaption><b>Don't</b> round the point.</figcaption></figure>
+        <figure><div class="plate light"><span class="wm" style="font-size:40px;color:var(--mint)">setout<i class="pt"></i></span></div><figcaption><b>Don't</b> set the letters in Mint.</figcaption></figure>
+        <figure><div class="plate light"><span class="wm" style="font-size:40px;font-family:var(--display);text-transform:uppercase;letter-spacing:.02em">SetOut<i class="pt"></i></span></div><figcaption><b>Don't</b> change the case or spacing.</figcaption></figure>
+        <figure><div class="plate light"><span class="wm" style="font-size:40px;text-shadow:0 4px 10px rgba(16,29,43,.45);transform:scaleX(1.25)">setout<i class="pt"></i></span></div><figcaption><b>Don't</b> stretch it or add effects.</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>Colour</h3>
+      <p class="lede">The four colours from the brief, each with a job. Mint is a signal, never a surface for text: it reads 9.6 to 1 against Navy and 1.6 to 1 against Soft White, so on light grounds its text work goes to Mint Deep.</p>
+      <div class="swatches">
+        <div class="swatch"><div class="chipc" style="background:var(--navy)"></div><div class="info"><b>Midnight Navy</b><span class="mono">#101D2B · 16 29 43</span><span>The voice: logo, headings, dark interfaces.</span><button type="button" data-copy="#101D2B">Copy hex</button></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--mint)"></div><div class="info"><b>SetOut Mint</b><span class="mono">#65D5C0 · 101 213 192</span><span>The signal: the point, main actions, focus.</span><button type="button" data-copy="#65D5C0">Copy hex</button></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--paper);box-shadow:inset 0 -1px 0 var(--hair)"></div><div class="info"><b>Soft White</b><span class="mono">#F3F5F4 · 243 245 244</span><span>The ground: pages and workspaces.</span><button type="button" data-copy="#F3F5F4">Copy hex</button></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--slate)"></div><div class="info"><b>Slate Grey</b><span class="mono">#65717D · 101 113 125</span><span>Support: secondary text, borders, lines.</span><button type="button" data-copy="#65717D">Copy hex</button></div></div>
+      </div>
+      <p class="eyebrow" style="margin:28px 0 12px">Supporting colours, for interfaces</p>
+      <div class="swatches small">
+        <div class="swatch"><div class="chipc" style="background:var(--mint-deep)"></div><div class="info"><b>Mint Deep</b><span class="mono">#1C776C</span><span>Links and icons on light grounds.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--mint-wash)"></div><div class="info"><b>Mint Wash</b><span class="mono">#DDF4EF</span><span>Selected rows, new items.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--navy-raised)"></div><div class="info"><b>Navy Raised</b><span class="mono">#16263A</span><span>Panels on dark interfaces.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--slate-light)"></div><div class="info"><b>Slate Light</b><span class="mono">#A3AEB8</span><span>Secondary text on Navy.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--hair)"></div><div class="info"><b>Hairline</b><span class="mono">#DCE2E0</span><span>Borders and rules on light grounds.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--slate-deep)"></div><div class="info"><b>Slate Deep</b><span class="mono">#5A6570</span><span>Small secondary text on light.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--ok)"></div><div class="info"><b>Done</b><span class="mono">#1E7B45</span><span>Ordered, fitted. Always with a label.</span></div></div>
+        <div class="swatch"><div class="chipc" style="background:var(--bad)"></div><div class="info"><b>Stop</b><span class="mono">#B42318</span><span>Errors, refused sizes. Always with a label.</span></div></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:28px;align-items:start">
+        <div>
+          <p class="eyebrow" style="margin-bottom:12px">How much of each</p>
+          <div class="fact">
+            <h4 style="margin-bottom:8px">Product and website</h4>
+            <div class="ratio" aria-hidden="true"><span style="flex:62;background:var(--paper)"></span><span style="flex:26;background:var(--navy)"></span><span style="flex:8;background:var(--slate)"></span><span style="flex:4;background:var(--mint)"></span></div>
+            <p class="ratio-key">Soft White 62 · Navy 26 · Slate 8 · Mint 4</p>
+            <h4 style="margin:18px 0 8px">Brand moments: slides, social, stands</h4>
+            <div class="ratio" aria-hidden="true"><span style="flex:64;background:var(--navy)"></span><span style="flex:24;background:var(--paper)"></span><span style="flex:6;background:var(--slate)"></span><span style="flex:6;background:var(--mint)"></span></div>
+            <p class="ratio-key">Navy 64 · Soft White 24 · Slate 6 · Mint 6</p>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table class="data">
+            <caption class="sr">Contrast of each colour pairing</caption>
+            <thead><tr><th scope="col">Pairing</th><th scope="col">Ratio</th><th scope="col">Use it for</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pair" style="background:var(--paper);color:var(--navy);box-shadow:inset 0 0 0 1px var(--hair)">Aa</span></td><td class="mono">15.56</td><td class="verdict-ok">All text</td></tr>
+              <tr><td><span class="pair" style="background:var(--mint);color:var(--navy)">Aa</span></td><td class="mono">9.60</td><td class="verdict-ok">Main buttons: Navy on Mint</td></tr>
+              <tr><td><span class="pair" style="background:var(--navy);color:var(--mint)">Aa</span></td><td class="mono">9.60</td><td class="verdict-ok">Highlights on dark grounds</td></tr>
+              <tr><td><span class="pair" style="background:var(--navy);color:var(--slate-light)">Aa</span></td><td class="mono">7.55</td><td class="verdict-ok">Secondary text on Navy</td></tr>
+              <tr><td><span class="pair" style="background:var(--paper);color:var(--slate-deep);box-shadow:inset 0 0 0 1px var(--hair)">Aa</span></td><td class="mono">5.43</td><td class="verdict-ok">Small secondary text</td></tr>
+              <tr><td><span class="pair" style="background:var(--paper);color:var(--mint-deep);box-shadow:inset 0 0 0 1px var(--hair)">Aa</span></td><td class="mono">4.91</td><td class="verdict-ok">Links on light grounds</td></tr>
+              <tr><td><span class="pair" style="background:var(--paper);color:var(--slate);box-shadow:inset 0 0 0 1px var(--hair)">Aa</span></td><td class="mono">4.55</td><td class="verdict-ok">Secondary text, 14 px and up</td></tr>
+              <tr><td><span class="pair" style="background:var(--navy);color:var(--slate)">Aa</span></td><td class="mono">3.42</td><td class="verdict-no">Lines and large text only</td></tr>
+              <tr><td><span class="pair" style="background:var(--paper);color:var(--mint);box-shadow:inset 0 0 0 1px var(--hair)">Aa</span></td><td class="mono">1.62</td><td class="verdict-no">Never for text. Shapes only</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="cap">Print matches for the four brand colours should be chosen against printed proofs rather than converted, because Mint shifts on uncoated stock.</p>
+    </div>
+
+    <div class="sub">
+      <h3>Typography</h3>
+      <p class="lede">The brief's three typefaces, each with one job. Space Grotesk speaks, Inter explains, JetBrains Mono measures.</p>
+      <div class="typescale">
+        <div class="row"><div class="spec">Display<br>Space Grotesk 600<br>64 / 64 · −0.04em</div><div class="sample" style="font-family:var(--display);font-weight:600;font-size:clamp(36px, 5.5vw, 64px);line-height:1;letter-spacing:-0.04em">Measure<i class="pt"></i> Design<i class="pt"></i> Manufacture<i class="pt"></i></div></div>
+        <div class="row"><div class="spec">Heading 1<br>Space Grotesk 600<br>44 / 48 · −0.03em</div><div class="sample" style="font-family:var(--display);font-weight:600;font-size:clamp(30px, 4vw, 44px);line-height:1.1;letter-spacing:-0.03em">Glass design, simplified.</div></div>
+        <div class="row"><div class="spec">Heading 2<br>Space Grotesk 600<br>30 / 36 · −0.02em</div><div class="sample" style="font-family:var(--display);font-weight:600;font-size:clamp(24px, 3vw, 30px);line-height:1.2;letter-spacing:-0.02em">From measurement to manufacture.</div></div>
+        <div class="row"><div class="spec">Heading 3<br>Space Grotesk 600<br>20 / 28 · −0.015em</div><div class="sample" style="font-family:var(--display);font-weight:600;font-size:20px;line-height:1.4;letter-spacing:-0.015em">How the glass is arranged</div></div>
+        <div class="row"><div class="spec">Body<br>Inter 400<br>16 / 26</div><div class="sample" style="font-size:16px;line-height:1.62;max-width:60ch">Hold the tape against the wall at the floor and read where the laser line crosses it. It should read about 50.</div></div>
+        <div class="row"><div class="spec">Small<br>Inter 400<br>14 / 22</div><div class="sample" style="font-size:14px;line-height:1.57;color:var(--muted)">Every size is worked out again on the server before anyone checks it.</div></div>
+        <div class="row"><div class="spec">Label<br>JetBrains Mono 500<br>12 / 16 · +0.1em · caps</div><div class="sample mono" style="font-size:12px;letter-spacing:.1em;font-weight:500">READING 6 OF 9</div></div>
+        <div class="row"><div class="spec">Size<br>JetBrains Mono 500<br>15 / 22 · tabular</div><div class="sample mono" style="font-size:15px;font-weight:500">P2 Door · 690 × 1980 mm · 10 mm toughened</div></div>
+        <div class="row"><div class="spec">Measuring field<br>JetBrains Mono 500<br>40 / 48 · tabular</div><div class="sample mono" style="font-size:40px;font-weight:500;line-height:1.2">1100 <span style="font-size:18px;color:var(--muted)">mm</span></div></div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>Drawing language</h3>
+      <p class="lede">Borrowed from Direction C and used wherever SetOut shows a size. It gives the product its technical authority without a single extra colour.</p>
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-ill" aria-hidden="true">
+            <ol class="steps" style="font-size:13px"><li class="done">Shape</li><li class="done">Measure</li><li class="on">Arrange</li></ol>
+            <span class="mono" style="font-size:15px;font-weight:500;display:inline-flex;align-items:center;gap:9px"><i style="width:8px;height:8px;background:var(--mint);display:inline-block"></i>690 × 1980 mm</span>
+          </div>
+          <h4>Point</h4>
+          <p>Marks the one thing that matters now: the step you're on, the field being filled in, the size just worked out. Never more than one per view.</p>
+        </div>
+        <div class="tile">
+          <svg class="dw" viewBox="0 0 220 110" aria-hidden="true">
+            <line class="thin" x1="30" y1="34" x2="30" y2="96" opacity=".6"/><line class="thin" x1="190" y1="34" x2="190" y2="96" opacity=".6"/>
+            <line class="thin" x1="24" y1="62" x2="196" y2="62"/>
+            <line class="thin" x1="26" y1="66" x2="34" y2="58"/><line class="thin" x1="186" y1="66" x2="194" y2="58"/>
+            <text x="110" y="54" text-anchor="middle" font-size="12">690</text>
+          </svg>
+          <h4>Line</h4>
+          <p>Dimension lines with 45° ticks, never arrowheads. One-pixel lines, the figure above the line, units said once per drawing.</p>
+        </div>
+        <div class="tile">
+          <svg class="dw" viewBox="0 0 220 110" aria-hidden="true">
+            <defs><pattern id="g5" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" fill="none" stroke="currentColor" stroke-width=".5" opacity=".25"/></pattern><pattern id="g50" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="currentColor" stroke-width=".8" opacity=".35"/></pattern></defs>
+            <rect x="10" y="8" width="200" height="94" fill="url(#g5)"/><rect x="10" y="8" width="200" height="94" fill="url(#g50)"/>
+            <rect x="60" y="22" width="46" height="70" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="110" y="22" width="76" height="70" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <h4>Grid</h4>
+          <p>A faint drafting grid behind drawings and technical screens only. Never behind paragraphs, never on marketing photography.</p>
+        </div>
+        <div class="tile">
+          <svg class="dw" viewBox="0 0 220 110" aria-hidden="true">
+            <rect x="12" y="30" width="196" height="64" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <line class="thin" x1="12" y1="62" x2="208" y2="62"/><line class="thin" x1="110" y1="30" x2="110" y2="94"/><line class="thin" x1="160" y1="62" x2="160" y2="94"/>
+            <text x="18" y="42" font-size="7" opacity=".7">DRAWING</text><text x="18" y="55" font-size="10">DS-0148-P2</text>
+            <text x="116" y="42" font-size="7" opacity=".7">PANE</text><text x="116" y="55" font-size="10">Door</text>
+            <text x="18" y="74" font-size="7" opacity=".7">GLASS</text><text x="18" y="87" font-size="10">10 mm clear</text>
+            <text x="116" y="74" font-size="7" opacity=".7">SCALE</text><text x="116" y="87" font-size="10">1:15</text>
+            <text x="166" y="74" font-size="7" opacity=".7">REV</text><text x="166" y="87" font-size="10">A</text>
+          </svg>
+          <h4>Title block</h4>
+          <p>Bottom right of every drawing: what it is, which pane, the glass, the scale, the revision and who checked it.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>Voice</h3>
+      <p class="lede">Confident, clear and specific, in the words the trade already uses. SetOut sounds like the best estimator you've worked with.</p>
+      <div class="voice">
+        <div class="say">
+          <h4>Tagline</h4>
+          <p class="tag-l">Measure<i class="pt"></i> Design<i class="pt"></i> Manufacture<i class="pt"></i></p>
+          <h4 style="margin-top:8px">Supporting lines</h4>
+          <p style="font-family:var(--display);font-size:20px;font-weight:500;letter-spacing:-0.015em;line-height:1.45">The smarter way to design glass.<br>From measurement to manufacture.<br>Glass design, simplified.<br>Precision starts here.</p>
+          <h4 style="margin-top:8px">Sizes</h4>
+          <p style="font-size:15px">Width first, then height: <span class="mono">690 × 1980 mm</span>. A space before mm, the × sign and never the letter x, whole millimetres, and degrees with no space: <span class="mono">90°</span>.</p>
+        </div>
+        <div class="say">
+          <h4>Write it like this</h4>
+          <ul class="pairs">
+            <li><span class="yes">Measure the left wall at the floor.</span><span class="no">Input left wall bottom measurement value.</span></li>
+            <li><span class="yes">We'll check every size before glass is ordered.</span><span class="no">Our AI-powered engine guarantees perfect accuracy.</span></li>
+            <li><span class="yes">Send to the toughener</span><span class="no">Export fabrication data</span></li>
+            <li><span class="yes">That door would weigh 52 kg. Two Vienna hinges hold 45 kg, so it needs three.</span><span class="no">Error: weight limit exceeded.</span></li>
+          </ul>
+          <p style="font-size:14px;color:var(--muted)">Short sentences, British spelling, and the trade's own words: pane, toughened, cut-out, notch, hinge side, set-out.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>Interface</h3>
+      <p class="lede">The parts every SetOut screen is built from. Navy text on Mint for the main action, large measuring fields, and the point marking where you are.</p>
+      <div class="ui-plates">
+        <div class="plate white">
+          <span class="ui-label">On light</span>
+          <div class="ui-row"><span class="u-btn">Send my design</span><span class="u-btn line">Back</span><span style="color:var(--mint-deep);font-weight:600;font-size:15px">Skip for now</span></div>
+          <ol class="steps"><li class="done">Shape</li><li class="done">Measure</li><li class="on">Arrange</li><li>Hardware</li><li>Send</li></ol>
+          <div class="field"><span class="q">Left wall, at the floor</span><div class="mfield focus"><span class="v">50</span><span class="u">mm</span></div><span class="hint">It should read about 50.</span></div>
+          <div class="ui-row"><span class="u-chip new">New</span><span class="u-chip check">To check</span><span class="u-chip quoted">Quoted</span><span class="u-chip ordered">Ordered</span><span class="u-chip fitted">Fitted</span></div>
+        </div>
+        <div class="plate dark">
+          <span class="ui-label">On dark</span>
+          <div class="ui-row"><span class="u-btn">Send my design</span><span class="u-btn line">Back</span><span style="color:var(--mint);font-weight:600;font-size:15px">Skip for now</span></div>
+          <ol class="steps"><li class="done">Shape</li><li class="done">Measure</li><li class="on">Arrange</li><li>Hardware</li><li>Send</li></ol>
+          <div class="field"><span class="q">Right wall, at the top</span><div class="mfield" style="border-color:var(--slate)"><span class="v">48</span><span class="u">mm</span></div><span class="hint" style="color:var(--slate-light)">The wall leans 2 mm in over the height of the glass.</span></div>
+          <div style="background:var(--navy-raised);border:1px solid var(--navy-line);border-radius:6px;padding:14px 16px;display:grid;gap:6px;max-width:360px">
+            <span class="ui-label" style="opacity:1;color:var(--slate-light)">Glass sizes</span>
+            <span style="display:flex;justify-content:space-between;font-size:14px"><span>P1 Fixed</span><span class="mono">395 × 1980 mm</span></span>
+            <span style="display:flex;justify-content:space-between;font-size:14px"><span>P2 Door</span><span class="mono">690 × 1980 mm</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="applications">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Applications</p>
+      <h2>The system at work</h2>
+      <p class="lede muted">Nine places the identity has to hold, from the website to a glass order. The jobs, names and prices in them are examples.</p>
+    </div>
+    <div class="apps">
+
+      <!-- 1 Website -->
+      <div>
+        <div class="app-head"><h3>Main company website</h3><p>Point's calm front page, with Line's drawing doing the technical persuading lower down.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 1420">
+          <div class="canvas w1" style="width:1200px;height:1420px" role="img" aria-label="SetOut website home page">
+            <div class="ma-nav"><span class="wm">setout<i class="pt"></i></span><span class="ma-links"><span>Product</span><span>How it works</span><span>Pricing</span></span><span class="ma-right"><span>Sign in</span><span class="u-btn">Get started</span></span></div>
+            <div class="w1-hero">
+              <div style="padding-top:24px">
+                <p class="ma-eye">Software for the glass industry</p>
+                <p class="ma-h" style="font-size:66px">Glass design, simplified<i class="pt"></i></p>
+                <p class="ma-sub">Your customers measure and design bespoke glass on your website. SetOut checks every size and turns the design into the paperwork your workshop and toughener need.</p>
+                <p class="ma-ctas"><span class="u-btn lg">Get started</span><span class="u-btn line lg">See a glass order</span></p>
+              </div>
+              <div style="position:relative;height:470px">
+                <div class="ma-sheet" style="left:40px;top:0;width:330px;height:460px;transform:rotate(-2deg)"><div class="head"><span>Glass order · P2</span><span>1:15</span></div><svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--laser:#65D5C0"/></svg></div>
+                <div class="ma-sheet" style="left:230px;top:40px;width:330px;height:420px"><div class="head"><span>DS-0148</span><span>Checked</span></div>
+                  <div style="display:grid;gap:10px;margin-top:14px;font-size:13px">
+                    <div style="font:600 20px var(--display);letter-spacing:-0.02em">Panel and door</div>
+                    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--hair);padding-bottom:8px"><span>P1 Fixed</span><span class="mono">395 × 1980 mm</span></div>
+                    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--hair);padding-bottom:8px"><span>P2 Door</span><span class="mono">690 × 1980 mm</span></div>
+                    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--hair);padding-bottom:8px"><span>Hinges</span><span class="mono">GEN180CH × 2</span></div>
+                    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--hair);padding-bottom:8px"><span>Handle</span><span class="mono">BM8X8CH</span></div>
+                    <div style="display:flex;justify-content:space-between"><span>Glass</span><span class="mono">10 mm toughened</span></div>
+                    <div style="margin-top:12px;display:flex;gap:8px"><span class="u-btn sm">Send quote</span><span class="u-btn line sm">Glass order</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="w1-band">
+              <p class="ma-eye">How it works</p>
+              <h6>From measurement to manufacture.</h6>
+              <div class="w1-steps">
+                <div class="w1-step">
+                  <svg viewBox="0 0 300 120" class="dw" aria-hidden="true"><rect x="20" y="10" width="10" height="100" fill="url(#hatch)" opacity=".5"/><line class="thick" x1="30" y1="10" x2="30" y2="110"/><line x1="90" y1="6" x2="90" y2="114" stroke="#65D5C0" stroke-width="2" stroke-dasharray="5 4"/><line class="thin" x1="30" y1="60" x2="90" y2="60"/><line class="thin" x1="26" y1="64" x2="34" y2="56"/><line class="thin" x1="86" y1="64" x2="94" y2="56"/><text x="60" y="52" text-anchor="middle">50</text></svg>
+                  <span class="n">01 · MEASURE</span><b>One reading per card</b>
+                  <p>The customer measures with a laser or a tape, guided card by card, with a picture of exactly where to hold it.</p>
+                </div>
+                <div class="w1-step">
+                  <svg viewBox="0 0 300 120" class="dw" aria-hidden="true"><line class="thick" x1="40" y1="96" x2="150" y2="96"/><line class="thick" x1="154" y1="96" x2="260" y2="96"/><path d="M154 96 A 106 106 0 0 1 260 -10" fill="none" stroke="currentColor" stroke-dasharray="3 3" opacity=".5"/><rect x="148" y="90" width="12" height="12" fill="#65D5C0"/><text x="95" y="86" text-anchor="middle">395</text><text x="207" y="86" text-anchor="middle">690</text></svg>
+                  <span class="n">02 · DESIGN</span><b>Every size worked out twice</b>
+                  <p>They choose the layout, glass and hardware. SetOut works out every pane in the browser and again on the server.</p>
+                </div>
+                <div class="w1-step">
+                  <svg viewBox="0 0 300 120" class="dw" aria-hidden="true"><rect x="30" y="14" width="66" height="92" fill="#fff" stroke="currentColor"/><rect x="117" y="14" width="66" height="92" fill="#fff" stroke="currentColor"/><rect x="204" y="14" width="66" height="92" fill="#fff" stroke="currentColor"/><rect x="44" y="28" width="22" height="58" fill="none" stroke="currentColor" stroke-width=".8"/><rect x="68" y="28" width="16" height="58" fill="none" stroke="currentColor" stroke-width=".8"/><line class="thin" x1="128" y1="34" x2="172" y2="34"/><line class="thin" x1="128" y1="46" x2="166" y2="46"/><line class="thin" x1="128" y1="58" x2="170" y2="58"/><rect x="216" y="28" width="42" height="58" fill="none" stroke="currentColor" stroke-width=".8"/><rect x="250" y="90" width="12" height="10" fill="#65D5C0"/></svg>
+                  <span class="n">03 · MANUFACTURE</span><b>Three documents, one design</b>
+                  <p>A checked design becomes the glass order for the toughener, the making sheet and the installation sheet.</p>
+                </div>
+              </div>
+            </div>
+            <div class="w1-fam">
+              <div><span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">showers</span></span><p>Frameless shower enclosures, measured by the customer.</p><span class="soon">Live</span></div>
+              <div><span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">balustrades</span></span><p>Glass balustrades and Juliet balconies.</p><span class="soon">Planned</span></div>
+              <div><span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">design</span></span><p>Technical drawing for any glass product.</p><span class="soon">Planned</span></div>
+              <div><span class="lockup"><span class="wm">setout<i class="pt"></i></span><span class="prod">connect</span></span><p>Orders straight to suppliers and toughening plants.</p><span class="soon">Planned</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Dashboard -->
+      <div>
+        <div class="app-head"><h3>Software dashboard</h3><p>The workspace a shower company runs its jobs from. Navy for the frame, Soft White for the work, the point for where you are.</p></div>
+        <div class="stage" data-w="1280" style="--ar: 1280 / 780">
+          <div class="canvas db" style="width:1280px;height:780px" role="img" aria-label="SetOut workspace: list of jobs with one open">
+            <aside class="db-side">
+              <span class="wm">setout<i class="pt"></i></span>
+              <div class="db-co"><span><small>Company</small>Demo Showers</span><span style="color:var(--slate-light)">⌄</span></div>
+              <span class="db-nav on">Jobs<span class="n">3 new</span></span>
+              <span class="db-nav">Quotes</span>
+              <span class="db-nav">Glass orders</span>
+              <span class="db-nav">CRL order</span>
+              <span class="db-nav">Team</span>
+              <span class="db-nav">Settings</span>
+            </aside>
+            <div class="db-main">
+              <div class="db-top"><h6>Jobs</h6><span class="db-search">Search jobs</span></div>
+              <div class="db-filters"><span class="on">All<b>24</b></span><span>New<b>3</b></span><span>To check<b>2</b></span><span>Quoted<b>6</b></span><span>Ordered<b>4</b></span></div>
+              <div class="db-table">
+                <div class="db-row h"><span>Ref</span><span>Customer</span><span>Layout</span><span>Stage</span><span>In</span></div>
+                <div class="db-row sel"><span class="ref">DS-0148</span><span>Asha Patel</span><span class="muted2">Panel and door · 10 mm</span><span><span class="u-chip new">New</span></span><span class="d">12 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0147</span><span>Tom Hughes</span><span class="muted2">Walk-in screen · 8 mm</span><span><span class="u-chip check">To check</span></span><span class="d">11 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0146</span><span>Priya Shah</span><span class="muted2">Door only · 10 mm</span><span><span class="u-chip quoted">Quoted</span></span><span class="d">10 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0145</span><span>Ellen Ward</span><span class="muted2">Corner door and panel · 10 mm</span><span><span class="u-chip ordered">Ordered</span></span><span class="d">8 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0144</span><span>Ravi Kumar</span><span class="muted2">Sliding door · 10 mm</span><span><span class="u-chip check">To check</span></span><span class="d">7 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0143</span><span>Joe Bennett</span><span class="muted2">Bath screen · 8 mm</span><span><span class="u-chip fitted">Fitted</span></span><span class="d">5 Nov</span></div>
+                <div class="db-row"><span class="ref">DS-0142</span><span>Mina Okafor</span><span class="muted2">Panel and door · 10 mm</span><span><span class="u-chip fitted">Fitted</span></span><span class="d">3 Nov</span></div>
+              </div>
+            </div>
+            <aside class="db-detail">
+              <span class="ref">DS-0148 · RECEIVED 12 NOV, 09:42</span>
+              <h6>Panel and door</h6>
+              <span class="who">Asha Patel · SW1A 1AA · measured with a laser</span>
+              <svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--glass: rgba(101,213,192,.10)"/></svg>
+              <div class="db-sizes">
+                <div><span>P1 Fixed</span><span>395 × 1980 mm</span></div>
+                <div><span>P2 Door</span><span>690 × 1980 mm</span></div>
+                <div><span>Hinges</span><span>GEN180CH × 2</span></div>
+              </div>
+              <div class="db-actions"><span class="u-btn">Check design</span><span class="u-btn line">Send quote</span></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Embedded configurator -->
+      <div>
+        <div class="app-head"><h3>Embedded configurator</h3><p>On a company's own website their brand leads: their colour on the buttons and the current step. SetOut keeps its type, spacing and drawings, and signs off with a small powered-by mark.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 760">
+          <div class="canvas emb" style="width:1200px;height:760px" role="img" aria-label="The SetOut designer inside an example shower company's website">
+            <div class="emb-win">
+              <div class="emb-bar"><i></i><i></i><i></i><span class="url">demoshowers.co.uk/design-your-shower</span></div>
+              <div class="emb-site"><span class="logo">Demo Showers</span><span>Showers</span><span>Bath screens</span><span>Our work</span><span class="call">01632 960 123</span></div>
+              <div class="emb-body">
+                <div class="emb-copy"><h6>Design your shower</h6><p>Measure your bathroom with our step-by-step guide, choose your glass and fittings, and send us the design. We'll check every size and send you a quote within two working days.</p></div>
+                <div class="emb-frame">
+                  <div class="emb-steps"><span class="done">Shape</span><span class="done">Measure</span><span class="on">Arrange</span><span>Hardware</span><span>Send</span></div>
+                  <div class="emb-main">
+                    <div>
+                      <h6>How the glass is arranged</h6>
+                      <p class="t">Split the opening into panels and say which side the door opens.</p>
+                      <p class="emb-q">The door hangs from</p>
+                      <div class="emb-opts"><span class="on">The panel</span><span>The wall</span></div>
+                      <p class="emb-q">The door opens</p>
+                      <div class="emb-opts"><span>Inwards</span><span class="on">Outwards</span></div>
+                      <div class="emb-sizes"><div><span>Fixed panel</span><span>395 × 1980 mm</span></div><div><span>Door</span><span>690 × 1980 mm</span></div></div>
+                    </div>
+                    <svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--glass: rgba(31,78,121,.07)"/></svg>
+                  </div>
+                  <div class="emb-foot"><span class="powered">Powered by <span class="wm">setout<i class="pt"></i></span></span><span class="go"><span class="bk">Back</span><span class="nx">Next: hardware</span></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Mobile -->
+      <div>
+        <div class="app-head"><h3>Mobile interface</h3><p>Where most customers meet SetOut. One question per screen, a picture of what to measure, one big field and a thumb-height button.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 720">
+          <div class="canvas mob" style="width:1200px;height:720px" role="img" aria-label="Two phone screens: a measuring card and the glass sizes">
+            <div class="mob-note">
+              <div><span class="k">ONE QUESTION A SCREEN</span><b>Large, plain and in order</b><span>The progress line and the reading count tell the customer how far they are, without a menu.</span></div>
+              <div><span class="k">SHOW, THEN ASK</span><b>A drawing of every reading</b><span>The laser line is Mint in every picture, so the customer learns what to look for.</span></div>
+            </div>
+            <div class="phone"><div class="screen"><div class="notch"></div><div class="scr">
+              <div class="prog"><span>READING 6 OF 9</span><span>8 / 12</span></div>
+              <div class="bar"><span style="width:62%"></span></div>
+              <h5>Left wall, at the bottom</h5>
+              <p class="t">Hold the tape against the wall at the floor and read where the laser line crosses it.</p>
+              <svg viewBox="0 0 250 120" class="dw" style="color:var(--navy);height:120px" aria-hidden="true"><rect x="20" y="6" width="10" height="100" fill="url(#hatch)" opacity=".5"/><line class="thick" x1="30" y1="6" x2="30" y2="106"/><rect x="20" y="104" width="220" height="8" fill="url(#hatch)" opacity=".5"/><line class="thick" x1="20" y1="104" x2="240" y2="104"/><line x1="82" y1="4" x2="82" y2="108" stroke="#65D5C0" stroke-width="2" stroke-dasharray="5 4"/><rect x="30" y="88" width="64" height="10" fill="#EEC872" stroke="#9A5B00" stroke-width=".8"/><text x="56" y="80" text-anchor="middle" font-size="12" font-weight="600">50</text></svg>
+              <p class="lbl">Left wall to the laser, at the floor</p>
+              <div class="mf" style="border-color:var(--mint);box-shadow:0 0 0 3px rgba(101,213,192,.35)"><b>50</b><span>mm</span></div>
+              <p class="helper">It should read about 50.</p>
+              <div class="nav"><span class="back">←</span><span class="next">NEXT</span></div>
+            </div></div></div>
+            <div class="phone"><div class="screen"><div class="notch"></div><div class="scr">
+              <div class="prog"><span>STEP 5 OF 5 · SEND</span><span></span></div>
+              <div class="bar"><span style="width:100%"></span></div>
+              <h5>Your glass, worked out</h5>
+              <p class="t">From your readings. Demo Showers checks every size by hand before anything is made.</p>
+              <svg viewBox="0 0 300 400" style="height:220px;color:var(--navy)" aria-hidden="true"><use href="#elev" style="--glass: rgba(101,213,192,.10)"/></svg>
+              <div style="display:grid;font-size:12.5px">
+                <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--hair)"><span>Fixed panel</span><span class="mono">395 × 1980 mm</span></div>
+                <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--hair)"><span>Door</span><span class="mono">690 × 1980 mm</span></div>
+              </div>
+              <div class="nav"><span class="back">←</span><span class="next">SEND MY DESIGN</span></div>
+            </div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 App icon and favicon -->
+      <div>
+        <div class="app-head"><h3>App icon and favicon</h3><p>The first letter and the point, on Navy. It is the same shape at 1024 px on an app store and at 16 px in a crowded row of tabs.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 520">
+          <div class="canvas ic" style="width:1200px;height:520px" role="img" aria-label="App icon at several sizes, in browser tabs and on a phone home screen">
+            <div class="ic-sizes">
+              <figure><svg width="180" height="180"><use href="#app-icon"/></svg><figcaption>App store · 1024</figcaption></figure>
+              <figure><svg width="120" height="120"><use href="#app-icon"/></svg><figcaption>iPhone · 180</figcaption></figure>
+              <figure><svg width="64" height="64"><use href="#app-icon"/></svg><figcaption>64</figcaption></figure>
+              <figure><svg width="48" height="48"><use href="#app-icon"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg width="32" height="32"><use href="#app-icon"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg width="16" height="16"><use href="#app-icon"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="ic-row">
+              <div class="ic-tabs">
+                <span class="ic-tab on"><svg width="16" height="16"><use href="#app-icon"/></svg>Jobs · SetOut<span class="x">×</span></span>
+                <span class="ic-tab"><span style="width:16px;height:16px;border-radius:3px;background:#B9C1C8;display:block"></span>Inbox (3)<span class="x">×</span></span>
+                <span class="ic-tab"><span style="width:16px;height:16px;border-radius:50%;background:#C9D0D6;display:block"></span>Calendar<span class="x">×</span></span>
+              </div>
+              <div class="ic-home">
+                <figure><span class="ghost"></span>Photos</figure>
+                <figure><svg width="58" height="58"><use href="#app-icon"/></svg>SetOut</figure>
+                <figure><span class="ghost"></span>Mail</figure>
+                <figure><span class="ghost"></span>Maps</figure>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 Drawings and quotes -->
+      <div>
+        <div class="app-head"><h3>Technical drawings and PDF quotations</h3><p>The drawing carries SetOut's title block and goes to the toughener. The quote carries the shower company's own name, with SetOut in the footer.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 815">
+          <div class="canvas sh" style="width:1200px;height:815px" role="img" aria-label="A glass order drawing and a quotation, both A4">
+            <div class="a4">
+              <div class="a4-head"><span class="wm">setout<i class="pt"></i></span><span class="what">Glass order · page 2 of 2<b>P2 · Door</b></span></div>
+              <svg class="pane" viewBox="0 0 440 460" aria-hidden="true">
+                <g stroke="currentColor" fill="none">
+                  <rect x="130" y="30" width="180" height="380" stroke-width="1.6" fill="rgba(101,213,192,.07)"/>
+                  <rect x="130" y="78" width="10" height="16" fill="currentColor"/>
+                  <rect x="130" y="346" width="10" height="16" fill="currentColor"/>
+                  <circle cx="292" cy="196" r="3.2" stroke-width="1.2"/><circle cx="292" cy="236" r="3.2" stroke-width="1.2"/>
+                  <g stroke-width=".9">
+                    <line x1="130" y1="26" x2="130" y2="6"/><line x1="310" y1="26" x2="310" y2="6"/><line x1="126" y1="14" x2="314" y2="14"/><line x1="126" y1="18" x2="134" y2="10"/><line x1="306" y1="18" x2="314" y2="10"/>
+                    <line x1="314" y1="30" x2="356" y2="30"/><line x1="314" y1="410" x2="356" y2="410"/><line x1="348" y1="26" x2="348" y2="414"/><line x1="344" y1="34" x2="352" y2="26"/><line x1="344" y1="414" x2="352" y2="406"/>
+                    <line x1="126" y1="86" x2="86" y2="86"/><line x1="94" y1="30" x2="94" y2="90"/><line x1="90" y1="34" x2="98" y2="26"/><line x1="90" y1="90" x2="98" y2="82"/><line x1="126" y1="30" x2="86" y2="30"/>
+                    <line x1="126" y1="354" x2="86" y2="354"/><line x1="126" y1="410" x2="86" y2="410"/><line x1="94" y1="350" x2="94" y2="414"/><line x1="90" y1="358" x2="98" y2="350"/><line x1="90" y1="414" x2="98" y2="406"/>
+                    <line x1="296" y1="196" x2="326" y2="196"/><line x1="296" y1="236" x2="326" y2="236"/><line x1="320" y1="192" x2="320" y2="240"/><line x1="316" y1="200" x2="324" y2="192"/><line x1="316" y1="240" x2="324" y2="232"/>
+                  </g>
+                </g>
+                <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">
+                  <text x="220" y="10">690</text>
+                  <text x="364" y="222" transform="rotate(-90 364 222)">1980</text>
+                  <text x="82" y="62" transform="rotate(-90 82 62)">250</text>
+                  <text x="82" y="384" transform="rotate(-90 82 384)">250</text>
+                  <text x="336" y="216" transform="rotate(-90 336 216)">203</text>
+                  <text x="292" y="262" font-size="9">2 × Ø12</text>
+                  <text x="176" y="74" font-size="9" text-anchor="start">GENEVA CUT-OUT</text>
+                  <text x="220" y="440" font-size="9" fill-opacity=".7">VIEWED FROM OUTSIDE · HINGE SIDE LEFT</text>
+                </g>
+              </svg>
+              <div class="tb">
+                <div class="big"><small>DRAWING</small>DS-0148-P2</div><div><small>PANE</small>Door</div><div><small>QTY</small>1</div>
+                <div class="big"><small>GLASS</small>10 mm toughened, clear</div><div><small>EDGES</small>Polished</div><div><small>SIZE</small>690 × 1980</div>
+                <div><small>SCALE</small>1:15</div><div><small>REV</small>A</div><div><small>CHECKED</small>J. Reid</div><div><small>DATE</small>12.11.2026</div>
+              </div>
+            </div>
+            <div class="a4">
+              <span class="qt-mark">Example</span>
+              <div class="qt-head"><span class="logo">Demo Showers</span><span class="meta"><b>Quote Q-0148</b>12 November 2026<br>Valid for 30 days</span></div>
+              <div class="qt-to"><div><b>For</b><span>Asha Patel</span><br>London SW1A 1AA</div><div><b>Shower</b><span>Panel and door, 1100 × 1980 mm</span><br>Measured with a laser, 12 Nov</div></div>
+              <div class="qt-lines">
+                <div class="h"><span>Item</span><span>Qty</span><span>Amount</span></div>
+                <div><span>10 mm toughened glass, clear<small>395 × 1980 · 690 × 1980 mm</small></span><span>2</span><span>£340.00</span></div>
+                <div><span>Geneva hinges, glass to glass<small>GEN180 · polished chrome</small></span><span>2</span><span>£136.00</span></div>
+                <div><span>Pull handle, 203 mm centres<small>BM8X8 · polished chrome</small></span><span>1</span><span>£42.00</span></div>
+                <div><span>Channel, seals and bottom wipe</span><span>1</span><span>£38.00</span></div>
+                <div><span>Fitting</span><span>1</span><span>£180.00</span></div>
+              </div>
+              <div class="qt-tot"><div><span>Subtotal</span><span>£736.00</span></div><div><span>VAT at 20%</span><span>£147.20</span></div><div class="grand"><span>Total</span><span>£883.20</span></div></div>
+              <div class="qt-foot"><span>Demo Showers · 01632 960 123</span><span style="display:inline-flex;gap:6px;align-items:baseline">Prepared with <span class="wm">setout<i class="pt"></i></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 Email signature -->
+      <div>
+        <div class="app-head"><h3>Email signatures</h3><p>Plain text and the wordmark, so it survives every email program. No banners, no social icons.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 400">
+          <div class="canvas em" style="width:1200px;height:400px" role="img" aria-label="An email ending in the SetOut signature">
+            <div class="em-win">
+              <div class="em-meta"><span><b>From</b> Matt, SetOut</span><span><b>Subject</b> Your SetOut workspace is ready</span></div>
+              <p>Hi Sam,</p>
+              <p>Your workspace is set up. The designer is on your website now, and new designs will come to your inbox as they arrive.</p>
+              <div class="sig">
+                <span class="wm" style="font-size:30px">setout<i class="pt"></i></span>
+                <div style="display:grid;gap:1px;border-left:1px solid var(--hair);padding-left:22px">
+                  <span class="sig-name">Matt</span>
+                  <span class="sig-role">Founder, SetOut</span>
+                  <span class="sig-tag">Measure. Design. Manufacture.</span>
+                  <span class="sig-line"><span>setoutglass.com</span><span>hello@setoutglass.com</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 Social -->
+      <div>
+        <div class="app-head"><h3>Social media</h3><p>A profile picture that is the app icon, a banner on Navy, and posts that show real drawings and real sizes.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 860">
+          <div class="canvas so" style="width:1200px;height:860px" role="img" aria-label="A social banner, two posts and profile pictures">
+            <div class="so-banner">
+              <svg viewBox="0 0 1100 276" preserveAspectRatio="none" aria-hidden="true">
+                <g stroke="currentColor" stroke-width="1" fill="none">
+                  <line x1="470" y1="40" x2="470" y2="250"/><line x1="660" y1="40" x2="660" y2="250"/><line x1="464" y1="60" x2="666" y2="60"/><line x1="466" y1="64" x2="474" y2="56"/><line x1="656" y1="64" x2="664" y2="56"/>
+                  <rect x="476" y="80" width="80" height="170"/><rect x="560" y="80" width="96" height="170"/>
+                </g>
+                <line x1="510" y1="30" x2="510" y2="270" stroke="#65D5C0" stroke-width="1.5" stroke-dasharray="5 4"/>
+                <text x="565" y="52" fill="currentColor" font-family="JetBrains Mono, monospace" font-size="11" text-anchor="middle">1100</text>
+              </svg>
+              <span class="wm" style="position:relative">setout<i class="pt"></i></span>
+              <span class="tl" style="position:relative">Measure<i class="pt"></i><br>Design<i class="pt"></i><br>Manufacture<i class="pt"></i></span>
+            </div>
+            <div class="so-row">
+              <div class="so-post p1">
+                <span class="k">From measurement to manufacture</span>
+                <h6>One design. The toughener cuts from it.</h6>
+                <svg viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--laser:#65D5C0;--glass: rgba(101,213,192,.10)"/></svg>
+                <div class="foot"><span class="wm">setout<i class="pt"></i></span><span>setoutglass.com</span></div>
+              </div>
+              <div class="so-post p2">
+                <span class="k">Precision starts here</span>
+                <h6 style="font-size:64px;line-height:1">± 0 mm</h6>
+                <p style="font:500 24px/1.3 var(--display);letter-spacing:-0.02em;color:var(--slate-light);margin-top:16px;max-width:15ch">between the checked design and the glass order.</p>
+                <div style="flex:1"></div>
+                <div class="foot"><span class="wm">setout<i class="pt"></i></span><span style="color:var(--slate-light)">setoutglass.com</span></div>
+              </div>
+              <div class="so-avatars">
+                <figure><svg width="128" height="128" viewBox="0 0 100 100" style="border-radius:50%"><use href="#app-icon"/></svg>Profile picture</figure>
+                <figure><svg width="56" height="56" viewBox="0 0 100 100" style="border-radius:50%"><use href="#app-icon"/></svg>In a feed</figure>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9 Presentations -->
+      <div>
+        <div class="app-head"><h3>Sales and marketing presentations</h3><p>Title slides on Navy, working slides on Soft White, the wordmark small in the corner of every page.</p></div>
+        <div class="stage" data-w="1200" style="--ar: 1200 / 400">
+          <div class="canvas sl" style="width:1200px;height:400px" role="img" aria-label="Two presentation slides">
+            <div class="slide s1">
+              <span class="wm">setout<i class="pt"></i></span>
+              <svg class="lines dw" viewBox="0 0 300 400" aria-hidden="true"><use href="#elev" style="--laser:#65D5C0"/></svg>
+              <h6>Glass design, simplified<i class="pt"></i></h6>
+              <span class="meta">Partner briefing · November 2026</span>
+            </div>
+            <div class="slide s2">
+              <span class="k">How it works</span>
+              <h6>One design. Three documents.</h6>
+              <div class="docs">
+                <div class="doc"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="10" width="44" height="96" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="38" y="24" width="4" height="8" fill="currentColor"/><rect x="38" y="84" width="4" height="8" fill="currentColor"/><line x1="34" y1="6" x2="86" y2="6" stroke="currentColor" stroke-width=".8"/></svg><b>Glass order</b><span>For the toughener</span></div>
+                <div class="doc"><svg viewBox="0 0 120 120" aria-hidden="true"><g stroke="currentColor" stroke-width=".9"><line x1="16" y1="20" x2="104" y2="20"/><line x1="16" y1="36" x2="96" y2="36"/><line x1="16" y1="52" x2="100" y2="52"/><line x1="16" y1="68" x2="88" y2="68"/><line x1="16" y1="84" x2="98" y2="84"/></g><rect x="92" y="94" width="10" height="10" fill="#65D5C0"/></svg><b>Making sheet</b><span>For the workshop</span></div>
+                <div class="doc"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="22" y="14" width="30" height="92" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="54" y="14" width="44" height="92" fill="none" stroke="currentColor" stroke-width="1.2"/><line x1="22" y1="108" x2="98" y2="108" stroke="currentColor" stroke-width="2"/></svg><b>Installation sheet</b><span>For the fitters</span></div>
+              </div>
+              <span class="pg"><span class="wm">setout<i class="pt"></i></span>04</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="handover">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Handover</p>
+      <h2>What the finished identity is made of</h2>
+      <p class="lede muted">Once the direction is agreed, these are the working files, so anyone building or printing for SetOut works from the same source.</p>
+    </div>
+    <div class="handover">
+      <div class="tile"><b>Logo files</b><p>The wordmark, product lockups and app icon as outlined SVG and PDF, in Navy, Soft White and one-colour versions.</p><span class="mono">setout-wordmark.svg · setout-icon.svg</span></div>
+      <div class="tile"><b>Icon set</b><p>Favicon and app icons from 16 to 1024 px, with the web manifest and Apple touch icon.</p><span class="mono">favicon.ico · icon-180.png · icon-512.png</span></div>
+      <div class="tile"><b>Design tokens</b><p>Colours, type scale, spacing and radii as CSS variables, ready for the website, the workspace and the designer.</p><span class="mono">tokens.css</span></div>
+      <div class="tile"><b>Drawing kit</b><p>Dimension line, tick, grid and title block rules for every sheet SetOut prints.</p><span class="mono">drawing-standard.pdf</span></div>
+      <div class="tile"><b>Templates</b><p>Slide master, social post and banner, quotation layout and email signature.</p><span class="mono">slides · social · signature.html</span></div>
+      <div class="tile"><b>Guidelines</b><p>This page, kept up to date as the one reference for anyone working on SetOut.</p><span class="mono">One shared link</span></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="end">
+  <div class="wrap">
+    <span class="wm">setout<i class="pt"></i></span>
+    <span>Brand identity, version 1 · November 2026 · Recommended direction: Point</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const stages = Array.from(document.querySelectorAll('.stage'));
+  const fit = (s) => {
+    const k = s.clientWidth / Number(s.dataset.w);
+    if (s.firstElementChild) s.firstElementChild.style.transform = 'scale(' + k + ')';
+  };
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver((entries) => entries.forEach((e) => fit(e.target)));
+    stages.forEach((s) => { fit(s); ro.observe(s); });
+  } else {
+    stages.forEach(fit);
+    window.addEventListener('resize', () => stages.forEach(fit));
+  }
+  document.querySelectorAll('[data-copy]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const v = b.getAttribute('data-copy');
+      const done = () => { const t = b.textContent; b.textContent = 'Copied ' + v; setTimeout(() => { b.textContent = t; }, 1400); };
+      try {
+        navigator.clipboard.writeText(v).then(done, () => { b.textContent = v; });
+      } catch (e) { b.textContent = v; }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
