@@ -283,8 +283,14 @@ export const FIXED_RULES: FixedRules = {
         maxDoorHeightMm: null,
       },
       {
-        // A geometry reference limit, to be checked against current supplier
-        // data before production use.
+        // [MANUFACTURER] Checked against CRL's UK catalogue, November 2026
+        // (docs/crl/): two Vienna hinges carry 45kg at 864mm on the offset
+        // (V1E044) and short (V1E074) back plates in 10mm glass, and 50kg at
+        // 914mm on the full back plate (V1E037) and glass to glass (V1E180,
+        // V1E092); three carry 59kg and 63kg. The lower is held here, as
+        // SetOut does not choose the back plate. CRL rates Vienna for 12mm
+        // glass too (813mm on the offset plates); Custom Showers hangs 12mm
+        // doors on Geneva, as Smart Glazier did on its account.
         id: 'vienna',
         name: 'Vienna',
         glassMm: [10],
