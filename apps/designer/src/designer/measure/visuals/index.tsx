@@ -9,6 +9,7 @@ import { RunMarksVisual } from './RunMarksVisual';
 import { RunHeightVisual } from './RunHeightVisual';
 import { RunVisual, type DoneMark, type RunPicture } from './RunVisual';
 import { FLOOR } from './Scene';
+import { TrayHeight, TrayLaserOn, TrayReading, trayable } from './TrayVisual';
 
 /** Where the top of the glass sits in the picture, from the real height. */
 function glassTopFor(glassMm: number): number {
@@ -30,6 +31,10 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
 
   // A single door is always between two walls and keeps its own pictures.
   const toCross = cards.some((c) => c.visual?.kind === 'cross-reading');
+  // Every other shower is drawn on its tray, seen from the front and above,
+  // except a screen on a bath, and a shape built by hand that the tray cannot show.
+  const views = runViews(state, options);
+  const tray = !toCross && !options.overBath && trayable(views);
 
   switch (visual.kind) {
     case 'marks':
@@ -48,16 +53,24 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
       );
     case 'height': {
       if (toCross) return <HeightVisual glassTop={glassTop} value={value} />;
-      const views = runViews(state, options);
+      if (tray) return <TrayHeight views={views} value={value} what="glass" />;
       return <RunHeightVisual view={wallRun(views)} views={views} glassTop={glassTop} value={value} />;
     }
     case 'plan-marks':
       return <PlanMarksVisual views={runViews(state, options)} />;
     case 'laser-on': {
-      const views = runViews(state, options);
+      if (tray) {
+        // Where the first reading needs it: over a corner mark, if the glass turns one.
+        const first = cards.find((c) => c.visual?.kind === 'run-width' && c.visual.laser);
+        const corner = first?.visual?.kind === 'run-width' && first.visual.laser ? { run: first.visual.view.run, end: first.visual.laser } : null;
+        return <TrayLaserOn views={views} corner={corner} />;
+      }
       return <LaserOnVisual view={views.find((v) => v.faces === 'front') ?? views[0]} views={views} glassTop={glassTop} />;
     }
     default: {
+      if (tray) {
+        return <TrayReading visual={visual} views={views} value={value} mark={card.mark} />;
+      }
       const done: DoneMark[] = taken.filter(onRun).flatMap((c) => (c.visual.view.run === visual.view.run ? [{ visual: c.visual, n: c.mark! }] : []));
       return <RunVisual visual={visual} views={runViews(state, options)} glassTop={glassTop} value={value} mark={card.mark} done={done} />;
     }

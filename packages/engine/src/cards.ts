@@ -364,8 +364,10 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
       id: 'laser-on',
       kind: 'instruction',
       title: 'Set up the laser',
-      instruction:
-        'Put the laser on a small tripod and switch both lines on. You will move it as you go, and each card says where it stands. Let the lines settle before you read.',
+      // Where the glass turns a corner the laser starts on the floor over the corner mark.
+      instruction: corners
+        ? 'Stand the laser on the floor over the corner mark and switch its lines on, so they run along both glass lines to the walls. Each card says where it stands after that. Let the lines settle before you read.'
+        : 'Put the laser on a small tripod and switch both lines on. You will move it as you go, and each card says where it stands. Let the lines settle before you read.',
       visual: { kind: 'laser-on' },
     },
   ];
