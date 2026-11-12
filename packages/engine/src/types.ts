@@ -78,6 +78,13 @@ export const WALL_HINGES = [
 export type WallHinge = (typeof WALL_HINGES)[number];
 export const IN_LINE_HINGES = ['standard', 'adjustable', 'positive-close'] as const;
 export type InLineHinge = (typeof IN_LINE_HINGES)[number];
+/**
+ * How the glass is cut for a Vienna hinge: CRL draws both. Mouse ears take
+ * two drilled holes as well, so cost more to make; with a rectangular cut-out
+ * the fitters take two screws out of the hinge.
+ */
+export const VIENNA_CUTOUTS = ['mouse-ear', 'rectangular'] as const;
+export type ViennaCutout = (typeof VIENNA_CUTOUTS)[number];
 
 export interface ConfiguratorState {
   panels: ConfiguratorPanel[];
@@ -107,6 +114,8 @@ export interface ConfiguratorState {
    */
   wallHinge?: WallHinge;
   inLineHinge?: InLineHinge;
+  /** How the glass is cut for a Vienna hinge, where staff chose it for this shower. */
+  viennaCutout?: ViennaCutout;
   /** Keys into the company's hardware catalogue. */
   finishId: string;
   handleId: string;

@@ -29,9 +29,17 @@ describe('how each door hangs', () => {
 
 describe('the hinges a shower takes', () => {
   test('the company standard, unless the shower has its own', () => {
-    expect(hingeStylesOf({}, STANDARD_HINGES)).toEqual({ wall: 'offset', inLine: 'standard' });
-    expect(hingeStylesOf({}, { wall: 'full', inLine: 'adjustable' })).toEqual({ wall: 'full', inLine: 'adjustable' });
-    expect(hingeStylesOf({ wallHinge: 'short' }, { wall: 'full', inLine: 'adjustable' })).toEqual({ wall: 'short', inLine: 'adjustable' });
+    expect(hingeStylesOf({}, STANDARD_HINGES)).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' });
+    expect(hingeStylesOf({}, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular' })).toEqual({
+      wall: 'full',
+      inLine: 'adjustable',
+      viennaCutout: 'rectangular',
+    });
+    expect(hingeStylesOf({ wallHinge: 'short', viennaCutout: 'mouse-ear' }, { wall: 'full', inLine: 'adjustable', viennaCutout: 'rectangular' })).toEqual({
+      wall: 'short',
+      inLine: 'adjustable',
+      viennaCutout: 'mouse-ear',
+    });
   });
 
   test('a style is named where the range has more than one', () => {

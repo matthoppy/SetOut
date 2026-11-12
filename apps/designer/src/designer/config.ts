@@ -15,6 +15,7 @@ import {
   type GlassThickness,
   type InLineHinge,
   type RulesetOverrides,
+  type ViennaCutout,
   type WallHinge,
 } from '@setout/engine';
 
@@ -137,6 +138,8 @@ export function withOfferedHardware(state: ConfiguratorState, config: Pick<Desig
 export interface DesignerHinges {
   wall: { offered: WallHinge[]; standard: WallHinge };
   inLine: { offered: InLineHinge[]; standard: InLineHinge };
+  /** How the company cuts the glass for a Vienna hinge unless a shower says otherwise. */
+  viennaCutout?: ViennaCutout;
 }
 
 /** The hinges on offer: always at least the standard of each, SetOut's own where the server sends none. */

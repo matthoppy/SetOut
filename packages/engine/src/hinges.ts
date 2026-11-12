@@ -7,15 +7,19 @@
  * full, offset, short or H plate, set 5° in, adjustable, or (Vienna only)
  * positive closing, and in-line hinges that are standard, adjustable or
  * (Vienna only) positive closing. Bellagio makes one of each, and every range
- * one hinge for a corner. Within a range they all hold the glass the same
- * way, so the glass is cut the same whichever is fitted.
+ * one hinge for a corner.
+ *
+ * Each range's cut-out is its own (Vienna's is bigger than Geneva's). Within
+ * a range, CRL's drawings show the same cut-out for the hinges listed in
+ * `drawn`; any other is cut to its range's cut-out but marked on the glass
+ * order to be checked against the template in the box.
  *
  * A company chooses which its customers may pick, and its standard; a shower
  * may have its own. Staff may choose any.
  */
 
 import type { HingeMount } from './fittings';
-import type { ConfiguratorState, InLineHinge, WallHinge } from './types';
+import type { ConfiguratorState, InLineHinge, ViennaCutout, WallHinge } from './types';
 
 export interface HingeStyle {
   /** As a heading or an option: "Offset back plate". */
@@ -27,6 +31,8 @@ export interface HingeStyle {
   /** CRL's number before the finish, in each range that makes it. */
   Geneva?: string;
   Vienna?: string;
+  /** The ranges whose CRL drawing of this hinge SetOut's cut-out has been checked against. */
+  drawn?: readonly ('Geneva' | 'Vienna')[];
 }
 
 const ADJUSTABLE = 'The door’s closed position can be adjusted, up to 90°, without taking it down.';
@@ -34,10 +40,31 @@ const PRESET = 'Set at the factory to close 5° further into the shower.';
 const POSITIVE = 'A grooved pivot pin for a firm, precise close. Vienna hinges only.';
 
 export const WALL_HINGE_STYLES: Record<WallHinge, HingeStyle> = {
-  offset: { name: 'Offset back plate', words: 'offset back plate', about: 'CRL’s wall hinge with an offset back plate.', Geneva: 'GEN044', Vienna: 'V1E044' },
-  full: { name: 'Full back plate', words: 'full back plate', about: 'CRL’s wall hinge with a full back plate.', Geneva: 'GEN037', Vienna: 'V1E037' },
+  offset: {
+    name: 'Offset back plate',
+    words: 'offset back plate',
+    about: 'CRL’s wall hinge with an offset back plate.',
+    Geneva: 'GEN044',
+    Vienna: 'V1E044',
+    drawn: ['Geneva', 'Vienna'],
+  },
+  full: {
+    name: 'Full back plate',
+    words: 'full back plate',
+    about: 'CRL’s wall hinge with a full back plate.',
+    Geneva: 'GEN037',
+    Vienna: 'V1E037',
+    drawn: ['Geneva', 'Vienna'],
+  },
   short: { name: 'Short back plate', words: 'short back plate', about: 'A shorter back plate, for a narrow wall.', Geneva: 'GEN074', Vienna: 'V1E074' },
-  'offset-preset': { name: 'Offset back plate, 5° pre-set', words: 'offset back plate, 5° pre-set', about: PRESET, Geneva: 'GEN544', Vienna: 'V1E544' },
+  'offset-preset': {
+    name: 'Offset back plate, 5° pre-set',
+    words: 'offset back plate, 5° pre-set',
+    about: PRESET,
+    Geneva: 'GEN544',
+    Vienna: 'V1E544',
+    drawn: ['Geneva'],
+  },
   'full-preset': { name: 'Full back plate, 5° pre-set', words: 'full back plate, 5° pre-set', about: PRESET, Geneva: 'GEN537', Vienna: 'V1E537' },
   'offset-adjustable': { name: 'Offset back plate, adjustable', words: 'offset back plate, adjustable', about: ADJUSTABLE, Geneva: 'GEN344', Vienna: 'V1E344' },
   'full-adjustable': { name: 'Full back plate, adjustable', words: 'full back plate, adjustable', about: ADJUSTABLE, Geneva: 'GEN337', Vienna: 'V1E337' },
@@ -46,7 +73,7 @@ export const WALL_HINGE_STYLES: Record<WallHinge, HingeStyle> = {
 };
 
 export const IN_LINE_HINGE_STYLES: Record<InLineHinge, HingeStyle> = {
-  standard: { name: 'Standard', words: 'standard', about: 'CRL’s standard hinge between two panes.', Geneva: 'GEN180', Vienna: 'V1E180' },
+  standard: { name: 'Standard', words: 'standard', about: 'CRL’s standard hinge between two panes.', Geneva: 'GEN180', Vienna: 'V1E180', drawn: ['Geneva'] },
   adjustable: { name: 'Adjustable', words: 'adjustable', about: ADJUSTABLE, Geneva: 'GEN380', Vienna: 'V1E380' },
   'positive-close': { name: 'Positive close', words: 'positive close', about: POSITIVE, Vienna: 'V1E780' },
 };
@@ -58,18 +85,33 @@ const ONLY: Record<string, Partial<Record<HingeMount, string>>> = {
   Vienna: { 'glass-to-glass-90': 'V1E092' },
 };
 
-/** The style of hinge for each way a door can hang. */
+/** The style of hinge for each way a door can hang, and how a Vienna hinge's cut-out is made. */
 export interface HingeStyles {
   wall: WallHinge;
   inLine: InLineHinge;
+  /** Mouse ears when not given. */
+  viennaCutout?: ViennaCutout;
 }
 
 /** What a company starts with until it chooses. */
-export const STANDARD_HINGES: HingeStyles = { wall: 'offset', inLine: 'standard' };
+export const STANDARD_HINGES: Required<HingeStyles> = { wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' };
 
 /** The hinges a shower's doors take: its own choice for each, or the company's standard. */
-export function hingeStylesOf(design: Pick<ConfiguratorState, 'wallHinge' | 'inLineHinge'>, standards: HingeStyles = STANDARD_HINGES): HingeStyles {
-  return { wall: design.wallHinge ?? standards.wall, inLine: design.inLineHinge ?? standards.inLine };
+export function hingeStylesOf(
+  design: Pick<ConfiguratorState, 'wallHinge' | 'inLineHinge' | 'viennaCutout'>,
+  standards: HingeStyles = STANDARD_HINGES
+): Required<HingeStyles> {
+  return {
+    wall: design.wallHinge ?? standards.wall,
+    inLine: design.inLineHinge ?? standards.inLine,
+    viennaCutout: design.viennaCutout ?? standards.viennaCutout ?? STANDARD_HINGES.viennaCutout,
+  };
+}
+
+/** Whether a door's cut-out has been checked against CRL's drawing of the hinge it hangs on. */
+export function cutoutDrawn(brand: string, hinge: DoorHinge): boolean {
+  if (!hinge.style) return true;
+  return (brand === 'Geneva' || brand === 'Vienna') && (hinge.style.drawn ?? []).includes(brand);
 }
 
 export interface DoorHinge {

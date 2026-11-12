@@ -28,12 +28,16 @@ hinges, is Matt's call: it would change which hinges some doors get.
 ## Hinges: cut-outs
 
 CRL prints no cut-out sizes on its offer pages or in the UK brochures: "use
-only the template included with this hinge". The sizes SetOut uses come from
-CRL's North American fabrication drawings (`docs/hinge-templates/`): Geneva
-and Vienna. **Bellagio has none anywhere in this data**; it stays on SetOut's
-own notch, flagged on every glass order, until the template from the box is
-photographed. The "fabrication" pictures for Bellagio in `fabrication/` are
-exploded product views, not templates.
+only the template included with this hinge", and this data has none. The
+sizes SetOut uses come from CRL's own drawings in `docs/hinge-templates/`:
+Geneva and Vienna from CRL North America, Bellagio from CRL Europe (found on
+Custom Showers' own website, 12 November 2026). Each range has its own:
+Vienna's (76 by 46) is bigger than Geneva's (63 by 44). Vienna can be cut with
+mouse ears or rectangular; Bellagio's door notch depends on whether it is
+fitted with seals. A style whose own drawing is not there yet is marked on
+the glass order to check against the template in its box. The "fabrication"
+pictures in `fabrication/` are product photos and exploded views, not
+templates.
 
 Only the 90° glass-to-glass hinges (GEN092, V1E092) take two holes in the
 fixed panel, with a cut-out in the door; every other Geneva and Vienna takes a

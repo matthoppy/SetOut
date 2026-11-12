@@ -58,7 +58,7 @@ const STALE = {
   message: 'Someone else changed this since you opened it. Open the settings again to see their change.',
 } as const;
 const NO_DESIGNER = { error: 'not_found', message: 'There is no such designer.' } as const;
-const HINGE_FIELDS: string[] = ['wallHingesOffered', 'wallHingeStandard', 'inLineHingesOffered', 'inLineHingeStandard'];
+const HINGE_FIELDS: string[] = ['wallHingesOffered', 'wallHingeStandard', 'inLineHingesOffered', 'inLineHingeStandard', 'viennaCutout'];
 const NO_COMPANY = { error: 'not_found', message: 'This company could not be found.' } as const;
 
 /** Only an owner may change the settings. The role is read from the membership on every request. */
@@ -192,7 +192,7 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         finishes: body.finishes === undefined ? before.finishes : readFinishes(body.finishes, before.finishes),
         handles: body.handles === undefined ? before.handles : readHandles(body.handles, before.handles),
         glass: body.glass === undefined ? before.glass : readGlass(body.glass),
-        hinges: body.hinges === undefined ? before.hinges : readHinges(body.hinges),
+        hinges: body.hinges === undefined ? before.hinges : readHinges(body.hinges, before.hinges),
         notifyEmails: body.notifyEmails === undefined ? before.notifyEmails : readNotifyEmails(body.notifyEmails),
       };
       const changes = [

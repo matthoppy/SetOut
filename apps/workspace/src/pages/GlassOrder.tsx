@@ -50,7 +50,7 @@ function sheetsOf(detail: JobDetail): { sheets: Sheet[]; unchecked: string[] } {
     const glass = revision.document.design;
     const coated = glass.glassCoating === 'easy-clean';
     const description = `${revision.computed.glassThicknessMm}mm ${GLASS[glass.glassType] ?? glass.glassType} Toughened${coated ? ', Easy-clean' : ''}`;
-    for (const pane of panesFor(glass, revision.computed)) {
+    for (const pane of panesFor(glass, revision.computed, detail.labels.hinges)) {
       sheets.push({
         key: `${design.id}:${pane.id}`,
         job: detail.job.reference,

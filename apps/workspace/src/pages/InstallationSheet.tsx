@@ -215,7 +215,7 @@ function Sheet({
   of: number;
   companyName: string;
 }) {
-  const panes = panesFor(design, spec);
+  const panes = panesFor(design, spec, detail.labels.hinges);
   const setOut = setOutFor(design, spec);
   const rows = fittingRows(fittings(design, spec), spec, design, detail.labels);
   const glass = `${spec.glassThicknessMm}mm ${GLASS[design.glassType] ?? humanise(design.glassType)}`;
@@ -336,7 +336,11 @@ function fittingRows(fittings: Fitting[], spec: ConfiguratorSpec, design: Config
     const style = f.kind === 'hinges' ? hingeStyle(design, spec, f.pane, labels.hinges) : null;
     const row = wordsFor(f, door, finish, labels, style);
     const handleCode = f.kind === 'handle' ? (labels.handles.find((o) => o.id === f.handleId)?.code ?? null) : null;
-    const { code, note } = crlColumns(crlPartOf(f, { glassMm: spec.glassThicknessMm, finishCode, handleCode, hinges }), row.item, finish);
+    const crl = crlColumns(crlPartOf(f, { glassMm: spec.glassThicknessMm, finishCode, handleCode, hinges }), row.item, finish);
+    const code = crl.code;
+    // A rectangular Vienna cut-out has no holes for two of the hinge's screws.
+    const screws = f.kind === 'hinges' && f.brand === 'Vienna' && hinges.viennaCutout === 'rectangular' ? 'Rectangular cut-outs: take the two screws out of each hinge.' : null;
+    const note = [crl.note, screws].filter(Boolean).join(' ') || null;
     const fresh = note !== null && !said.has(note);
     if (note) said.add(note);
     return { ...row, code, note: fresh ? note : null };

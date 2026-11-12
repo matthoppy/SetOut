@@ -15,7 +15,7 @@
 import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
-import { IN_LINE_HINGES, WALL_HINGES } from '@setout/engine';
+import { IN_LINE_HINGES, VIENNA_CUTOUTS, WALL_HINGES, type ViennaCutout } from '@setout/engine';
 import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, hingesOf, isThickness, offeredOptions, type Glass, type Hinges } from './designer-config';
 import { RequestError } from './enquiry';
 
@@ -312,13 +312,20 @@ function readHingeChoice<T extends string>(all: readonly T[], input: unknown, wh
   return { offered, standard: c.standard as T };
 }
 
-/** The hinges a designer offers, as an owner sent them. */
-export function readHinges(input: unknown): Hinges {
+/** The hinges a designer offers, as an owner sent them. Vienna's cut-out stays as it is if left out. */
+export function readHinges(input: unknown, current: Hinges): Hinges {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new RequestError(400, 'invalid_hinges', 'Send the hinges to offer for a door hung from a wall and one hung in line.');
   }
   const h = input as Record<string, unknown>;
-  return { wall: readHingeChoice(WALL_HINGES, h.wall, 'wall hinges'), inLine: readHingeChoice(IN_LINE_HINGES, h.inLine, 'in-line hinges') };
+  if (h.viennaCutout !== undefined && !VIENNA_CUTOUTS.includes(h.viennaCutout as ViennaCutout)) {
+    throw new RequestError(400, 'invalid_hinges', 'A Vienna hinge is cut with mouse ears or rectangular.');
+  }
+  return {
+    wall: readHingeChoice(WALL_HINGES, h.wall, 'wall hinges'),
+    inLine: readHingeChoice(IN_LINE_HINGES, h.inLine, 'in-line hinges'),
+    viennaCutout: (h.viennaCutout as ViennaCutout | undefined) ?? current.viennaCutout,
+  };
 }
 
 type Kind = 'finish' | 'handle';
@@ -460,6 +467,7 @@ export type SettingsChange =
   | { field: 'glassStandard'; from: number; to: number }
   | { field: 'wallHingesOffered' | 'inLineHingesOffered'; from: string[]; to: string[] }
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
+  | { field: 'viennaCutout'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
@@ -507,6 +515,7 @@ export function hingeChanges(before: Hinges, after: Hinges): SettingsChange[] {
     if (b.offered.join() !== a.offered.join()) changes.push({ field: `${way}HingesOffered`, from: b.offered, to: a.offered });
     if (b.standard !== a.standard) changes.push({ field: `${way}HingeStandard`, from: b.standard, to: a.standard });
   }
+  if (before.viennaCutout !== after.viennaCutout) changes.push({ field: 'viennaCutout', from: before.viennaCutout, to: after.viennaCutout });
   return changes;
 }
 

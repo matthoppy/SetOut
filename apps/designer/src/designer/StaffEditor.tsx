@@ -19,6 +19,7 @@ import {
   runWidthsMm,
   syncRuns,
   type ConfiguratorState,
+  type ViennaCutout,
 } from '@setout/engine';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -203,7 +204,18 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
               </>
             ))}
           {part === 'sizes' && <SizesStep {...stepProps} />}
-          {part === 'hardware' && <HardwareStep {...stepProps} />}
+          {part === 'hardware' && (
+            <>
+              <HardwareStep {...stepProps} />
+              {spec.panels.some((p) => p.door?.hingeBrand === 'Vienna') && (
+                <ViennaCutoutChoice
+                  chosen={state.viennaCutout ?? config.hinges?.viennaCutout ?? 'mouse-ear'}
+                  standard={config.hinges?.viennaCutout ?? 'mouse-ear'}
+                  onChoose={(viennaCutout) => update({ viennaCutout })}
+                />
+              )}
+            </>
+          )}
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-28 lg:self-start">
@@ -317,6 +329,45 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
           <MeasuredDrawings state={state} cards={buildCards(state, deckOptions)} options={deckOptions} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** How the glass is cut for this shower's Vienna hinges: CRL draws two ways. Staff only. */
+function ViennaCutoutChoice({
+  chosen,
+  standard,
+  onChoose,
+}: {
+  chosen: ViennaCutout;
+  standard: ViennaCutout;
+  onChoose: (cutout: ViennaCutout) => void;
+}) {
+  const options: [ViennaCutout, string, string][] = [
+    ['mouse-ear', 'Mouse ear', 'Two 16mm holes drilled as well, so the glass costs more to make.'],
+    ['rectangular', 'Rectangular', 'A 12mm hole at each inner corner instead. The fitters take two screws out of each hinge.'],
+  ];
+  return (
+    <div className="mt-6 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vienna cut-out</p>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Vienna cut-out">
+        {options.map(([id, name, about]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={chosen === id}
+            onClick={() => onChoose(id)}
+            className={`rounded-lg border p-3 text-left transition-colors ${chosen === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'}`}
+          >
+            <div className="font-medium">
+              {name}
+              {id === standard && <span className="ml-2 text-xs font-normal text-muted-foreground">Your standard</span>}
+            </div>
+            <div className="text-sm text-muted-foreground">{about}</div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

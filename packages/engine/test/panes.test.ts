@@ -4,7 +4,20 @@
  * for every known design, and the edges to the door each one serves.
  */
 import { describe, expect, test } from 'vitest';
-import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, panesOf, shapesOf, TEMPLATES, type ConfiguratorState, type Pane, type PaneFeature, type PaneFeatureRole } from '../src';
+import {
+  applyTemplate,
+  buildSpec,
+  createInitialState,
+  DEFAULT_RULESET,
+  panesOf,
+  shapesOf,
+  STANDARD_HINGES,
+  TEMPLATES,
+  type ConfiguratorState,
+  type Pane,
+  type PaneFeature,
+  type PaneFeatureRole,
+} from '../src';
 import { GOLDEN_COMPANY, GOLDENS } from './goldens';
 
 const context = { rules: DEFAULT_RULESET, companyName: GOLDEN_COMPANY };
@@ -152,12 +165,47 @@ describe('each hinge is cut to its own template', () => {
     expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ role: 'panel-hinge', ...eared });
   });
 
-  test('a Bellagio door: SetOut’s own notches, marked as having no template yet', () => {
+  test('a Bellagio door: CRL Europe’s notch, 58 high and 47 deep, and the panel’s 52 by 33, both with 6mm corners', () => {
     const state = widened(panelAndDoor('left'), 950);
     const spec = buildSpec(state, context);
     expect(spec.panels[1].door!.hingeBrand).toBe('Bellagio');
     const [panel, door] = panesOf(state, spec, fixed);
-    expect(door.features.find((f) => f.kind === 'notch')).toMatchObject({ template: 'door-hinge', source: null, hinge: 'Bel - G/G', depthMm: 58, heightMm: 47, radiusMm: 8, ears: null });
-    expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ template: 'fixed-hinge', source: null, hinge: 'Bel - G/G' });
+    const doorNotch = door.features.find((f) => f.kind === 'notch');
+    expect(doorNotch).toMatchObject({ hinge: 'Bel - G/G', heightMm: 58, depthMm: 47, radiusMm: 6, ears: null });
+    expect(doorNotch?.kind === 'notch' && doorNotch.source).toContain('CRL Europe');
+    expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ role: 'panel-hinge', hinge: 'Bel - G/G', heightMm: 52, depthMm: 33, radiusMm: 6 });
+  });
+
+  test('a Vienna door cut rectangular: the same 76 by 46, with 12mm holes at its inner corners instead of the ears', () => {
+    const state = widened(panelAndDoor('left'), 800);
+    const spec = buildSpec(state, context);
+    expect(spec.panels[1].door!.hingeBrand).toBe('Vienna');
+    const rectangular = { heightMm: 76, depthMm: 46, radiusMm: 6, ears: null, name: 'Vienna hinge notch, rectangular, standard' };
+    // The company's standard, or the shower's own choice.
+    for (const [design, standards] of [
+      [state, { ...STANDARD_HINGES, viennaCutout: 'rectangular' as const }],
+      [{ ...state, viennaCutout: 'rectangular' as const }, STANDARD_HINGES],
+    ] as const) {
+      const [panel, door] = panesOf(design, spec, fixed, standards);
+      expect(door.features.find((f) => f.kind === 'notch')).toMatchObject(rectangular);
+      expect(panel.features.find((f) => f.kind === 'notch')).toMatchObject({ role: 'panel-hinge', ...rectangular });
+    }
+  });
+
+  test('a hinge whose cut-out has not been checked against CRL’s drawing of it is named for itself and marked to check', () => {
+    const template = TEMPLATES.find((t) => t.id === 'alcove-panel-door');
+    if (!template) throw new Error('no alcove template');
+    const state = applyTemplate(createInitialState(10), template);
+    const spec = buildSpec(state, context);
+    expect(spec.panels[1].door!.hingeBrand).toBe('Geneva');
+    const notch = (wallHinge: 'offset' | 'full' | 'short' | 'h-plate') => panesOf({ ...state, wallHinge }, spec, fixed)[1].features.find((f) => f.kind === 'notch');
+    // CRL's GEN037 and GEN044 drawings show the Geneva cut-out.
+    expect(notch('offset')).toMatchObject({ name: 'Geneva hinge notch', heightMm: 63 });
+    expect(notch('full')?.kind === 'notch' && notch('full')?.source).toBeTruthy();
+    // No drawing of the short back plate or the H plate: the same notch, marked.
+    expect(notch('short')).toMatchObject({ name: 'Geneva hinge notch, short back plate', source: null, heightMm: 63 });
+    expect(notch('h-plate')).toMatchObject({ name: 'Geneva hinge notch, H wall plate', source: null });
+    // Each gets its own template letter, so the glass order draws it apart.
+    expect(notch('short')?.kind === 'notch' && notch('short')?.template).not.toBe(notch('offset')?.kind === 'notch' && notch('offset')?.template);
   });
 });

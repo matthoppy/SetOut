@@ -151,6 +151,7 @@ describe('refusing what is not a design', () => {
     ['a negative air gap', (d) => (d.topGapMm = -30), 'topGapMm'],
     ['something else above the door', (d) => (d.aboveDoor = 'brick'), 'aboveDoor'],
     ['a wall hinge CRL does not make', (d) => (d.wallHinge = 'glued'), 'wallHinge'],
+    ['a Vienna cut-out CRL does not draw', (d) => (d.viennaCutout = 'round'), 'viennaCutout'],
     ['no measurements at all', (d) => delete d.opening, 'opening'],
     ['measurements for the wrong number of runs', (d) => d.opening.runs.push(d.opening.runs[0]), 'opening.runs'],
     ['a run width that is text', (d) => (d.opening.runs[0].widthAtFloorMm = 'wide'), 'opening.runs[0].widthAtFloorMm'],

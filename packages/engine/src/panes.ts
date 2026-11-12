@@ -22,6 +22,7 @@ import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 import type { CutoutTemplate, FixedRules } from './ruleset';
 import { hingeMountOf, type HingeMount } from './fittings';
+import { cutoutDrawn, doorHingeOf, hingeStylesOf, STANDARD_HINGES, type HingeStyles } from './hinges';
 import { mateNotchHeightMm } from './rules';
 import { shapesOf, type PaneShape } from './shapes';
 
@@ -124,13 +125,17 @@ const key = (kit: string, t: CutoutTemplate) => `${kit}/${t.name.toLowerCase().r
 
 /**
  * The panes of a worked-out shower, in order from left to right as seen from
- * outside. `fixed` is SetOut's own fixed rules, which no company changes.
+ * outside. `fixed` is SetOut's own fixed rules, which no company changes;
+ * `standards` the company's standard hinges and Vienna cut-out, for a shower
+ * that has not chosen its own.
  */
 export function panesOf(
   design: ConfiguratorState,
   spec: ConfiguratorSpec,
-  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'hinges' | 'stamp' | 'glassDensityKgPerM2PerMm'>
+  fixed: Pick<FixedRules, 'cutouts' | 'handle' | 'hinges' | 'stamp' | 'glassDensityKgPerM2PerMm'>,
+  standards: HingeStyles = STANDARD_HINGES
 ): Pane[] {
+  const styles = hingeStylesOf(design, standards);
   // A notch from a template, or SetOut's own when the kit has none.
   const notchAt = (
     role: PaneNotch['role'],
@@ -221,9 +226,22 @@ export function panesOf(
     const pane = panes[i];
     hingeSide.set(i, door.hingeSide);
     const kit = fixed.hinges.kits.find((k) => k.name === door.hingeBrand)?.id;
-    const cutouts = kit ? fixed.hinges.cutouts[kit] : undefined;
     const mount = hingeMountOf(design, spec, i) ?? 'wall-to-glass';
     const hinge = hingeName(door.hingeBrand, mount);
+    // Vienna's rectangular cut-out where chosen, and any hinge whose cut-out
+    // has not been checked against CRL's drawing of it named for itself and
+    // marked to check against the template in its box.
+    const kitCutouts = kit ? fixed.hinges.cutouts[kit] : undefined;
+    const rectangular = kitCutouts?.rectangular && styles.viennaCutout === 'rectangular' ? kitCutouts.rectangular : undefined;
+    const fitted = doorHingeOf(door.hingeBrand, mount, styles);
+    const checked = cutoutDrawn(door.hingeBrand, fitted);
+    const unchecked = (t: CutoutTemplate | undefined): CutoutTemplate | undefined =>
+      t && !checked && fitted.style ? { ...t, name: `${t.name}, ${fitted.style.words}`, source: null } : t;
+    const cutouts = kitCutouts && {
+      door: unchecked(rectangular?.door ?? kitCutouts.door),
+      panelInLine: unchecked(rectangular?.panelInLine ?? kitCutouts.panelInLine),
+      panelAtCorner: kitCutouts.panelAtCorner,
+    };
     for (const centre of door.hingeHeightsMm) {
       pane.features.push(...notchAt('door-hinge', hinge, door.hingeSide, centre, kit, cutouts?.door));
     }

@@ -530,7 +530,7 @@ staff.get('/jobs/:id/designs/:designId/editor', async (c) => {
       config: {
         ...config,
         glassThicknesses: [...GLASS_THICKNESSES],
-        hinges: ALL_HINGES({ wall: config.hinges.wall.standard, inLine: config.hinges.inLine.standard }),
+        hinges: ALL_HINGES(config.hinges),
       },
       job: { id: job.id, reference: job.reference, customer: customer?.name ?? null },
       design: { id: design.id, label: design.label },

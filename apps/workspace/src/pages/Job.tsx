@@ -321,7 +321,7 @@ function Shower({
   changed: { by: { name: string | null; email: string } | null; reason: string | null; at: string } | null;
 }) {
   const readings = journeySummary(design).filter((row) => row.status !== 'optional' || row.value);
-  const drawn = panesFor(design, spec);
+  const drawn = panesFor(design, spec, hinges);
   const letters = lettersFor(drawn);
   return (
     <>

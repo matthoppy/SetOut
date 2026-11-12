@@ -379,7 +379,7 @@ export function TemplateDrawing({ letter, feature }: { letter: string; feature: 
       <span className="block text-[11px]">
         {feature.name}.{' '}
         {feature.source === null
-          ? 'SetOut’s own notch: check it against the template that comes with the hinge before cutting.'
+          ? 'Not yet checked against the maker’s drawing of this hinge: check it against the template that comes with the hinge before cutting.'
           : feature.source === 'SetOut'
             ? 'SetOut’s handle rule.'
             : `From ${feature.source}.`}

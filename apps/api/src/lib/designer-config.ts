@@ -10,7 +10,16 @@
  * staff or prices, stays on the server.
  */
 
-import { IN_LINE_HINGES, STANDARD_HINGES, WALL_HINGES, type HingeStyles, type InLineHinge, type WallHinge } from '@setout/engine';
+import {
+  IN_LINE_HINGES,
+  STANDARD_HINGES,
+  VIENNA_CUTOUTS,
+  WALL_HINGES,
+  type HingeStyles,
+  type InLineHinge,
+  type ViennaCutout,
+  type WallHinge,
+} from '@setout/engine';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
 import type { Row } from '../db/tables';
@@ -54,10 +63,11 @@ export function glassOf(settings: DesignerSettings): Glass {
   return { offered: GLASS_THICKNESSES.filter((t) => chosen.has(t)), standard };
 }
 
-/** The hinge styles a designer offers for each way a door hangs, in SetOut's order, and the standard of each. */
+/** The hinge styles a designer offers for each way a door hangs, in SetOut's order, the standard of each, and how Vienna's cut-out is made. */
 export interface Hinges {
   wall: { offered: WallHinge[]; standard: WallHinge };
   inLine: { offered: InLineHinge[]; standard: InLineHinge };
+  viennaCutout: ViennaCutout;
 }
 
 function choiceOf<T extends string>(all: readonly T[], stored: { offered?: unknown; standard?: unknown } | undefined, fallback: T) {
@@ -75,16 +85,24 @@ export function hingesOf(settings: DesignerSettings): Hinges {
   return {
     wall: choiceOf(WALL_HINGES, settings.hinges?.wall, STANDARD_HINGES.wall),
     inLine: choiceOf(IN_LINE_HINGES, settings.hinges?.inLine, STANDARD_HINGES.inLine),
+    viennaCutout: VIENNA_CUTOUTS.includes(settings.hinges?.viennaCutout as ViennaCutout)
+      ? (settings.hinges?.viennaCutout as ViennaCutout)
+      : STANDARD_HINGES.viennaCutout,
   };
 }
 
 /** Every hinge style, for staff, who may make any shower with any of them. */
-export const ALL_HINGES = (standards: HingeStyles): Hinges => ({
-  wall: { offered: [...WALL_HINGES], standard: standards.wall },
-  inLine: { offered: [...IN_LINE_HINGES], standard: standards.inLine },
+export const ALL_HINGES = (hinges: Hinges): Hinges => ({
+  wall: { offered: [...WALL_HINGES], standard: hinges.wall.standard },
+  inLine: { offered: [...IN_LINE_HINGES], standard: hinges.inLine.standard },
+  viennaCutout: hinges.viennaCutout,
 });
 
-const standardsOf = (hinges: Hinges): HingeStyles => ({ wall: hinges.wall.standard, inLine: hinges.inLine.standard });
+const standardsOf = (hinges: Hinges): HingeStyles => ({
+  wall: hinges.wall.standard,
+  inLine: hinges.inLine.standard,
+  viennaCutout: hinges.viennaCutout,
+});
 
 /** The hinges a shower takes when it has not chosen its own. */
 export const standardHinges = (settings: DesignerSettings): HingeStyles => standardsOf(hingesOf(settings));

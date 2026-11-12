@@ -40,6 +40,7 @@ interface DesignerBody {
 interface Hinges {
   wall: { offered: string[]; standard: string };
   inLine: { offered: string[]; standard: string };
+  viennaCutout: string;
 }
 interface Change {
   id: string;
@@ -103,7 +104,7 @@ const firstJob = async () => {
 type Label = { id: string; label: string; code?: string };
 const labelsOnJob = async () =>
   (
-    await json<{ labels: { finishes: Label[]; handles: Label[]; hinges: { wall: string; inLine: string } } }>(
+    await json<{ labels: { finishes: Label[]; handles: Label[]; hinges: { wall: string; inLine: string; viennaCutout: string } } }>(
       await api(`/jobs/${await firstJob()}`, { cookie: owner })
     )
   ).labels;
@@ -657,10 +658,10 @@ describe('the glass a designer offers', () => {
 
 describe('the hinges a designer offers', () => {
   test('are the offset back plate and the standard in-line hinge until an owner offers more', async () => {
-    const standard = { wall: { offered: ['offset'], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' } };
+    const standard = { wall: { offered: ['offset'], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' }, viennaCutout: 'mouse-ear' };
     expect((await ours()).hinges).toEqual(standard);
     expect((await publicConfig(shop)).hinges).toEqual(standard);
-    expect((await labelsOnJob()).hinges).toEqual({ wall: 'offset', inLine: 'standard' });
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'offset', inLine: 'standard', viennaCutout: 'mouse-ear' });
   });
 
   test('an owner offers more, sets the standard, and the designer, the job and the record follow', async () => {
@@ -669,10 +670,14 @@ describe('the hinges a designer offers', () => {
       inLine: { offered: ['adjustable', 'standard'], standard: 'standard' },
     };
     const { designer } = await saved(await changeDesigner({ hinges }));
-    const tidied = { wall: { offered: ['offset', 'full', 'short'], standard: 'full' }, inLine: { offered: ['standard', 'adjustable'], standard: 'standard' } };
+    const tidied = {
+      wall: { offered: ['offset', 'full', 'short'], standard: 'full' },
+      inLine: { offered: ['standard', 'adjustable'], standard: 'standard' },
+      viennaCutout: 'mouse-ear',
+    };
     expect(designer.hinges).toEqual(tidied);
     expect((await publicConfig(shop)).hinges).toEqual(tidied);
-    expect((await labelsOnJob()).hinges).toEqual({ wall: 'full', inLine: 'standard' });
+    expect((await labelsOnJob()).hinges).toEqual({ wall: 'full', inLine: 'standard', viennaCutout: 'mouse-ear' });
     const { changes } = await read();
     expect(changes?.[0].data.changes).toEqual([
       { field: 'wallHingesOffered', from: ['offset'], to: ['offset', 'full', 'short'] },
@@ -687,10 +692,26 @@ describe('the hinges a designer offers', () => {
     ['no wall hinge at all', { wall: { offered: [], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' } }],
     ['a standard not offered', { wall: { offered: ['offset'], standard: 'full' }, inLine: { offered: ['standard'], standard: 'standard' } }],
     ['the in-line hinges left out', { wall: { offered: ['offset'], standard: 'offset' } }],
+    [
+      'a Vienna cut-out CRL does not draw',
+      { wall: { offered: ['offset'], standard: 'offset' }, inLine: { offered: ['standard'], standard: 'standard' }, viennaCutout: 'round' },
+    ],
   ])('%s is refused, and nothing changes', async (_, hinges) => {
     const before = await ours();
     expect(await errorOf(await changeDesigner({ hinges }))).toEqual([400, 'invalid_hinges']);
     expect(await ours()).toEqual(before);
+  });
+
+  test("Vienna's cut-out can be made rectangular as standard, and that is on record", async () => {
+    const { hinges } = await ours();
+    const { designer } = await saved(await changeDesigner({ hinges: { ...hinges, viennaCutout: 'rectangular' } }));
+    expect(designer.hinges.viennaCutout).toBe('rectangular');
+    expect((await labelsOnJob()).hinges.viennaCutout).toBe('rectangular');
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([{ field: 'viennaCutout', from: 'mouse-ear', to: 'rectangular' }]);
+    // Saving the hinges without it leaves it as it is.
+    const { wall, inLine } = designer.hinges;
+    expect((await saved(await changeDesigner({ hinges: { wall, inLine } }))).designer.hinges.viennaCutout).toBe('rectangular');
   });
 
   test('staff changing a shower may choose any hinge, starting from the company standard', async () => {
@@ -700,5 +721,6 @@ describe('the hinges a designer offers', () => {
     expect(editor.config.hinges.wall.offered).toHaveLength(9);
     expect(editor.config.hinges.wall.standard).toBe('full');
     expect(editor.config.hinges.inLine.offered).toEqual(['standard', 'adjustable', 'positive-close']);
+    expect(editor.config.hinges.viennaCutout).toBe('rectangular');
   });
 });

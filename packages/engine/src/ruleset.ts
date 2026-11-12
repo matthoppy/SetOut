@@ -126,8 +126,12 @@ export type CutoutShape =
 export interface CutoutTemplate {
   /** What it is, on the templates page. */
   name: string;
-  /** Whose template its sizes are from. */
-  source: string;
+  /**
+   * Whose template its sizes are from. Null for a cut-out not checked against
+   * the maker's drawing of the hinge it is for, to be checked against the
+   * template in the box.
+   */
+  source: string | null;
   shape: CutoutShape;
 }
 
@@ -136,6 +140,8 @@ export interface HingeCutouts {
   door?: CutoutTemplate;
   panelInLine?: CutoutTemplate;
   panelAtCorner?: CutoutTemplate;
+  /** Vienna's rectangular cut-out, for the door and the panel in line, instead of the mouse ears. */
+  rectangular?: { door: CutoutTemplate; panelInLine: CutoutTemplate };
 }
 
 export interface FixedRules {
@@ -336,20 +342,60 @@ export const FIXED_RULES: FixedRules = {
         },
       },
       vienna: {
-        // CRL's V1E037 template, in inches: 3" overall, ears 2-3/4" apart
-        // and 1-9/16" in, 1-13/16" deep, 5/8" ears. To the nearest mm. In
-        // line (V1E180) the panel takes the same cut-out, as with Geneva; the
-        // 90° hinge (V1E092) takes two holes in the panel, whose sizes are not
-        // published, so SetOut's own notch stands in for those, flagged.
+        // CRL's V1E037 template and V1E044 drawing, in inches: 3" overall,
+        // ears 2-3/4" apart and 1-9/16" in, 1-13/16" deep, 5/8" ears. To the
+        // nearest mm: bigger than Geneva's. In line (V1E180) the panel takes
+        // the same cut-out, as with Geneva; the 90° hinge (V1E092) takes two
+        // holes in the panel, whose sizes are not published, so SetOut's own
+        // notch stands in for those, flagged.
         door: {
           name: 'Vienna hinge notch',
-          source: 'CRL V1E037 glass fabrication template',
+          source: 'CRL V1E037 and V1E044 glass fabrication drawings, mouse-ear cut-out',
           shape: { kind: 'notch-ears', heightMm: 76, depthMm: 46, earDiameterMm: 16, earInMm: 40, earApartMm: 70 },
         },
         panelInLine: {
           name: 'Vienna hinge notch',
-          source: 'CRL V1E037 glass fabrication template',
+          source: 'CRL V1E037 and V1E044 glass fabrication drawings, mouse-ear cut-out',
           shape: { kind: 'notch-ears', heightMm: 76, depthMm: 46, earDiameterMm: 16, earInMm: 40, earApartMm: 70 },
+        },
+        // CRL's other option on the V1E044 drawing: the same 3" by 1-13/16"
+        // with a 1/2" (12mm) hole drilled at each inner corner instead of the
+        // ears. The fitters take two screws out of the hinge (Matt, 12
+        // November 2026).
+        rectangular: {
+          door: {
+            name: 'Vienna hinge notch, rectangular',
+            source: 'CRL V1E044 glass fabrication drawing, rectangular cut-out, 12mm holes at the inner corners',
+            shape: { kind: 'notch', heightMm: 76, depthMm: 46, radiusMm: 6 },
+          },
+          panelInLine: {
+            name: 'Vienna hinge notch, rectangular',
+            source: 'CRL V1E044 glass fabrication drawing, rectangular cut-out, 12mm holes at the inner corners',
+            shape: { kind: 'notch', heightMm: 76, depthMm: 46, radiusMm: 6 },
+          },
+        },
+      },
+      bellagio: {
+        // CRL Europe's BEL344, BEL380 and BEL392 drawings (from Custom
+        // Showers' own site, docs/hinge-templates/), in mm. Fitted with
+        // seals: the door notch is 58 high and 47 deep with 6mm inner
+        // corners, the same in all three, as CRL North America's BEL344
+        // sheet has it. Fitted without seals the door's notch is stepped
+        // instead, so the source says to check which.
+        door: {
+          name: 'Bellagio hinge notch',
+          source: 'CRL Europe BEL344, BEL380 and BEL392 drawings, fitted with seals (fitted without seals the door notch is stepped: check which)',
+          shape: { kind: 'notch', heightMm: 58, depthMm: 47, radiusMm: 6 },
+        },
+        panelInLine: {
+          name: 'Bellagio 180° panel notch',
+          source: 'CRL Europe BEL380 drawing',
+          shape: { kind: 'notch', heightMm: 52, depthMm: 33, radiusMm: 6 },
+        },
+        panelAtCorner: {
+          name: 'Bellagio 90° hinge holes',
+          source: 'CRL Europe BEL392 drawing',
+          shape: { kind: 'holes', diameterMm: 16, inMm: 33, apartMm: 50 },
         },
       },
     },

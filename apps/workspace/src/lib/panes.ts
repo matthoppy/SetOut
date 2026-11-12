@@ -24,8 +24,9 @@ import {
 } from '@setout/engine';
 import { lettersFor, partner, placing } from '../pages/PaneDrawing';
 
-export function panes(design: ConfiguratorState, spec: ConfiguratorSpec): Pane[] {
-  return panesOf(design, spec, DEFAULT_RULESET.fixed);
+/** The shower's panes, cut for its hinges: its own, or the company's standard (`standards`). */
+export function panes(design: ConfiguratorState, spec: ConfiguratorSpec, standards?: HingeStyles): Pane[] {
+  return panesOf(design, spec, DEFAULT_RULESET.fixed, standards);
 }
 
 /** Where each pane stands and the gaps all round it, for the installation sheet. */

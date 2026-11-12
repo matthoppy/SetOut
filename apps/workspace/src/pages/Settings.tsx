@@ -872,6 +872,10 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
   const saving = useSave(onSaved);
   const dirty = JSON.stringify(hinges) !== JSON.stringify(designer.hinges);
   const valid = hinges.wall.offered.includes(hinges.wall.standard) && hinges.inLine.offered.includes(hinges.inLine.standard);
+  const cuts = [
+    ['mouse-ear', 'Mouse ear', 'Two 16mm holes drilled as well, so the glass costs more to make.'],
+    ['rectangular', 'Rectangular', 'A 12mm hole at each inner corner instead. The fitters take two screws out of each hinge.'],
+  ] as const;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -882,7 +886,7 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
   };
 
   const about =
-    'Which of CRL’s hinges your customers can choose, where a door hangs from a wall and where it hangs from the glass beside it. A new design starts with the standard one. Staff can choose any for a shower. The glass is cut the same for all of them. Bellagio makes one of each (BEL344 to the wall, BEL380 in line), and every range one hinge for a corner.';
+    'Which of CRL’s hinges your customers can choose, where a door hangs from a wall and where it hangs from the glass beside it. A new design starts with the standard one. Staff can choose any for a shower. Each range has its own cut-out (Vienna’s is bigger than Geneva’s); a hinge whose cut-out has not been checked against CRL’s drawing of it is marked on the glass order to check against the template in its box. Bellagio makes one of each (BEL344 to the wall, BEL380 in line), and every range one hinge for a corner.';
 
   if (!owner) {
     const listed = <T extends string>(offered: T[], styles: Record<T, HingeStyle>, standard: T) =>
@@ -896,6 +900,9 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
           </p>
           <p>
             In line: <span className="font-medium">{listed(designer.hinges.inLine.offered, IN_LINE_HINGE_STYLES, designer.hinges.inLine.standard)}</span>
+          </p>
+          <p>
+            Vienna cut-out: <span className="font-medium">{designer.hinges.viennaCutout === 'rectangular' ? 'Rectangular' : 'Mouse ear'}</span>
           </p>
         </div>
       </Section>
@@ -924,6 +931,27 @@ function HingesPart({ designer, owner, justSaved, onSaved, onReload }: DesignerP
           onChange={(offered, standard) => setHinges({ ...hinges, inLine: { offered, standard } })}
           name={`in-line-${designer.id}`}
         />
+        <fieldset className="mt-4">
+          <legend className="text-sm font-semibold">How a Vienna hinge’s cut-out is made</legend>
+          <p className="text-xs text-quiet">Both are CRL’s, 76mm by 46mm. Staff can choose the other for a shower.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {cuts.map(([id, name, about]) => (
+              <label key={id} className="flex cursor-pointer items-start gap-2 rounded-md border border-rule px-3 py-2">
+                <input
+                  type="radio"
+                  name={`vienna-${designer.id}`}
+                  checked={hinges.viennaCutout === id}
+                  onChange={() => setHinges({ ...hinges, viennaCutout: id })}
+                  className="mt-1 h-4 w-4 shrink-0"
+                />
+                <span>
+                  <span className="font-medium">{name}</span>{' '}
+                  <span className="block text-xs text-quiet">{about}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <SaveRow
           label="Save the hinges"
           dirty={dirty}
@@ -1412,6 +1440,8 @@ function describe(item: SettingsChangeItem, by: string): string {
       const names = (ids: string[]) => listed(ids.map((id) => styles[id]?.words ?? id));
       return `${by} offered customers ${names(item.to)} hinges ${item.field === 'wallHingesOffered' ? 'to the wall' : 'in line'}, from ${names(item.from)}.`;
     }
+    case 'viennaCutout':
+      return `${by} made Vienna cut-outs ${item.to === 'rectangular' ? 'rectangular' : 'mouse ear'} as standard, from ${item.from === 'rectangular' ? 'rectangular' : 'mouse ear'}.`;
     case 'wallHingeStandard':
     case 'inLineHingeStandard': {
       const styles: Record<string, HingeStyle> = item.field === 'wallHingeStandard' ? WALL_HINGE_STYLES : IN_LINE_HINGE_STYLES;

@@ -32,6 +32,7 @@ import { getTemplate, type ShowerTemplate } from './templates';
 import {
   createInitialState,
   IN_LINE_HINGES,
+  VIENNA_CUTOUTS,
   WALL_HINGES,
   type ConfiguratorJunction,
   type ConfiguratorPanel,
@@ -379,5 +380,6 @@ function readDesign(v: unknown): ConfiguratorState {
   if (d.doorHeightMm !== undefined) design.doorHeightMm = mm(d.doorHeightMm, 'doorHeightMm', 1);
   if (d.wallHinge !== undefined) design.wallHinge = oneOf(d.wallHinge, WALL_HINGES, 'wallHinge');
   if (d.inLineHinge !== undefined) design.inLineHinge = oneOf(d.inLineHinge, IN_LINE_HINGES, 'inLineHinge');
+  if (d.viennaCutout !== undefined) design.viennaCutout = oneOf(d.viennaCutout, VIENNA_CUTOUTS, 'viennaCutout');
   return design;
 }

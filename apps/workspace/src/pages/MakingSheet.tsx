@@ -105,7 +105,7 @@ function Sheet({
   printedAt: string;
 }) {
   const doors = spec.panels.filter((p) => p.door);
-  const drawn = panesFor(design, spec);
+  const drawn = panesFor(design, spec, hinges);
   const letters = lettersFor(drawn);
   const checker = revision.checkedBy ? (revision.checkedBy.name ?? revision.checkedBy.email) : 'a former member of the team';
   const glass = `${spec.glassThicknessMm}mm toughened ${GLASS[design.glassType] ?? design.glassType}${design.glassCoating === 'easy-clean' ? ', easy-clean coated' : ''}`;
