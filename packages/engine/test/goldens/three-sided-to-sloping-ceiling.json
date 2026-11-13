@@ -116,9 +116,9 @@
           "plane": "return_left",
           "tightWidthMm": 600,
           "tightHeightMm": 2390,
-          "cutWidthMm": 583,
+          "cutWidthMm": 578,
           "cutHeightMm": 2366,
-          "weightKg": 34.48,
+          "weightKg": 34.19,
           "deductions": {
             "vertical": {
               "top": 12,
@@ -130,15 +130,15 @@
               ]
             },
             "horizontal": {
-              "left": 5,
+              "left": 10,
               "right": 12,
-              "total": 17,
+              "total": 22,
               "breakdown": [
-                "Left wall channel: -5mm",
+                "Left wall channel: -10mm",
                 "Right corner (butts behind): -12mm"
               ]
             },
-            "cutWidth": 583,
+            "cutWidth": 578,
             "cutHeight": 2366
           },
           "notches": [],
@@ -236,9 +236,9 @@
           "plane": "return_right",
           "tightWidthMm": 600,
           "tightHeightMm": 2390,
-          "cutWidthMm": 583,
+          "cutWidthMm": 578,
           "cutHeightMm": 2366,
-          "weightKg": 34.48,
+          "weightKg": 34.19,
           "deductions": {
             "vertical": {
               "top": 12,
@@ -251,14 +251,14 @@
             },
             "horizontal": {
               "left": 12,
-              "right": 5,
-              "total": 17,
+              "right": 10,
+              "total": 22,
               "breakdown": [
-                "Right wall channel: -5mm",
+                "Right wall channel: -10mm",
                 "Left corner (butts behind): -12mm"
               ]
             },
-            "cutWidth": 583,
+            "cutWidth": 578,
             "cutHeight": 2366
           },
           "notches": [],
@@ -297,7 +297,7 @@
       "isFloorToCeiling": true,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 103.4,
+      "totalGlassWeightKg": 102.8,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

@@ -67,9 +67,9 @@
           "plane": "front",
           "tightWidthMm": 900,
           "tightHeightMm": 2350,
-          "cutWidthMm": 895,
+          "cutWidthMm": 890,
           "cutHeightMm": 2326,
-          "weightKg": 52.04,
+          "weightKg": 51.75,
           "deductions": {
             "vertical": {
               "top": 12,
@@ -81,14 +81,14 @@
               ]
             },
             "horizontal": {
-              "left": 5,
+              "left": 10,
               "right": 0,
-              "total": 5,
+              "total": 10,
               "breakdown": [
-                "Left wall channel: -5mm"
+                "Left wall channel: -10mm"
               ]
             },
-            "cutWidth": 895,
+            "cutWidth": 890,
             "cutHeight": 2326
           },
           "notches": [],
@@ -103,7 +103,7 @@
       "isFloorToCeiling": true,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 52,
+      "totalGlassWeightKg": 51.8,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -119,7 +119,7 @@
       ],
       "warnings": [
         "Review: the glass is 2350mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
-        "P1 — Fixed (Front): Panel weighs 52.04kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit.",
+        "P1 — Fixed (Front): Panel weighs 51.75kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit.",
         "Review: the ceiling along the the opening slopes 6mm. The glass on that run is cut to the 2350mm bounding height with a raked top edge; Custom Showers will confirm the ceiling line before ordering.",
         "No door in this run — quoted as fixed panels only."
       ],

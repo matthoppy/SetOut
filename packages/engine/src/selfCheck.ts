@@ -12,7 +12,7 @@ import { buildSpec } from './spec';
 
 /** A 400 panel and a 700 door, 2000 high, in channel, in 10mm glass. */
 const REFERENCE_LAYOUT = 'alcove-panel-door';
-const KNOWN_CUT_SIZES = '395 x 1980, 690 x 1980';
+const KNOWN_CUT_SIZES = '390 x 1980, 690 x 1980';
 
 export interface SelfCheck {
   ok: boolean;

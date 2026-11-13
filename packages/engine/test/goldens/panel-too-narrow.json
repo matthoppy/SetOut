@@ -80,9 +80,9 @@
           "plane": "front",
           "tightWidthMm": 100,
           "tightHeightMm": 2000,
-          "cutWidthMm": 95,
+          "cutWidthMm": 90,
           "cutHeightMm": 1980,
-          "weightKg": 4.7,
+          "weightKg": 4.46,
           "deductions": {
             "vertical": {
               "top": 10,
@@ -94,14 +94,14 @@
               ]
             },
             "horizontal": {
-              "left": 5,
+              "left": 10,
               "right": 0,
-              "total": 5,
+              "total": 10,
               "breakdown": [
-                "Left wall channel: -5mm"
+                "Left wall channel: -10mm"
               ]
             },
-            "cutWidth": 95,
+            "cutWidth": 90,
             "cutHeight": 1980
           },
           "notches": [],
@@ -132,7 +132,7 @@
               "right": 5,
               "total": 5,
               "breakdown": [
-                "Right wall channel: -5mm"
+                "Right wall, door gap: -5mm"
               ]
             },
             "cutWidth": 695,
@@ -200,7 +200,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 38.9,
+      "totalGlassWeightKg": 38.6,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -214,7 +214,7 @@
       ],
       "warnings": [],
       "blockingIssues": [
-        "P1 — Fixed (Front): Panel is 95mm wide, below our 150mm minimum."
+        "P1 — Fixed (Front): Panel is 90mm wide, below our 150mm minimum."
       ]
     }
   }

@@ -113,7 +113,7 @@ describe('the walls', () => {
     const spec = buildSpec(state, context);
     const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].start).toMatchObject({ meets: 'wall', leanMm: -6 });
-    expect(panes[0].left).toEqual({ meets: 'wall', bottomMm: 5, topMm: 5 });
+    expect(panes[0].left).toEqual({ meets: 'wall', bottomMm: 10, topMm: 10 });
     // It leans out, so the top corner is further out than the bottom one.
     expect(panes[0].corners.topLeft.x).toBeLessThan(panes[0].corners.bottomLeft.x);
   });

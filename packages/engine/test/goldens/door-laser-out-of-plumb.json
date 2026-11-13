@@ -100,8 +100,8 @@
               "right": 5,
               "total": 10,
               "breakdown": [
-                "Left wall channel: -5mm",
-                "Right wall channel: -5mm"
+                "Left wall, door gap: -5mm",
+                "Right wall, door gap: -5mm"
               ]
             },
             "cutWidth": 692,

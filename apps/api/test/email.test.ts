@@ -85,7 +85,7 @@ describe('the email to the company', () => {
       'New shower design CS-1001',
       'Asha Patel',
       '020 7946 0000',
-      '395 × 1980',
+      '390 × 1980',
       '690 × 1980',
       '2 × Geneva hinges, offset back plate, right hand',
       'hinge centres 250 / 1730mm from the bottom',

@@ -84,8 +84,32 @@ describe('two companies, one design', () => {
   test('a 1mm silicone joint takes 11mm off the return, not 12', () => {
     const ours = buildSpec(corner, company('Custom Showers'));
     const theirs = buildSpec(corner, company('Brennan Glass', { 'glass.siliconeJointMm': 1 }));
-    expect(ours.panels[0].cutWidthMm).toBe(783);
-    expect(theirs.panels[0].cutWidthMm).toBe(784);
+    expect(ours.panels[0].cutWidthMm).toBe(778);
+    expect(theirs.panels[0].cutWidthMm).toBe(779);
+  });
+
+  test('glass in a channel sits half way into it, so it loses 10mm at each wall', () => {
+    const spec = buildSpec(designFromTemplate('alcove-panel-door'), company('Custom Showers'));
+    expect(spec.panels[0].deductions.horizontal.breakdown).toEqual(['Left wall channel: -10mm']);
+    expect(spec.panels[0].cutWidthMm).toBe(390);
+  });
+
+  test('a door at a wall is not in the channel, so it keeps its own 5mm gap', () => {
+    const ours = buildSpec(door, company('Custom Showers'));
+    expect(ours.panels[0].deductions.horizontal.breakdown).toEqual([
+      'Left wall, door gap: -5mm',
+      'Right wall, door gap: -5mm',
+    ]);
+    const deeper = buildSpec(door, company('Brennan Glass', { 'deductions.channel.horizontalMm': 12 }));
+    expect(deeper.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm);
+    const wider = buildSpec(door, company('Brennan Glass', { 'deductions.door.wallMm': 7 }));
+    expect(wider.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm - 4);
+  });
+
+  test('on clamps, glass at a wall loses 3mm for the silicone down the wall', () => {
+    const spec = buildSpec({ ...designFromTemplate('alcove-panel-door'), mounting: 'clamps' }, company('Custom Showers'));
+    expect(spec.panels[0].deductions.horizontal.breakdown).toEqual(['Left clamps: -3mm']);
+    expect(spec.panels[0].cutWidthMm).toBe(397);
   });
 
   test('a company that makes in 8mm is not warned about 8mm', () => {

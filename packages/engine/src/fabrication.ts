@@ -110,15 +110,27 @@ export function calculateHorizontalDeductions(
   isLongPanel: boolean, // At corner: front panel is "long", return is "short"
   hasLeftCorner: boolean,
   hasRightCorner: boolean,
-  glassThicknessMm: number
+  glassThicknessMm: number,
+  isDoor = false
 ): HorizontalDeductions {
   const d = rules.making.deductions;
   const breakdown: string[] = [];
   let left = 0;
   let right = 0;
 
-  // Wall channel deductions
-  if (mountingStyle === 'channel') {
+  // Wall channel deductions. A door's edge at a wall is not in the channel:
+  // it hangs on wall hinges or closes against the wall, so it leaves its own
+  // gap rather than sitting half way into a 19mm channel.
+  if (mountingStyle === 'channel' && isDoor) {
+    if (hasLeftWallChannel) {
+      left += d.door.wallMm;
+      breakdown.push(`Left wall, door gap: -${d.door.wallMm}mm`);
+    }
+    if (hasRightWallChannel) {
+      right += d.door.wallMm;
+      breakdown.push(`Right wall, door gap: -${d.door.wallMm}mm`);
+    }
+  } else if (mountingStyle === 'channel') {
     if (hasLeftWallChannel) {
       left += d.channel.horizontalMm;
       breakdown.push(`Left wall channel: -${d.channel.horizontalMm}mm`);
@@ -219,7 +231,8 @@ export function calculatePanelDeductions(
     cornerConfig.isLongPanel,
     cornerConfig.hasLeftCorner,
     cornerConfig.hasRightCorner,
-    cornerConfig.glassThicknessMm
+    cornerConfig.glassThicknessMm,
+    panel.panel_type === 'door_hinged'
   );
 
   return {

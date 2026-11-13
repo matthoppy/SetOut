@@ -44,7 +44,12 @@ export interface MakingRules {
     channel: {
       /** Top and bottom, each, for glass that stops short of the ceiling. */
       verticalMm: number;
-      /** At each wall the glass meets. */
+      /**
+       * [OURS] At each wall the glass meets: about half the channel's 19mm
+       * depth, so the glass sits half way in it (Matt, 13 November 2026: "the
+       * channel depth is 19mm and we deduct off 10mm from the glass so the
+       * glass sits about half way in the channel"). CRL's own default is 5.
+       */
       horizontalMm: number;
       /** Top and bottom, each, when the glass is fitted floor to ceiling. */
       floorToCeilingMm: number;
@@ -56,6 +61,13 @@ export interface MakingRules {
       outOnlyMm: number;
       /** A door that swings both ways, on a bubble seal. */
       bothWaysMm: number;
+      /**
+       * [OURS] A door's edge at a wall on a channel job, where it hangs on
+       * wall hinges or closes against the wall. It is not in the channel, so
+       * it keeps the 5mm it has always had when the channel's own deduction
+       * rose to 10 (13 November 2026). Matt to confirm the gap he leaves.
+       */
+      wallMm: number;
     };
     /** Off the door's height when a support panel runs over its head. */
     supportPanelHeadMm: number;
@@ -321,9 +333,9 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
     siliconeJointMm: 2,
   },
   deductions: {
-    channel: { verticalMm: 10, horizontalMm: 5, floorToCeilingMm: 12 },
+    channel: { verticalMm: 10, horizontalMm: 10, floorToCeilingMm: 12 },
     clampMm: 3,
-    door: { outOnlyMm: 5, bothWaysMm: 9 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5 },
     supportPanelHeadMm: 4,
   },
   heights: {
@@ -551,11 +563,12 @@ export const ADJUSTABLE = {
   'glass.standardThicknessMm': { oneOf: [8, 10, 12] },
   'glass.siliconeJointMm': { min: 1, max: 3 },
   'deductions.channel.verticalMm': { min: 5, max: 15 },
-  'deductions.channel.horizontalMm': { min: 2, max: 10 },
+  'deductions.channel.horizontalMm': { min: 2, max: 15 },
   'deductions.channel.floorToCeilingMm': { min: 8, max: 20 },
   'deductions.clampMm': { min: 2, max: 6 },
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
+  'deductions.door.wallMm': { min: 2, max: 10 },
   'deductions.supportPanelHeadMm': { min: 0, max: 8 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },

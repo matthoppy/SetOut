@@ -242,7 +242,7 @@ describe('a customer sends a design', () => {
     const [revision] = await ours.db.find('design_revisions');
     // Custom Showers set a 7mm door clearance above, so the door is 688, not 690.
     expect(revision.computed.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual([
-      [395, 1980],
+      [390, 1980],
       [688, 1980],
     ]);
   });
@@ -258,7 +258,7 @@ describe('a customer sends a design', () => {
     );
     expect(await response.json()).toEqual({ ok: true, reference: 'CS-1002' });
     const revisions = await ours.db.find('design_revisions', { orderBy: { column: 'created_at' } });
-    expect(revisions[1].computed.panels.map((p) => p.cutWidthMm)).toEqual([395, 688]);
+    expect(revisions[1].computed.panels.map((p) => p.cutWidthMm)).toEqual([390, 688]);
     expect((await ours.db.find('jobs', { where: { reference: 'CS-1002' } }))[0].stage).toBe('new');
   });
 
@@ -295,7 +295,7 @@ describe('a customer sends a design', () => {
     expect(await theirs.db.count('jobs')).toBe(1);
     const [revision] = await theirs.db.find('design_revisions');
     // Brennan Glass has no rule changes, so its door is 690.
-    expect(revision.computed.panels.map((p) => p.cutWidthMm)).toEqual([395, 690]);
+    expect(revision.computed.panels.map((p) => p.cutWidthMm)).toEqual([390, 690]);
     expect(revision.ruleset_version).toBe(0);
     const [job] = await theirs.db.find('jobs');
     expect(job.designer_id).toBe(theirs.designerId);

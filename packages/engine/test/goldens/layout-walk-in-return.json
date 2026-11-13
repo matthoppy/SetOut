@@ -89,9 +89,9 @@
           "plane": "front",
           "tightWidthMm": 900,
           "tightHeightMm": 2000,
-          "cutWidthMm": 895,
+          "cutWidthMm": 890,
           "cutHeightMm": 1980,
-          "weightKg": 44.3,
+          "weightKg": 44.06,
           "deductions": {
             "vertical": {
               "top": 10,
@@ -103,15 +103,15 @@
               ]
             },
             "horizontal": {
-              "left": 5,
+              "left": 10,
               "right": 0,
-              "total": 5,
+              "total": 10,
               "breakdown": [
-                "Left wall channel: -5mm",
+                "Left wall channel: -10mm",
                 "Right corner (runs through): -0mm"
               ]
             },
-            "cutWidth": 895,
+            "cutWidth": 890,
             "cutHeight": 1980
           },
           "notches": [],
@@ -169,7 +169,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 58.6,
+      "totalGlassWeightKg": 58.3,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
