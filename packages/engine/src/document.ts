@@ -338,6 +338,9 @@ function readOpening(v: unknown, runCount: number): OpeningMeasurements {
   if (o.walkInOpeningMm !== undefined) {
     opening.walkInOpeningMm = mmOrNull(o.walkInOpeningMm, 'opening.walkInOpeningMm');
   }
+  if (o.levelLengthMm !== undefined) {
+    opening.levelLengthMm = mmOrNull(o.levelLengthMm, 'opening.levelLengthMm');
+  }
   if (o.aboveGlass !== undefined) {
     opening.aboveGlass = oneOfOrNull(o.aboveGlass, ['clear', 'ceiling'] as const, 'opening.aboveGlass');
   }

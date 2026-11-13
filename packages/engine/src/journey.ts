@@ -31,6 +31,7 @@ import {
   crossMissing,
   floorMeasured,
   halvesTotalMm,
+  leanScale,
   LASER_OFFSET_DEFAULT_MM,
   measuredInHalves,
   toolFor,
@@ -485,7 +486,7 @@ export function journeySummary(state: JourneyState): SummaryRow[] {
   }
 
   const describeWall = (wall: OpeningMeasurements['startWall']) => {
-    const lean = wallLean(wall);
+    const lean = wallLean(wall, leanScale(m, state.heightMm));
     if (!lean) return null;
     if (lean.leanMm === 0) return 'Straight up';
     return `${lean.leanMm}mm out, leaning ${lean.direction === 'in' ? 'into' : 'away from'} the shower at the top${lean.isBowed ? ', and bowed' : ''}`;

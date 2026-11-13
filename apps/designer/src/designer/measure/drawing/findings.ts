@@ -3,7 +3,7 @@
  * drawing of any layout but the single door, which has its own.
  */
 
-import { ceilingSlope, runEndNames, runNames, runViews, walkInGapMm, wallLean, wallNames, type ConfiguratorState, type DeckOptions } from '@setout/engine';
+import { ceilingSlope, leanScale, runEndNames, runNames, runViews, walkInGapMm, wallLean, wallNames, type ConfiguratorState, type DeckOptions } from '@setout/engine';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -20,7 +20,7 @@ export function enclosureFindings(state: ConfiguratorState, options: DeckOptions
     [walls.end, m.endWall],
   ] as const) {
     if (!name) continue;
-    const lean = wallLean(wall);
+    const lean = wallLean(wall, leanScale(m, state.heightMm));
     if (!lean) continue;
     // 'the back wall, at the left end' reads better without its comma in a sentence.
     const called = cap(name.replace(',', ''));

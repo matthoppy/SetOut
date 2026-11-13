@@ -92,16 +92,17 @@ export interface WallLean {
 export const BOW_THRESHOLD_MM = 5;
 
 /** Work out the lean, its direction and any bow. Null until both ends are in. */
-export function wallLean(wall: WallMeasurement): WallLean | null {
+export function wallLean(wall: WallMeasurement, scale = 1): WallLean | null {
   const { gapBottomMm: bottom, gapTopMm: top, gapMiddleMm: middle } = wall;
   if (bottom === null || top === null) return null;
 
   // A bigger gap at the top means the wall falls away from the reference up
   // there, so it leans out; a smaller one means it leans in and eats into the
-  // opening. That is the sign the width arithmetic wants.
-  const signedMm = Math.round(bottom - top);
+  // opening. That is the sign the width arithmetic wants. Read off a level
+  // shorter than the glass, it is scaled up to the glass (leanScale).
+  const signedMm = Math.round((bottom - top) * scale);
   const bowMm =
-    middle === null ? null : Math.round((middle - (top + bottom) / 2) * 10) / 10;
+    middle === null ? null : Math.round((middle - (top + bottom) / 2) * scale * 10) / 10;
 
   return {
     signedMm,
@@ -192,6 +193,16 @@ export interface OpeningMeasurements {
    * open end. With the glass length it gives the walk-through gap.
    */
   walkInOpeningMm?: number | null;
+  /**
+   * How long the spirit level is, where the walls and the floor were checked
+   * with one (Matt, 13 November 2026: ask for it; a longer level is better,
+   * but a 1200 one on 2000 glass still gives a good idea of the rake). A
+   * level shorter than the glass reads a wall's lean over its own length,
+   * so the lean is scaled up to the glass, and one shorter than a run reads
+   * the fall over its own length, scaled up to the run. Null where it was
+   * not asked, with a laser or on the older screens: read as typed.
+   */
+  levelLengthMm?: number | null;
   /**
    * For glass that stops short of the ceiling: is anything in the way above
    * where it finishes? 'ceiling' means the ceiling comes down over the shower
@@ -427,7 +438,7 @@ export function keepSetup(
   from: OpeningMeasurements,
   to: OpeningMeasurements
 ): OpeningMeasurements {
-  return { ...to, method: from.method, laserOffsetMm: from.laserOffsetMm ?? LASER_OFFSET_DEFAULT_MM };
+  return { ...to, method: from.method, laserOffsetMm: from.laserOffsetMm ?? LASER_OFFSET_DEFAULT_MM, levelLengthMm: from.levelLengthMm ?? null };
 }
 
 /**
@@ -486,8 +497,36 @@ export function runLabels(count: number): string[] {
  * wrong puts a panel out by twice the lean rather than by nothing, which is
  * why direction is a required answer rather than an optional refinement.
  */
-export function signedLeanMm(wall: WallMeasurement): number {
-  return wallLean(wall)?.signedMm ?? 0;
+export function signedLeanMm(wall: WallMeasurement, scale = 1): number {
+  return wallLean(wall, scale)?.signedMm ?? 0;
+}
+
+/**
+ * How much a wall's two readings are to be scaled by to give its lean over
+ * the glass: the glass height over the level's length, where the walls were
+ * checked with a level of a known length, and otherwise 1. A laser's
+ * readings are taken at the foot and at the top of the glass already.
+ */
+export function leanScale(m: Pick<OpeningMeasurements, 'method' | 'levelLengthMm'>, glassHeightMm: number): number {
+  return m.method !== 'laser' && m.levelLengthMm ? glassHeightMm / m.levelLengthMm : 1;
+}
+
+/**
+ * Each run's fall, from its two floor readings: their difference, scaled up
+ * to the run where they were read off a level of a known length, as the
+ * walls are scaled up to the glass. The readings are kept as typed.
+ */
+export function fallsFromReadings(m: OpeningMeasurements): OpeningMeasurements {
+  const level = m.method !== 'laser' && m.levelLengthMm ? m.levelLengthMm : null;
+  return {
+    ...m,
+    runs: m.runs.map((run) => {
+      const derived = floorFromReadings(run.floorStartMm, run.floorEndMm);
+      if (!derived) return run;
+      const scale = level ? run.widthAtFloorMm / level : 1;
+      return { ...run, floorFallMm: Math.round(derived.fallMm * scale), floorLowEnd: derived.lowEnd };
+    }),
+  };
 }
 
 /** Which walls, if any, bound a given run. Corners are not walls. */
@@ -518,7 +557,7 @@ export function topWidthMm(
   if (!run) return 0;
   return Math.round(
     run.widthAtFloorMm -
-      wallsForRun(m, runIndex, ctx).reduce((sum, w) => sum + signedLeanMm(w), 0)
+      wallsForRun(m, runIndex, ctx).reduce((sum, w) => sum + signedLeanMm(w, leanScale(m, ctx.glassHeightMm)), 0)
   );
 }
 
@@ -736,7 +775,7 @@ export function checkMeasurements(
       });
     }
 
-    const lean = wallLean(wall);
+    const lean = wallLean(wall, leanScale(m, ctx.glassHeightMm));
     if (!lean) continue;
 
     if (lean.leanMm > LARGE_LEAN_MM) {
@@ -1015,7 +1054,7 @@ export function describeOpening(m: OpeningMeasurements, ctx: OpeningContext): st
     [m.endWall, 'far wall', ctx.hasEndWall],
   ] as const) {
     if (!present) continue;
-    const lean = wallLean(wall);
+    const lean = wallLean(wall, leanScale(m, ctx.glassHeightMm));
     if (!lean) continue;
     if (lean.leanMm > 0) {
       parts.push(

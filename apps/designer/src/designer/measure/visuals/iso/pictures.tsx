@@ -757,6 +757,43 @@ function TopAcross({ plan, run, value }: { plan: Plan; run: Run; value: number |
   );
 }
 
+/** The spirit level on the bathroom floor in front of the shower, measured from end to end. */
+export function IsoLevelLength({ input, value }: { input: SceneInput; value: number | null }) {
+  const plan = usePlan(input);
+  const run = plan.runs.find((r) => r.view.faces === 'front') ?? plan.runs[0];
+  const u = dir(run.a, run.b);
+  // Lying on the floor, parallel to the front and well clear of the tray.
+  const middle = add(along(run.a, run.b, 0.5), run.out, 430);
+  const half = LEVEL.long / 2;
+  const left = add(middle, u, -half);
+  const right = add(middle, u, half);
+  // The tape hooked on one end and laid along its top, read at the other end.
+  const top = LEVEL.deep + 2;
+  const hook = lift(add(left, run.out, 0), top);
+  const read = lift(add(right, run.out, 0), top);
+  const tapeEnd = add(read, u, 160);
+  const m: Measured = { from: hook, to: read, off: run.out, by: 220, laser: false, value };
+  return (
+    <Stage
+      plan={plan}
+      label="The spirit level lying on the floor, and a tape along it from one end to the other"
+      focus={focusOn([...reachOf(m), lift(left, 400), lift(right, 400), add(tapeEnd, u, 80)], 160)}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            things={[
+              { key: 'level', node: <SpiritLevel base={middle} along={u} off={v(0, 0, 1)} cross={run.out} />, at: middle, reach: [left, right, lift(middle, LEVEL.deep)] },
+              { key: 'tape', node: <Tape hook={hook} end={tapeEnd} face={v(0, 0, 1)} />, at: lift(middle, top), reach: [hook, tapeEnd] },
+            ]}
+          />
+        ),
+        overlay: <MeasureMarks m={m} ctx={ctx} />,
+      })}
+    />
+  );
+}
+
 /**
  * How far the level is drawn off what it rests against, the same at both
  * ends, so the picture shows where to measure without saying which end

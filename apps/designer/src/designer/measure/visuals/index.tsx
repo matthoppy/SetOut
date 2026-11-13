@@ -1,7 +1,7 @@
 import { readField, readingCards, runPanelIndices, runViews, type ConfiguratorState, type DeckOptions, type MeasureCardDef, type RunView } from '@setout/engine';
 import { CrossReadingVisual } from './CrossReadingVisual';
 import { HeightVisual } from './HeightVisual';
-import { IsoCross, IsoCrossSetup, IsoHeight, IsoLaserOn, IsoMarks, IsoReading, type Corner, type SceneInput } from './iso/pictures';
+import { IsoCross, IsoCrossSetup, IsoHeight, IsoLaserOn, IsoLevelLength, IsoMarks, IsoReading, type Corner, type SceneInput } from './iso/pictures';
 import { trayable, type RunPanes } from './iso/space';
 import { LaserOnVisual } from './LaserOnVisual';
 import { LaserSetupVisual } from './LaserSetupVisual';
@@ -78,6 +78,8 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
       if (toCross) return <HeightVisual glassTop={glassTop} value={value} />;
       return <RunHeightVisual view={wallRun(views)} views={views} glassTop={glassTop} value={value} />;
     }
+    case 'level-length':
+      return tray ? <IsoLevelLength input={input} value={value} /> : null;
     case 'plan-marks':
       return tray ? <IsoMarks input={input} /> : <PlanMarksVisual views={views} />;
     case 'laser-on': {

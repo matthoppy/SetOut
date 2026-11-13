@@ -29,6 +29,7 @@ import {
   ceilingGlassHeightMm,
   createCrossReadings,
   CROSS_POINTS,
+  fallsFromReadings,
   LASER_OFFSET_DEFAULT_MM,
   MIN_PLAUSIBLE_MM,
   MIN_PLAUSIBLE_RETURN_MM,
@@ -90,7 +91,9 @@ export type CardVisual =
   /** A long level held upright against a wall on the glass line, and the gap behind it at the bottom or the top. */
   | { kind: 'level-wall'; view: RunView; side: 'left' | 'right'; at: 'bottom' | 'top' }
   /** A long level laid along a run's glass line, and the gap under it at one end. */
-  | { kind: 'level-floor'; view: RunView; side: 'left' | 'right' };
+  | { kind: 'level-floor'; view: RunView; side: 'left' | 'right' }
+  /** The spirit level itself, measured from end to end. */
+  | { kind: 'level-length' };
 
 /** Where a reading card's number goes. */
 export type CardField =
@@ -104,6 +107,8 @@ export type CardField =
   | { kind: 'tray' }
   /** A run between two walls, across at the top, measured with a tape. */
   | { kind: 'top'; run: number }
+  /** How long the spirit level is. */
+  | { kind: 'level' }
   /** A wall at the start or the end of the glass, to an upright line. */
   | { kind: 'wall'; wall: 'start' | 'end'; at: 'bottom' | 'top' }
   | { kind: 'floor'; run: number; end: 'start' | 'end' }
@@ -147,22 +152,23 @@ export interface DeckOptions {
 
 /**
  * Whether the engine has a deck for this shower and the tool in hand. With a
- * tape, only where the tape decks are switched on, and never for a single
- * door, which keeps the older screens until Matt has decided how one is
- * measured without a laser.
+ * tape, where the tape decks are switched on.
  */
 export function hasDeck(state: ConfiguratorState, options: DeckOptions = {}): boolean {
   const tool = toolFor(state.opening.method);
   if (tool === 'laser') return true;
-  return tool === 'tape' && !!options.tape && !isSingleDoor(state) && state.opening.method !== 'assumed-square';
+  return tool === 'tape' && !!options.tape && state.opening.method !== 'assumed-square';
 }
 
 /** The deck for this shower. Only meaningful when hasDeck says there is one. */
 export function buildCards(state: ConfiguratorState, options: DeckOptions = {}): MeasureCardDef[] {
+  // Measured with a tape, every shape has the tape deck, a single door
+  // included: without a laser it is measured as a panel and door is (Matt,
+  // 13 November 2026).
+  if (hasDeck(state, options) && toolFor(state.opening.method) === 'tape') return enclosureTape(state, options);
   // The single-door laser deck is signed off (10 Nov 2026) and is the pattern
   // for the other shapes and the tape sequences.
   if (isSingleDoor(state)) return singleDoorLaser(state);
-  if (hasDeck(state, options) && toolFor(state.opening.method) === 'tape') return enclosureTape(state, options);
   return enclosureLaser(state, options);
 }
 
@@ -636,9 +642,9 @@ function enclosureLaser(state: ConfiguratorState, options: DeckOptions): Measure
  * touches reads 0, so a gap reads as a laser reading would: bigger where the
  * floor is lower, or the wall further off.
  *
- * Dealt only where switched on, until Matt has signed them off. A single
- * door keeps the older screens until he has decided how one is measured
- * without a laser.
+ * Dealt only where switched on. Signed off by Matt on 13 November 2026,
+ * when he also decided that a single door without a laser is measured as a
+ * panel and door is, so it has this deck too.
  */
 function enclosureTape(state: ConfiguratorState, options: DeckOptions): MeasureCardDef[] {
   const deck = shapeDeck(state, options);
@@ -670,6 +676,20 @@ function enclosureTape(state: ConfiguratorState, options: DeckOptions): MeasureC
       maxMm: 3000,
     });
   }
+
+  // How long the level is, so what it shows is scaled up to the glass and
+  // to each run (Matt, 13 November 2026). Asked before it is first used.
+  cards.push({
+    id: 'level-length',
+    kind: 'reading',
+    title: 'How long is your level?',
+    instruction: 'Measure your spirit level from end to end. The longer it is the better, but any long level will do: we scale what it shows up to the whole glass.',
+    visual: { kind: 'level-length' },
+    field: { kind: 'level' },
+    inputLabel: 'Your level, end to end',
+    minMm: 300,
+    maxMm: 2500,
+  });
 
   // The floor under a run: a level laid along its glass line, its lower end
   // lifted until the bubble is in the middle, and the gap under each end.
@@ -758,6 +778,8 @@ export function readField(state: ConfiguratorState, field: CardField): number | 
       return m.walkInOpeningMm ?? null;
     case 'top':
       return m.runs[field.run]?.widthAtTopCheckMm ?? null;
+    case 'level':
+      return m.levelLengthMm ?? null;
     case 'wall': {
       const wall = field.wall === 'start' ? m.startWall : m.endWall;
       return field.at === 'bottom' ? wall.gapBottomMm : wall.gapTopMm;
@@ -785,6 +807,18 @@ export function readField(state: ConfiguratorState, field: CardField): number | 
  * what was worked out from it standing until another is typed.
  */
 export function writeField(
+  rules: Ruleset,
+  state: ConfiguratorState,
+  field: CardField,
+  value: number | null
+): ConfiguratorState {
+  const next = writeReading(rules, state, field, value);
+  // A fall read off a level is scaled to its run, so it is worked out again
+  // whenever the floor, the run or the level's length changes.
+  return field.kind === 'floor' || field.kind === 'width' || field.kind === 'level' ? { ...next, opening: fallsFromReadings(next.opening) } : next;
+}
+
+function writeReading(
   rules: Ruleset,
   state: ConfiguratorState,
   field: CardField,
@@ -855,6 +889,9 @@ export function writeField(
         opening: { ...m, runs: m.runs.map((r, i) => (i === field.run ? { ...r, widthAtTopCheckMm: value } : r)), shapeConfirmed: false },
       };
 
+    case 'level':
+      return { ...state, opening: { ...m, levelLengthMm: value, shapeConfirmed: false } };
+
     case 'wall': {
       const key = field.wall === 'start' ? 'startWall' : 'endWall';
       const reading = field.at === 'bottom' ? 'gapBottomMm' : 'gapTopMm';
@@ -878,6 +915,18 @@ export function writeField(
         ...run,
         [field.end === 'start' ? 'ceilingStartMm' : 'ceilingEndMm']: value,
       }));
+      // A single door measured with a tape stops the air gap short of the
+      // lower of its two readings, as one measured to the cross does.
+      if (isSingleDoor(state)) {
+        const run = opening.runs[field.run];
+        const lowest = run && run.ceilingStartMm != null && run.ceilingEndMm != null ? Math.min(run.ceilingStartMm, run.ceilingEndMm) : null;
+        const topGap = state.topGapMm ?? rules.making.heights.singleDoorTopGapMm;
+        return {
+          ...state,
+          opening: { ...opening, ceilingHeightMm: lowest },
+          ...(state.isFloorToCeiling && lowest ? { heightMm: lowest - topGap } : {}),
+        };
+      }
       // An enclosure to the ceiling is cut to the tallest reading, and the
       // lower end becomes a raked top edge.
       const tallest = ceilingGlassHeightMm(opening);

@@ -34,7 +34,7 @@
  */
 
 import { hasTransom, runLabelsFor, runPanelIndices } from './geometry';
-import { signedLeanMm, type RunMeasurement, type WallMeasurement } from './measure';
+import { leanScale, signedLeanMm, type RunMeasurement, type WallMeasurement } from './measure';
 import type { FixedRules } from './ruleset';
 import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
@@ -145,14 +145,14 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRul
     const startWall: Side | null =
       r === 0 && state.leftWall
         ? (() => {
-            const lean = signedLeanMm(state.opening.startWall);
+            const lean = signedLeanMm(state.opening.startWall, leanScale(state.opening, state.heightMm));
             return { p: (-lean * floorAt(0)) / glassHeight, q: lean / glassHeight };
           })()
         : null;
     const endWall: Side | null =
       r === runs.length - 1 && state.rightWall
         ? (() => {
-            const lean = signedLeanMm(state.opening.endWall);
+            const lean = signedLeanMm(state.opening.endWall, leanScale(state.opening, state.heightMm));
             return { p: runWidth + (lean * floorAt(runWidth)) / glassHeight, q: -lean / glassHeight };
           })()
         : null;
@@ -349,7 +349,7 @@ export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed
 
   const runs: RunSetOut[] = frames.map((f, r) => {
     const end = (wall: Side | null, measured: WallMeasurement, chainEnd: boolean): RunBoundary =>
-      wall ? { meets: 'wall', xMm: wall.p, perMm: wall.q, leanMm: signedLeanMm(measured) } : { meets: chainEnd ? 'open' : 'corner' };
+      wall ? { meets: 'wall', xMm: wall.p, perMm: wall.q, leanMm: signedLeanMm(measured, leanScale(state.opening, state.heightMm)) } : { meets: chainEnd ? 'open' : 'corner' };
     return {
       label: labels[r] ?? `Run ${r + 1}`,
       panes: f.indices,

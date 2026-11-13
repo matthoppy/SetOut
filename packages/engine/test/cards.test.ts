@@ -17,6 +17,8 @@ import {
   runViews,
   TEMPLATES,
   unreadCards,
+  leanScale,
+  topWidthMm,
   walkInGapMm,
   wallLean,
   writeField,
@@ -285,6 +287,8 @@ function reading(field: CardField): number {
       return field.end === 'start' ? 2400 : 2392;
     case 'top':
       return 851;
+    case 'level':
+      return 1200;
   }
 }
 
@@ -700,7 +704,7 @@ describe('typing a reading on any layout', () => {
 // ---------------------------------------------------------------------------
 
 describe('the tape decks', () => {
-  const TAPE = TEMPLATES.filter((t) => t.id !== 'alcove-door').flatMap((t) => [
+  const TAPE = TEMPLATES.flatMap((t) => [
     { id: t.id, toCeiling: false },
     { id: t.id, toCeiling: true },
   ]);
@@ -710,22 +714,30 @@ describe('the tape decks', () => {
     return { ...state, opening: { ...state.opening, method: 'packers' } };
   };
   const tapeDeck = (id: string, toCeiling = false) => buildCards(tapeLayout(id, toCeiling), options(id));
-  /** What a careful person reads with a tape and a level: the end of a level that touches reads 0. */
+  /** What a careful person reads with a tape and a 1200mm level: the end of a level that touches reads 0. */
   const tapeReading = (field: CardField): number => {
-    // Both walls 3mm further off at the top makes the top 6mm wider than the floor's 850.
-    if (field.kind === 'top') return 856;
     if (field.kind === 'wall') return field.at === 'bottom' ? 0 : 3;
     if (field.kind === 'floor') return field.end === 'start' ? 0 : 4;
     return reading(field);
   };
-  const typeTape = (start: ConfiguratorState, cards: MeasureCardDef[]) =>
-    readingCards(cards).reduce((state, card) => writeField(rules, state, card.field!, tapeReading(card.field!)), start);
+  /**
+   * Every reading typed, the width at the top last: it is the floor width
+   * with both walls' leans, each scaled up from the level to the glass.
+   */
+  const typeTape = (start: ConfiguratorState, cards: MeasureCardDef[]) => {
+    const readings = readingCards(cards);
+    let state = readings.filter((c) => c.field!.kind !== 'top').reduce((st, card) => writeField(rules, st, card.field!, tapeReading(card.field!)), start);
+    if (readings.some((c) => c.field!.kind === 'top')) {
+      state = writeField(rules, state, { kind: 'top', run: 0 }, topWidthMm(state.opening, 0, openingContext(state)));
+    }
+    return state;
+  };
 
-  test('are dealt only where switched on, and never for a single door, which keeps the older screens', () => {
+  test('are dealt only where switched on, a single door included', () => {
     for (const template of TEMPLATES) {
       const state = tapeLayout(template.id);
       expect(hasDeck(state)).toBe(false);
-      expect(hasDeck(state, { tape: true })).toBe(template.id !== 'alcove-door');
+      expect(hasDeck(state, { tape: true })).toBe(true);
       // Without a laser and switched off, the laser deck is what is dealt, as before.
       expect(buildCards(state, { overBath: template.id === 'over-bath' })).toEqual(
         buildCards({ ...state, opening: { ...state.opening, method: 'laser' } }, { overBath: template.id === 'over-bath' })
@@ -760,7 +772,7 @@ describe('the tape decks', () => {
     const start = tapeLayout(id, toCeiling);
     const cards = buildCards(start, options(id));
     const state = typeTape(start, cards);
-    for (const card of readingCards(cards)) expect(readField(state, card.field!)).toBe(tapeReading(card.field!));
+    for (const card of readingCards(cards)) if (card.field!.kind !== 'top') expect(readField(state, card.field!)).toBe(tapeReading(card.field!));
     expect(unreadCards(state, buildCards(state, options(id)))).toEqual([]);
     const stops = checkMeasurements(state.opening, openingContext(state))
       .filter((c) => c.level === 'blocking')
@@ -783,6 +795,7 @@ describe('the tape decks', () => {
       'width-0',
       'height',
       'width-top-0',
+      'level-length',
       'floor-0-start',
       'floor-0-end',
       'wall-start-bottom',
@@ -803,6 +816,61 @@ describe('the tape decks', () => {
     state = writeField(rules, state, { kind: 'wall', wall: 'start', at: 'top' }, 3);
     // A gap at the top: the wall falls away from the level up there, so it leans out.
     expect(wallLean(state.opening.startWall)).toMatchObject({ leanMm: 3, direction: 'out' });
+  });
+
+  test('a single door without a laser is measured as a panel and door is (Matt, 13 November 2026)', () => {
+    expect(ids(tapeDeck('alcove-door'))).toEqual(ids(tapeDeck('alcove-panel-door')));
+    expect(ids(tapeDeck('alcove-door', true))).toEqual([
+      'marks',
+      'width-0',
+      'width-top-0',
+      'level-length',
+      'floor-0-start',
+      'floor-0-end',
+      'ceiling-0-start',
+      'ceiling-0-end',
+      'wall-start-bottom',
+      'wall-start-top',
+      'wall-end-bottom',
+      'wall-end-top',
+      'review',
+    ]);
+  });
+
+  test('a single door to the ceiling stops the air gap short of the lower of its two readings', () => {
+    let state = tapeLayout('alcove-door', true);
+    state = writeField(rules, state, { kind: 'ceiling', run: 0, end: 'start' }, 2400);
+    state = writeField(rules, state, { kind: 'ceiling', run: 0, end: 'end' }, 2392);
+    expect(state.heightMm).toBe(2392 - rules.making.heights.singleDoorTopGapMm);
+    expect(state.opening.ceilingHeightMm).toBe(2392);
+  });
+
+  test('a lean read off a level is scaled up to the glass, and a fall to the run', () => {
+    let state = { ...tapeLayout('walk-in'), heightMm: 2000 };
+    state = writeField(rules, state, { kind: 'width', run: 0 }, 1500);
+    state = writeField(rules, state, { kind: 'wall', wall: 'start', at: 'bottom' }, 0);
+    state = writeField(rules, state, { kind: 'wall', wall: 'start', at: 'top' }, 3);
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'start' }, 0);
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'end' }, 4);
+    // Before the level's length is known, read as typed.
+    expect(wallLean(state.opening.startWall, leanScale(state.opening, state.heightMm))).toMatchObject({ leanMm: 3, direction: 'out' });
+    expect(state.opening.runs[0].floorFallMm).toBe(4);
+    // A 1200mm level on 2000mm glass and a 1500mm run.
+    state = writeField(rules, state, { kind: 'level' }, 1200);
+    expect(wallLean(state.opening.startWall, leanScale(state.opening, state.heightMm))).toMatchObject({ leanMm: 5, direction: 'out' });
+    expect(state.opening.runs[0]).toMatchObject({ floorFallMm: 5, floorLowEnd: 'end', floorStartMm: 0, floorEndMm: 4 });
+    // The run changes, and the fall follows it.
+    state = writeField(rules, state, { kind: 'width', run: 0 }, 1200);
+    expect(state.opening.runs[0].floorFallMm).toBe(4);
+  });
+
+  test("a laser's readings are never scaled, whatever level length a design carries", () => {
+    let state = layout('walk-in');
+    state = { ...state, opening: { ...state.opening, levelLengthMm: 600 } };
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'start' }, 1000);
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'end' }, 1004);
+    expect(state.opening.runs[0].floorFallMm).toBe(4);
+    expect(leanScale(state.opening, 2000)).toBe(1);
   });
 
   test('the width at the top is kept as the check it is', () => {

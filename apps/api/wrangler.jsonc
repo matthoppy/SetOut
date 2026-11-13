@@ -49,8 +49,9 @@
     // How many days a new company's trial lasts, once billing is on.
     "TRIAL_DAYS": "14",
     // Whether the designer deals the cards for measuring with a tape and a
-    // level: "on" or "off". On for staging only until Matt has signed them off.
-    "TAPE_DECKS": "off"
+    // level: "on" or "off". Signed off by Matt, 13 November 2026; "off" takes
+    // a customer without a laser back to the older screens.
+    "TAPE_DECKS": "on"
   },
   "d1_databases": [
     {
@@ -93,7 +94,7 @@
         "SIGNUPS": "open",
         "BILLING": "off",
         "TRIAL_DAYS": "14",
-        // The tape and level measuring cards, to try before Matt signs them off.
+        // The tape and level measuring cards (signed off 13 November 2026).
         "TAPE_DECKS": "on"
       },
       "d1_databases": [
@@ -137,8 +138,8 @@
         "SIGNUPS": "closed",
         "BILLING": "off",
         "TRIAL_DAYS": "14",
-        // Off until Matt has signed the tape and level measuring cards off.
-        "TAPE_DECKS": "off"
+        // The tape and level measuring cards, signed off by Matt on 13 November 2026.
+        "TAPE_DECKS": "on"
       },
       "d1_databases": [
         {
