@@ -6,6 +6,8 @@
  * The laser's level line is the datum for the floor, as it was in the room.
  * A wall is drawn against the upright line the laser stood off it. A corner
  * or an open end has no wall, so the glass sets its own upright there.
+ * Measured with a tape and a level, the level is the datum, drawn in ink:
+ * nothing on a tape-measured drawing is laser red.
  */
 
 import { readField, runNames, type CardField, type ConfiguratorState, type MeasureCardDef, type RunView } from '@setout/engine';
@@ -161,6 +163,9 @@ export function RunDrawing({ state, cards, view, className }: { state: Configura
   ];
 
   const names = runNames(state);
+  // Measured with a level, not a laser: its lines are drawn in ink, and not named laser.
+  const level = state.opening.method !== 'laser';
+  const datum = level ? INK : LASER;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className={className} role="img" aria-label={`${names[i] ?? 'The glass'} drawn from your measurements, with every number on it`}>
       {/* The glass, with a wall where it ends on one and the ceiling where it reaches it. */}
@@ -181,17 +186,19 @@ export function RunDrawing({ state, cards, view, className }: { state: Configura
       </g>
 
       {/* The laser: its level line for the floor, and an upright line wherever it stood for a reading across. */}
-      <g stroke={LASER} strokeWidth={1} strokeDasharray="6 3">
+      <g stroke={datum} strokeWidth={1} strokeDasharray="6 3" opacity={level ? 0.6 : 1}>
         <line x1={readL - TICK} y1={lineY} x2={readR + TICK} y2={lineY} />
         {splitX !== null && broken(splitX, glassTop - 6, rowB + TICK).map(([y1, y2], k) => y2 > y1 && <line key={k} x1={splitX} y1={y1} x2={splitX} y2={y2} />)}
       </g>
-      <g stroke={LASER} strokeWidth={0.8} strokeDasharray="3 3" opacity={0.75}>
+      <g stroke={datum} strokeWidth={0.8} strokeDasharray="3 3" opacity={level ? 0.5 : 0.75}>
         {wallL && <line x1={blx + OFF_WALL} y1={gapT - TICK} x2={blx + OFF_WALL} y2={gapB + TICK} />}
         {wallR && <line x1={brx - OFF_WALL} y1={gapT - TICK} x2={brx - OFF_WALL} y2={gapB + TICK} />}
       </g>
-      <text x={readR + TICK + 4} y={floorR - lineY < 32 ? lineY - 5 : lineY + 3} fontSize={9} fontWeight={600} fill={LASER} fontFamily={FONT}>
-        laser
-      </text>
+      {!level && (
+        <text x={readR + TICK + 4} y={floorR - lineY < 32 ? lineY - 5 : lineY + 3} fontSize={9} fontWeight={600} fill={LASER} fontFamily={FONT}>
+          laser
+        </text>
+      )}
 
       {sizeText !== null && (
         <g fill={ACCENT} fontFamily={FONT} textAnchor="middle">
