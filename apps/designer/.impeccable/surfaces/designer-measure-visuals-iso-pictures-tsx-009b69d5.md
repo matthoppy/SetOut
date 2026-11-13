@@ -7,7 +7,7 @@ related_targets: ["apps/designer/src/designer/measure/visuals/iso/Kit.tsx","apps
 
 # Measuring pictures
 
-Scope: the pictures on the designer's measuring cards for every shower drawn on its tray (three sided, walk-in, walk-in with return, the corner layouts, panel and door). Mode: Operate. The single door and the bath screen keep their own pictures for now.
+Scope: the pictures on the designer's measuring cards for every shower drawn in the room (three sided, walk-in, walk-in with return, the corner layouts, panel and door, and from 13 November 2026 the single door, measured to the laser's cross, and the screen over a bath, drawn on its rim). Mode: Operate.
 
 Audience and job: a homeowner on a phone, in the bathroom, with a laser and a tape, taking one reading per card. The picture must show where the laser stands, where the tape starts, where the number is read, and the number itself, at a glance.
 

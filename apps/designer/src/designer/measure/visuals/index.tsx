@@ -1,7 +1,7 @@
 import { readField, readingCards, runPanelIndices, runViews, type ConfiguratorState, type DeckOptions, type MeasureCardDef, type RunView } from '@setout/engine';
 import { CrossReadingVisual } from './CrossReadingVisual';
 import { HeightVisual } from './HeightVisual';
-import { IsoHeight, IsoLaserOn, IsoMarks, IsoReading, type Corner, type SceneInput } from './iso/pictures';
+import { IsoCross, IsoCrossSetup, IsoHeight, IsoLaserOn, IsoMarks, IsoReading, type Corner, type SceneInput } from './iso/pictures';
 import { trayable, type RunPanes } from './iso/space';
 import { LaserOnVisual } from './LaserOnVisual';
 import { LaserSetupVisual } from './LaserSetupVisual';
@@ -47,13 +47,13 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
   const glassTop = glassTopFor(card.field?.kind === 'height' ? (value ?? state.heightMm) : state.heightMm);
   const taken = readingCards(cards).filter((c) => c.id !== card.id && c.field && c.mark !== undefined && readField(state, c.field) !== null);
 
-  // A single door is always between two walls and keeps its own pictures.
+  // A single door is measured to a laser's cross in the middle of the opening.
   const toCross = cards.some((c) => c.visual?.kind === 'cross-reading');
-  // Every other shower is drawn on its tray, in the room, seen from above to
-  // one side, except a screen on a bath, and a shape built by hand that the
-  // tray cannot show.
+  // Every shower is drawn in the room, seen from above to one side: on its
+  // tray, or a screen on its bath. A shape built by hand that the room cannot
+  // show keeps the face-on pictures.
   const views = runViews(state, options);
-  const tray = !toCross && !options.overBath && trayable(views);
+  const tray = trayable(views);
   const input: SceneInput = { views, made: runPanes(state), toCeiling: state.isFloorToCeiling, sliding: !!state.sliding };
 
   switch (visual.kind) {
@@ -61,8 +61,9 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
       if (tray) return <IsoMarks input={input} />;
       return toCross ? <MarksVisual /> : <RunMarksVisual view={views[0]} glassTop={glassTop} />;
     case 'laser-setup':
-      return <LaserSetupVisual toCeiling={visual.toCeiling} />;
+      return tray ? <IsoCrossSetup input={input} /> : <LaserSetupVisual toCeiling={visual.toCeiling} />;
     case 'cross-reading':
+      if (tray) return <IsoCross input={input} point={visual.point} value={value} />;
       return (
         <CrossReadingVisual
           point={visual.point}
@@ -73,8 +74,8 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
         />
       );
     case 'height': {
+      if (tray) return <IsoHeight input={input} value={value} what={options.overBath ? 'screen' : 'glass'} />;
       if (toCross) return <HeightVisual glassTop={glassTop} value={value} />;
-      if (tray) return <IsoHeight input={input} value={value} what="glass" />;
       return <RunHeightVisual view={wallRun(views)} views={views} glassTop={glassTop} value={value} />;
     }
     case 'plan-marks':

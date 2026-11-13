@@ -1,6 +1,6 @@
 /**
- * The bathroom: the floor, the walls, the tray, the masking tape marks and
- * the glass that will stand on them.
+ * The bathroom: the floor, the walls, the tray or the bath, the masking tape
+ * marks and the glass that will stand on them.
  *
  * Drawn as a technical illustration is (Matt's references, 12 November
  * 2026): every edge a fine dark line, every surface a flat plane of white or
@@ -186,6 +186,7 @@ function Ceiling() {
 
 export function Tray() {
   const { plan, id } = useIso();
+  if (plan.surface === 'bath') return <Bath />;
   const { x0, x1, y0, y1 } = plan.tray;
   const h = MM.tray;
   const left = plan.walls.left ? 0 : x0;
@@ -213,6 +214,53 @@ export function Tray() {
   );
 }
 
+/**
+ * A bath against the back wall, its front rim the floor a screen stands on:
+ * the rim wide enough at the front for the glass line, the masking tape and
+ * the tape measure outside the glass, and the basin sunk inside it, seen over
+ * the rim.
+ */
+function Bath() {
+  const { plan, id, at } = useIso();
+  const { x0, x1, y0, y1 } = plan.tray;
+  const h = plan.base;
+  const left = plan.walls.left ? 0 : x0;
+  const right = plan.walls.right ? x1 - MM.lip : x1;
+  const top = [v(left, y0, h), v(right, y0, h), v(right, y1, h), v(left, y1, h)];
+  const shadow = [v(left - 30, y0 - 60), v(right + 30, y0 - 60), v(right + 30, y1), v(left - 30, y1)];
+  // The basin's opening in the rim, and how far down it goes.
+  const [bl, br, bf, bb] = [left + MM.rimEnd, right - MM.rimEnd, y0 + MM.rimFront, y1 - MM.rimBack];
+  const d = MM.basin;
+  const opening = [v(bl, bf, h), v(br, bf, h), v(br, bb, h), v(bl, bb, h)];
+  const clip = id('basin');
+  const waste = v(plan.walls.left ? bl + 170 : br - 170, (bf + bb) / 2, h - d);
+  return (
+    <g>
+      <g filter={`url(#${id('soft')})`} opacity={0.2}>
+        <Face ps={shadow} fill="var(--iso-shadow)" />
+      </g>
+      <Face ps={[v(left, y0), v(right, y0), v(right, y0, h), v(left, y0, h)]} fill="var(--iso-tray-shade)" stroke="var(--iso-line)" />
+      {plan.mirror === 1 && !plan.walls.left && <Face ps={[v(left, y0), v(left, y1), v(left, y1, h), v(left, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-line)" />}
+      {plan.mirror === -1 && !plan.walls.right && <Face ps={[v(right, y0), v(right, y1), v(right, y1, h), v(right, y0, h)]} fill="var(--iso-tray-lit)" stroke="var(--iso-line)" />}
+      <Face ps={top} fill="var(--iso-tray)" stroke="var(--iso-line)" />
+      <defs>
+        <clipPath id={clip}>
+          <polygon points={pts(opening.map(at))} />
+        </clipPath>
+      </defs>
+      {/* Inside the basin, as much as shows over the rim: its far wall, its end walls and its bottom. */}
+      <g clipPath={`url(#${clip})`}>
+        <Face ps={[v(bl, bb, h), v(br, bb, h), v(br, bb, h - d), v(bl, bb, h - d)]} fill="var(--iso-tray-lit)" stroke="var(--iso-line-soft)" width={FINE} />
+        <Face ps={[v(bl, bf, h), v(bl, bb, h), v(bl, bb, h - d), v(bl, bf, h - d)]} fill="var(--iso-tray-shade)" stroke="var(--iso-line-soft)" width={FINE} />
+        <Face ps={[v(br, bf, h), v(br, bb, h), v(br, bb, h - d), v(br, bf, h - d)]} fill="var(--iso-tray-shade)" stroke="var(--iso-line-soft)" width={FINE} />
+        <Face ps={[v(bl, bf, h - d), v(br, bf, h - d), v(br, bb, h - d), v(bl, bb, h - d)]} fill="var(--iso-tray-dish)" stroke="var(--iso-line-soft)" width={FINE} />
+        <Disc at={waste} r={34} fill="var(--iso-metal)" stroke="var(--iso-line)" width={FINE} />
+      </g>
+      <Face ps={opening} fill="none" stroke="var(--iso-line)" width={FINE} />
+    </g>
+  );
+}
+
 /** A flat round thing lying in the room, such as the waste in the tray. */
 export function Disc({ at: c, r, fill, stroke, width = FINE, opacity }: { at: V3; r: number; fill: string; stroke?: string; width?: number; opacity?: number }) {
   const ps = Array.from({ length: 28 }, (_, i) => add(c, v(Math.cos((i / 28) * Math.PI * 2) * r, Math.sin((i / 28) * Math.PI * 2) * r)));
@@ -230,7 +278,8 @@ export function Disc({ at: c, r, fill, stroke, width = FINE, opacity }: { at: V3
  * end can sit against a wall; `stop` marks where the glass stops.
  */
 export function Mask({ at: p, along: u, cross, shift = 0, stop = false }: { at: V3; along: V3; cross?: V3; shift?: number; stop?: boolean }) {
-  const h = MM.tray + 1;
+  const { plan } = useIso();
+  const h = plan.base + 1;
   const n = v(-u.y, u.x);
   // At a corner the pieces are longer, so the marks show past a laser standing on them.
   const L = (cross ? MM.maskLong * 1.5 : MM.maskLong) / 2;
@@ -274,7 +323,7 @@ const UPv = v(0, 0, 1);
 /** One pane standing on its glass line, with its hardware. */
 export function GlassPane({ pane, run, sliding }: { pane: Pane; run: Run; sliding: boolean }) {
   const { plan, id } = useIso();
-  const base = MM.tray;
+  const base = plan.base;
   const top = glassTop(plan);
   const [a, b] = [lift(pane.a, base), lift(pane.b, base)];
   const out = run.out;
@@ -321,8 +370,8 @@ export function Channel({ at: p, run }: { at: V3; run: Run }) {
   const top = glassTop(plan);
   return (
     <g>
-      <Seg a={lift(add(p, run.out, 10), MM.tray)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-line)" width={2.8} cap="butt" />
-      <Seg a={lift(add(p, run.out, 10), MM.tray)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-metal)" width={1.2} cap="butt" />
+      <Seg a={lift(add(p, run.out, 10), plan.base)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-line)" width={2.8} cap="butt" />
+      <Seg a={lift(add(p, run.out, 10), plan.base)} b={lift(add(p, run.out, 10), top)} stroke="var(--iso-metal)" width={1.2} cap="butt" />
     </g>
   );
 }

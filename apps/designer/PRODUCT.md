@@ -53,9 +53,10 @@ to a card, and every reading checked against the others.
 - Layouts: door only; panel and door; walk-in screen; walk-in with return;
   corner, door and side; corner, wider front; three sided; over a bath; and
   sliding doors (staging only).
-- A single door is measured to a laser in the middle and keeps its own
-  pictures, signed off on 10 November 2026; a screen over a bath keeps the
-  face-on pictures.
+- A single door is measured to a laser's cross in the middle of the
+  opening, as signed off on 10 November 2026; its pictures show that laser
+  where the deck stands it, and it never moves. A screen over a bath is
+  drawn on the bath's rim, and measured as the other shapes are.
 
 ## Brand Commitments
 

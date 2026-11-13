@@ -33,9 +33,6 @@ export interface Corner {
   end: 'left' | 'right';
 }
 
-/** The floor the glass stands on: the top of the tray. */
-const H = MM.tray;
-
 const neg = (p: V3) => v(-p.x, -p.y, -p.z);
 const near = (p: V3, q: V3) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
 
@@ -108,6 +105,7 @@ const focusOn = (ps: V3[], by = 240) => (cam: Camera) => grow(boxOf(ps.map(cam.a
  * side and which end is being measured is plain at a glance.
  */
 const readingFocus = (plan: Plan, ps: V3[]) => {
+  const H = plan.base;
   const { x0, x1, y0, y1 } = plan.tray;
   return focusOn([...ps, v(x0, y0, H), v(x1, y0, H), v(x1, y1, H), v(x0, y1, H), v(x0, y0, 900), v(x1, y1, 900)], 200);
 };
@@ -157,6 +155,7 @@ function lineEnd(plan: Plan, from: V3, u: V3): { at: V3; wall: boolean } {
  * it crosses the tape (`crossing`), it is drawn on to the tape and beyond.
  */
 function CornerLines({ plan, corner, crossing }: { plan: Plan; corner: V3; crossing?: V3 }) {
+  const H = plan.base;
   const lines = linesAt(plan, corner);
   const wallTop = Math.min(roomTop(plan) - 80, 1950);
   return (
@@ -177,6 +176,50 @@ function CornerLines({ plan, corner, crossing }: { plan: Plan; corner: V3; cross
     </g>
   );
 }
+
+/**
+ * The laser's up-and-down line where it falls across the room: over the
+ * floor from where the laser stands to the edge of the tray or bath, up its
+ * side, across its top, and up the wall it reaches. Over a bath it drops into
+ * the basin past the front rim, out of sight, and shows again on the rim at
+ * the back.
+ */
+function UprightLine({ plan, from, edge, wall, top }: { plan: Plan; from: V3; edge: V3; wall: { at: V3; wall: boolean }; top: number }) {
+  const H = plan.base;
+  const u = dir(edge, wall.at);
+  const across: [V3, V3][] =
+    plan.surface === 'bath' && Math.abs(u.y) > 0.5
+      ? [
+          [edge, add(edge, u, MM.rimFront)],
+          [v(edge.x, plan.back - MM.rimBack), v(edge.x, plan.back)],
+        ]
+      : [[edge, wall.at]];
+  return (
+    <g>
+      <Beam a={lift(from, 1)} b={lift(edge, 1)} />
+      <Beam a={lift(edge, 1)} b={lift(edge, H + 1)} />
+      {across.map(([a, b], i) => (
+        <Beam key={i} a={lift(a, H + 1)} b={lift(b, H + 1)} />
+      ))}
+      {wall.wall && <Beam a={lift(wall.at, H)} b={lift(wall.at, top)} fade />}
+    </g>
+  );
+}
+
+/** The laser's level line where it meets the walls round the shower: along the back wall, and each side wall there is. */
+function LevelLines({ plan, level }: { plan: Plan; level: number }) {
+  const B = plan.back;
+  return (
+    <g>
+      <Beam a={v(plan.room.x0, B, level)} b={v(plan.room.x1, B, level)} />
+      {plan.walls.left && <Beam a={v(0, B, level)} b={v(0, -MM.apron * 0.4, level)} />}
+      {plan.walls.right && <Beam a={v(plan.room.x1, B, level)} b={v(plan.room.x1, -MM.apron * 0.4, level)} />}
+    </g>
+  );
+}
+
+/** What the glass stands on, in words. */
+const onWhat = (plan: Plan) => (plan.surface === 'bath' ? 'the bath rim' : 'the floor');
 
 // ---------------------------------------------------------------------------
 // The measurement drawn over the picture
@@ -215,6 +258,7 @@ const reachOf = (m: Measured) => [m.from, m.to, add(m.from, m.off, m.by * 1.3), 
 
 export function IsoMarks({ input }: { input: SceneInput }) {
   const plan = usePlan(input);
+  const H = plan.base;
   // A mark at each end of each run, one at a corner for both runs, the end
   // against a wall touching it.
   const marks: { at: V3; along: V3; cross?: V3; shift: number; stop: boolean; run: Run }[] = [];
@@ -232,13 +276,19 @@ export function IsoMarks({ input }: { input: SceneInput }) {
   return (
     <Stage
       plan={plan}
-      label="Masking tape on the floor at each end of the glass, with the glass line drawn across each piece, 10mm in from the edge of the tray"
+      label={
+        plan.surface === 'bath'
+          ? 'Masking tape on the bath rim against the wall and where the screen will stop, with the glass line drawn across each piece'
+          : 'Masking tape on the floor at each end of the glass, with the glass line drawn across each piece, 10mm in from the edge of the tray'
+      }
       focus={() => null}
       draw={(ctx) => {
         // The lens looks at the mark nearest the eye.
         const look = [...marks].sort((p, q) => ctx.cam.depth(p.at) - ctx.cam.depth(q.at))[0];
         const target = lift(add(look.at, look.along, look.shift ? MM.maskLong * 0.5 : 0), H);
         const edge = add(target, look.run.out, MM.lip);
+        // On a bath the card only says to draw the line where the glass will stand.
+        const bath = plan.surface === 'bath';
         return {
           scene: (
             <RoomWith
@@ -248,12 +298,14 @@ export function IsoMarks({ input }: { input: SceneInput }) {
               ))}
             />
           ),
-          lens: {
-            target,
-            zoom: 3.6,
-            overlay: (to) => <Dimension from={target} to={edge} off={neg(look.along)} by={130} project={to} />,
-            caption: '10mm in from the edge',
-          },
+          lens: bath
+            ? { target, zoom: 3.6, caption: 'Where the glass will stand' }
+            : {
+                target,
+                zoom: 3.6,
+                overlay: (to) => <Dimension from={target} to={edge} off={neg(look.along)} by={130} project={to} />,
+                caption: '10mm in from the edge',
+              },
         };
       }}
     />
@@ -266,6 +318,7 @@ export function IsoMarks({ input }: { input: SceneInput }) {
 
 export function IsoLaserOn({ input, corner }: { input: SceneInput; corner: Corner | null }) {
   const plan = usePlan(input);
+  const H = plan.base;
   const run = corner ? plan.runs[corner.run] : null;
   const at = run ? endOf(run, corner!.end).at : null;
   if (at) {
@@ -311,12 +364,8 @@ export function IsoLaserOn({ input, corner }: { input: SceneInput; corner: Corne
             ctx={ctx}
             onFloor={
               <>
-                <Beam a={lift(t, 1)} b={v(t.x, front.a.y - MM.lip, 1)} />
-                <Beam a={v(t.x, front.a.y - MM.lip, H + 1)} b={v(t.x, B, H + 1)} />
-                <Beam a={v(t.x, B, H)} b={v(t.x, B, Math.min(roomTop(plan) - 80, 2000))} fade />
-                <Beam a={v(plan.room.x0, B, level)} b={v(plan.room.x1, B, level)} />
-                {plan.walls.left && <Beam a={v(0, B, level)} b={v(0, -MM.apron * 0.4, level)} />}
-                {plan.walls.right && <Beam a={v(plan.room.x1, B, level)} b={v(plan.room.x1, -MM.apron * 0.4, level)} />}
+                <UprightLine plan={plan} from={t} edge={v(t.x, front.a.y - MM.lip)} wall={{ at: v(t.x, B), wall: true }} top={Math.min(roomTop(plan) - 80, 2000)} />
+                <LevelLines plan={plan} level={level} />
               </>
             }
             things={[{ key: 'tripod', node: <TripodLaser at={t} level={level} />, at: t, reach: [lift(t, level + 120)] }]}
@@ -334,10 +383,10 @@ export function IsoLaserOn({ input, corner }: { input: SceneInput; corner: Corne
 /** Words for each picture, read by a screen reader. */
 const words = {
   corner: 'The laser over the corner mark. A tape from the far end of the glass line, along the floor, to the laser, read where the laser’s line lights the blade',
-  pull: 'A tape along the floor from one end of the glass line to the other',
+  pull: (plan: Plan) => `A tape along ${onWhat(plan)} from one end of the glass line to the other`,
   tray: 'A tape from the wall to the far edge of the tray',
-  floor: 'A tape from the floor straight up to the laser’s level line, read where the line lights the blade',
-  ceiling: 'A tape from the floor straight up to the ceiling',
+  floor: (plan: Plan) => `A tape from ${onWhat(plan)} straight up to the laser’s level line, read where the line lights the blade`,
+  ceiling: (plan: Plan) => `A tape from ${onWhat(plan)} straight up to the ceiling`,
   gap: (at: string) => `A tape held against the wall at the ${at}, read where the laser’s up-and-down line, stood 50mm off the wall, lights the blade`,
 };
 
@@ -363,6 +412,7 @@ export function IsoReading({ input, visual, value, laserAt }: { input: SceneInpu
 
 /** A run measured from its far end to the laser over the corner, read where the laser's other line crosses the tape. */
 function CornerWidth({ plan, run, end, value }: { plan: Plan; run: Run; end: 'left' | 'right'; value: number | null }) {
+  const H = plan.base;
   const { at: corner, other: far } = endOf(run, end);
   const u = dir(far, corner);
   const out = (p: V3) => lift(add(p, run.out, MM.tapeOut), H);
@@ -408,6 +458,7 @@ function CornerWidth({ plan, run, end, value }: { plan: Plan; run: Run; end: 'le
 
 /** A run in one pull of the tape, from the end that has a wall to hook on. */
 function OnePull({ plan, run, value }: { plan: Plan; run: Run; value: number | null }) {
+  const H = plan.base;
   const fromRight = run.view.right === 'wall' && run.view.left !== 'wall';
   const [first, last] = fromRight ? [endOf(run, 'right'), endOf(run, 'left')] : [endOf(run, 'left'), endOf(run, 'right')];
   const u = dir(first.at, last.at);
@@ -420,7 +471,7 @@ function OnePull({ plan, run, value }: { plan: Plan; run: Run; value: number | n
   return (
     <Stage
       plan={plan}
-      label={words.pull}
+      label={words.pull(plan)}
       focus={readingFocus(plan, reachOf(m))}
       draw={(ctx) => ({
         scene: (
@@ -443,6 +494,7 @@ function OnePull({ plan, run, value }: { plan: Plan; run: Run; value: number | n
 
 /** A walk-in's whole tray, from the wall to its far edge. */
 function TrayWidth({ plan, run, value }: { plan: Plan; run: Run; value: number | null }) {
+  const H = plan.base;
   const fromRight = run.view.right === 'wall';
   const y = plan.tray.y0 + 30;
   const [x0, x1] = fromRight ? [plan.room.x1, plan.tray.x0] : [0, plan.tray.x1];
@@ -465,6 +517,7 @@ function TrayWidth({ plan, run, value }: { plan: Plan; run: Run; value: number |
 
 /** Where the laser stands for a reading up to its level line: over the corner it was left at, else on its tripod in front of the run. */
 function levelLaser(plan: Plan, run: Run, side: 'left' | 'right', laserAt: Corner | null): { at: V3; level: number; tripod: boolean } {
+  const H = plan.base;
   if (laserAt && plan.runs[laserAt.run]) {
     const c = endOf(plan.runs[laserAt.run], laserAt.end).at;
     return { at: lift(c, H), level: H + MM.floorBeam, tripod: false };
@@ -474,12 +527,28 @@ function levelLaser(plan: Plan, run: Run, side: 'left' | 'right', laserAt: Corne
 }
 
 /** The floor at one end of a run, up to the laser's level line. */
-function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; side: 'left' | 'right'; value: number | null; laserAt: Corner | null }) {
+function UpToLevel({
+  plan,
+  run,
+  side,
+  value,
+  laserAt,
+  fixed,
+}: {
+  plan: Plan;
+  run: Run;
+  side: 'left' | 'right';
+  value: number | null;
+  laserAt: Corner | null;
+  /** Where the laser stands, where a deck keeps it in one place. */
+  fixed?: { at: V3; level: number; tripod: boolean };
+}) {
+  const H = plan.base;
   const end = endOf(run, side);
   const into = dir(end.at, end.other);
   // Next to a wall the tape stands a hand's width in from it.
   const foot = add(end.at, into, end.kind === 'wall' ? 70 : 0);
-  const laser = levelLaser(plan, run, side, laserAt);
+  const laser = fixed ?? levelLaser(plan, run, side, laserAt);
   // Where the laser stands on this very mark, the tape is hooked on the mark tight against it.
   const base = lift(add(foot, run.out, !laser.tripod && near(laser.at, end.at) ? BODY.size / 2 + MM.blade / 2 + 6 : MM.tapeOut), H);
   const read = lift(base, laser.level);
@@ -493,7 +562,7 @@ function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; 
   return (
     <Stage
       plan={plan}
-      label={words.floor}
+      label={words.floor(plan)}
       focus={readingFocus(plan, [...reachOf(m), tapeTop, laser.at, lift(laser.at, laser.level + 120)])}
       draw={(ctx) => {
         // Too short to read across the room: shown in the lens, with the number under it.
@@ -544,6 +613,7 @@ function UpToLevel({ plan, run, side, value, laserAt }: { plan: Plan; run: Run; 
 
 /** Floor to ceiling at one end of a run. */
 function UpToCeiling({ plan, run, side, value }: { plan: Plan; run: Run; side: 'left' | 'right'; value: number | null }) {
+  const H = plan.base;
   const end = endOf(run, side);
   const into = dir(end.at, end.other);
   const foot = add(end.at, into, end.kind === 'wall' ? 70 : 0);
@@ -556,7 +626,7 @@ function UpToCeiling({ plan, run, side, value }: { plan: Plan; run: Run; side: '
   return (
     <Stage
       plan={plan}
-      label={words.ceiling}
+      label={words.ceiling(plan)}
       focus={readingFocus(plan, reachOf(m))}
       draw={(ctx) => ({
         scene: (
@@ -582,6 +652,7 @@ function UpToCeiling({ plan, run, side, value }: { plan: Plan; run: Run; side: '
  * shows it close up.
  */
 function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; run: Run; side: 'left' | 'right'; at: 'bottom' | 'top'; value: number | null; onFloor: boolean }) {
+  const H = plan.base;
   const end = endOf(run, side);
   const into = dir(end.at, end.other);
   const z = where === 'bottom' ? H : plan.toCeiling ? roomTop(plan) - 70 : glassTop(plan);
@@ -597,7 +668,7 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
   return (
     <Stage
       plan={plan}
-      label={words.gap(where === 'bottom' ? 'floor' : 'top')}
+      label={words.gap(where === 'bottom' ? onWhat(plan).replace('the ', '') : 'top')}
       // Close in on the end of the glass at the wall (Matt, 12 November 2026:
       // the readings close to the wall need a closer view), with the laser
       // and a little of the glass line for where it is.
@@ -610,9 +681,7 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
               <>
                 <Mask at={end.at} along={into} shift={1} />
                 {/* The up-and-down line: across the floor from the laser, and up the wall it reaches. */}
-                <Beam a={lift(standAt, 1)} b={lift(add(line, run.out, MM.lip), 1)} />
-                <Beam a={lift(add(line, run.out, MM.lip), H + 1)} b={lift(wallLine.at, H + 1)} />
-                {wallLine.wall && <Beam a={lift(wallLine.at, H)} b={lift(wallLine.at, lineTop)} fade />}
+                <UprightLine plan={plan} from={standAt} edge={add(line, run.out, MM.lip)} wall={wallLine} top={lineTop} />
               </>
             }
             things={[
@@ -645,11 +714,190 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
 }
 
 // ---------------------------------------------------------------------------
+// A single door, measured to the laser's cross in the middle
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the laser stands for a single door, all the way through its deck: on
+ * its tripod in front of the shower, back from the glass line, with its
+ * up-and-down line through the middle of the marks (the deck signed off on
+ * 10 November 2026). No card moves it.
+ */
+function crossLaser(plan: Plan) {
+  const run = plan.runs[0];
+  const middle = along(run.a, run.b, 0.5);
+  // Near enough in that, seen from the side, it stands clear of a tape at either wall.
+  return { run, middle, at: add(middle, run.out, 520), level: MM.tripodBeam };
+}
+
+/** The laser's two lines for a single door: up and down through the middle of the opening, and level round the walls. */
+export function IsoCrossSetup({ input }: { input: SceneInput }) {
+  const plan = usePlan(input);
+  const H = plan.base;
+  const { run, middle, at, level } = crossLaser(plan);
+  const across = dir(run.a, run.b);
+  return (
+    <Stage
+      plan={plan}
+      label="The laser on a small tripod in front of the shower, back from the glass line, its up-and-down line through the middle of the two marks and its level line round the walls"
+      focus={(cam) => grow(boxOf([v(plan.room.x0, -MM.apron), v(plan.room.x1, plan.back, roomTop(plan)), v(plan.room.x0, plan.back, roomTop(plan)), v(plan.room.x1, -MM.apron), add(at, run.out, 420), lift(at, level + 200)].map(cam.at)), 60)}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={
+              <>
+                <EndMask plan={plan} run={run} end={endOf(run, 'left')} />
+                <EndMask plan={plan} run={run} end={endOf(run, 'right')} />
+                <UprightLine plan={plan} from={at} edge={add(middle, run.out, MM.lip)} wall={{ at: v(middle.x, plan.back), wall: true }} top={Math.min(roomTop(plan) - 80, 2000)} />
+                <LevelLines plan={plan} level={level} />
+              </>
+            }
+            things={[{ key: 'tripod', node: <TripodLaser at={at} level={level} />, at, reach: [lift(at, level + 120)] }]}
+          />
+        ),
+        overlay: <Note at={ctx.at(lift(add(add(middle, run.out, 300), across, 520), H))} to={ctx.at(lift(add(middle, run.out, MM.tapeOut), H))} text="Through the middle of your marks" />,
+      })}
+    />
+  );
+}
+
+/** One of the eight readings to the laser's cross, by its number on the card. */
+export function IsoCross({ input, point, value }: { input: SceneInput; point: number; value: number | null }) {
+  const plan = usePlan(input);
+  const { run, at, level } = crossLaser(plan);
+  if (point <= 4) return <CrossWall plan={plan} side={point <= 2 ? 'left' : 'right'} at={point % 2 === 1 ? 'bottom' : 'top'} value={value} />;
+  const side = point % 2 === 1 ? 'left' : 'right';
+  if (point <= 6) return <UpToLevel plan={plan} run={run} side={side} value={value} laserAt={null} fixed={{ at, level, tripod: true }} />;
+  return <DownToLevel plan={plan} side={side} value={value} />;
+}
+
+/**
+ * A wall to the laser's up-and-down line in the middle of the opening: the
+ * tape hooked on the wall along the floor at the mark, or held at the top
+ * (level with the mark on the wall, or along the ceiling where the door goes
+ * up to it), read where the line lights the blade.
+ */
+function CrossWall({ plan, side, at: where, value }: { plan: Plan; side: 'left' | 'right'; at: 'bottom' | 'top'; value: number | null }) {
+  const H = plan.base;
+  const { run, middle, at: laser, level } = crossLaser(plan);
+  const end = endOf(run, side);
+  const into = dir(end.at, end.other);
+  const roof = roomTop(plan);
+  const z = where === 'bottom' ? H : plan.toCeiling ? roof - 25 : glassTop(plan);
+  const out = (p: V3) => lift(add(p, run.out, MM.tapeOut), z);
+  const hook = out(end.at);
+  const read = out(middle);
+  const tapeEnd = add(read, into, 260);
+  const tripod = laserReach(laser, true);
+  const m: Measured = { from: hook, to: read, off: run.out, by: 300, laser: true, value, avoid: [tripod] };
+  // The line in the air where it crosses a tape held at the top.
+  const lineTop = Math.min(roof - 40, Math.max(glassTop(plan) + 80, z + 60));
+  // A piece of the ceiling over a tape held along it, cut back so the room still shows.
+  const s = 380;
+  const patch = [lift(add(add(end.at, run.out, -s), into, -40), roof), lift(add(add(end.at, run.out, s), into, -40), roof), lift(add(add(middle, run.out, s), into, s), roof), lift(add(add(middle, run.out, -s), into, s), roof)];
+  const onCeiling = where === 'top' && plan.toCeiling;
+  return (
+    <Stage
+      plan={plan}
+      label={`A tape from the ${side} wall ${where === 'bottom' ? `along ${onWhat(plan)}` : onCeiling ? 'along the ceiling' : 'at the top of the glass'} to the laser’s up-and-down line in the middle of the opening, read where the line lights the blade`}
+      focus={readingFocus(plan, [...reachOf(m), add(tapeEnd, into, 120), laser, lift(laser, level + 120), ...(where === 'top' ? [lift(hook, z + 160)] : [])])}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={
+              <>
+                <EndMask plan={plan} run={run} end={endOf(run, 'left')} />
+                <EndMask plan={plan} run={run} end={endOf(run, 'right')} />
+                <UprightLine plan={plan} from={laser} edge={add(middle, run.out, MM.lip)} wall={{ at: v(middle.x, plan.back), wall: true }} top={Math.min(roof - 40, 2000)} />
+                {where === 'top' && !plan.toCeiling && <WallMask at={lift(add(add(end.at, run.out, 110), into, 2), glassTop(plan))} face={into} along={run.out} />}
+              </>
+            }
+            things={[
+              ...(onCeiling
+                ? [
+                    {
+                      key: 'ceiling',
+                      node: (
+                        <g>
+                          <Face ps={patch} fill="var(--iso-ceiling)" stroke="var(--iso-line)" opacity={0.95} />
+                          <Beam a={lift(add(middle, run.out, s), roof - 1)} b={lift(add(middle, run.out, -s), roof - 1)} />
+                        </g>
+                      ),
+                      at: lift(add(end.at, run.out, -s), roof),
+                      reach: [],
+                    },
+                  ]
+                : []),
+              ...(where === 'top'
+                ? [{ key: 'upright', node: <Beam a={lift(read, H)} b={lift(read, lineTop)} fade faint />, at: read, reach: [lift(read, lineTop)] }]
+                : []),
+              { key: 'tape', node: <Tape hook={hook} end={tapeEnd} face={v(0, 0, 1)} lit={Math.hypot(read.x - hook.x, read.y - hook.y)} />, at: along(hook, tapeEnd, 0.5), reach: [hook, tapeEnd] },
+              { key: 'tripod', node: <TripodLaser at={laser} level={level} />, at: laser, reach: [lift(laser, level + 120)] },
+            ]}
+          />
+        ),
+        overlay: <MeasureMarks m={m} ctx={ctx} />,
+      })}
+    />
+  );
+}
+
+/** The ceiling next to a wall, down to the laser's level line, for a single door that goes up to it. */
+function DownToLevel({ plan, side, value }: { plan: Plan; side: 'left' | 'right'; value: number | null }) {
+  const { run, at: laser, level } = crossLaser(plan);
+  const end = endOf(run, side);
+  const into = dir(end.at, end.other);
+  const roof = roomTop(plan);
+  const foot = add(end.at, into, 70);
+  const hook = lift(add(foot, run.out, MM.tapeOut), roof);
+  const read = lift(hook, level);
+  const tapeEnd = lift(hook, level - 300);
+  const tripod = laserReach(laser, true);
+  const m: Measured = { from: hook, to: read, off: run.out, by: 230, laser: true, value, avoid: [tripod] };
+  const runOut = (p: V3) => add(p, run.out, MM.tapeOut);
+  const lineA = lift(runOut(run.a), level);
+  const lineB = lift(runOut(run.b), level);
+  const s = 320;
+  const patch = [lift(add(add(foot, into, -s), run.out, -s), roof), lift(add(add(foot, into, s), run.out, -s), roof), lift(add(add(foot, into, s), run.out, s), roof), lift(add(add(foot, into, -s), run.out, s), roof)];
+  return (
+    <Stage
+      plan={plan}
+      label="A tape held against the ceiling next to the wall, read down where the laser’s level line lights the blade"
+      focus={readingFocus(plan, [...reachOf(m), tapeEnd, laser, lift(laser, level + 120), lift(hook, roof + 80)])}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={
+              <>
+                <EndMask plan={plan} run={run} end={endOf(run, 'left')} />
+                <EndMask plan={plan} run={run} end={endOf(run, 'right')} />
+                <LevelLines plan={plan} level={level} />
+              </>
+            }
+            things={[
+              { key: 'level', node: <Beam a={lineA} b={lineB} />, at: along(lineA, lineB, 0.5), reach: [lineA, lineB] },
+              { key: 'ceiling', node: <Face ps={patch} fill="var(--iso-ceiling)" stroke="var(--iso-line)" opacity={0.95} />, at: hook, reach: [] },
+              { key: 'tape', node: <Tape hook={hook} end={tapeEnd} face={run.out} lit={roof - level} />, at: lift(hook, level), reach: [hook, tapeEnd] },
+              { key: 'tripod', node: <TripodLaser at={laser} level={level} />, at: laser, reach: [lift(laser, level + 120)] },
+            ]}
+          />
+        ),
+        overlay: <MeasureMarks m={m} ctx={ctx} />,
+      })}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // How tall is the glass?
 // ---------------------------------------------------------------------------
 
 export function IsoHeight({ input, value, what }: { input: SceneInput; value: number | null; what: 'glass' | 'screen' }) {
   const plan = usePlan(input);
+  const H = plan.base;
   // The mark goes on a wall: the first end of the glass that meets one.
   const run = plan.runs.find((x) => x.view.left === 'wall') ?? plan.runs.find((x) => x.view.right === 'wall') ?? plan.runs[0];
   const end = endOf(run, run.view.left === 'wall' ? 'left' : 'right');
@@ -663,7 +911,7 @@ export function IsoHeight({ input, value, what }: { input: SceneInput; value: nu
   return (
     <Stage
       plan={plan}
-      label={`A marker line on tape stuck to the wall at the height of the ${what}, and a tape measure from the floor up to it`}
+      label={`A marker line on tape stuck to the wall at the height of the ${what}, and a tape measure from ${onWhat(plan)} up to it`}
       focus={readingFocus(plan, [...reachOf(m), lift(base, top + 260)])}
       draw={(ctx) => ({
         scene: (

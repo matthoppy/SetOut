@@ -1,7 +1,7 @@
 /**
  * The room the measuring pictures are drawn in: the shower on its tray in the
- * corner of a bathroom, seen from above and to one side, as an architect's
- * isometric drawing is.
+ * corner of a bathroom, or a screen on the rim of a bath, seen from above and
+ * to one side, as an architect's isometric drawing is.
  *
  * Distances are millimetres in the room: x along the front of the shower
  * from left to right as you face it, y from the front glass line back to the
@@ -48,6 +48,14 @@ export const dir = (p: V3, q: V3): V3 => {
 export const MM = {
   /** The tray stands this far off the bathroom floor. Its top is the floor the glass stands on. */
   tray: 45,
+  /** A bath's rim stands this far off the floor. A screen over a bath stands on it. */
+  bath: 520,
+  /** How deep the bath is inside, below its rim. */
+  basin: 380,
+  /** The bath's rim: wide at the front, for the glass line and the tape outside it; narrower at its ends and against the wall. */
+  rimFront: 160,
+  rimEnd: 90,
+  rimBack: 80,
   /**
    * The tray runs on this far past a glass line. Drawn wider than life, so
    * the masking tape and the tape measure lie on it outside the glass.
@@ -97,8 +105,12 @@ export interface Run {
 export interface Plan {
   /** 1: the room is seen from the front left. -1: from the front right. */
   mirror: 1 | -1;
-  /** The tray on the floor, as the glass lines' extent with the lip around it. */
+  /** The tray on the floor, or the bath, as the glass lines' extent with the lip around it. */
   tray: { x0: number; x1: number; y0: number; y1: number };
+  /** What the glass stands on: a tray, or the rim of a bath. */
+  surface: 'tray' | 'bath';
+  /** How far that is off the bathroom floor: where the glass stands, and every reading at its foot starts. */
+  base: number;
   /** The side walls there are. The back wall is always there. */
   walls: { left: boolean; right: boolean };
   /** A side wall between the eye and the shower, drawn so the shower shows through it. */
@@ -135,6 +147,8 @@ export function trayable(views: RunView[]): boolean {
 /** How long a front is drawn, by how many panes it has. */
 const frontLength = (panes: number) => (panes <= 1 ? 1000 : panes === 2 ? 1300 : 1500);
 const DEPTH = 950;
+/** A bath, from its front rim to the wall behind it. */
+const BATH_DEPTH = 700;
 /** A walk-in's open way in, beside the glass. */
 const WAY_IN = 700;
 /** How far the room is drawn past the tray at a side with no wall. */
@@ -163,12 +177,14 @@ export function planFor(views: RunView[], made: RunPanes[], options: { toCeiling
   const walls = { left: front.left === 'wall' && !leftSide, right: front.right === 'wall' && !rightSide };
 
   const glassFront = frontLength(made[frontIndex]?.kinds.length ?? 1);
+  const bath = views.some((w) => w.surface === 'bath');
   // A front with an open end and nothing turning back from it is a walk-in:
-  // the tray runs on past the glass to make the way in.
+  // the tray runs on past the glass to make the way in. A bath runs on past
+  // its screen the same way.
   const openLeft = front.left === 'open' && !leftSide;
   const openRight = front.right === 'open' && !rightSide;
   const W = glassFront + (openLeft ? WAY_IN : 0) + (openRight ? WAY_IN : 0);
-  const D = DEPTH;
+  const D = bath ? BATH_DEPTH : DEPTH;
 
   const runs = views.map((view, i): Run => {
     let a: V3;
@@ -197,6 +213,8 @@ export function planFor(views: RunView[], made: RunPanes[], options: { toCeiling
   return {
     mirror,
     tray: { x0: -MM.lip, x1: W + MM.lip, y0: -MM.lip, y1: D },
+    surface: bath ? 'bath' : 'tray',
+    base: bath ? MM.bath : MM.tray,
     walls,
     near,
     runs,
