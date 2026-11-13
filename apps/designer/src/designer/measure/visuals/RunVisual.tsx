@@ -10,6 +10,12 @@ import { CEIL, FLOOR, Frame, LEVEL, LaserLines, PlanInset, PointMark, RunGlassLi
 
 /** The kinds of picture drawn on a run. */
 export type RunPicture = Extract<CardVisual, { view: RunView }>;
+/**
+ * The pictures of a run drawn face on, for a shape the room cannot show.
+ * The cards for measuring with a tape and a level are only drawn in the room.
+ */
+export type FaceOnPicture = Exclude<RunPicture, { kind: 'run-top' | 'level-wall' | 'level-floor' }>;
+export const faceOn = (visual: RunPicture): visual is FaceOnPicture => visual.kind !== 'run-top' && visual.kind !== 'level-wall' && visual.kind !== 'level-floor';
 
 interface Tape {
   /** The body of the tape, and the hook or the end held on a mark. */
@@ -31,7 +37,7 @@ interface Tape {
 const OFF_WALL = 56;
 
 /** Where the tape runs for a reading, in picture coordinates. */
-export function tapeFor(visual: RunPicture, glassTop: number): Tape {
+export function tapeFor(visual: FaceOnPicture, glassTop: number): Tape {
   const view = visual.view;
   const { left, right } = runEnds(view);
   const middle = (left + right) / 2;
@@ -79,7 +85,7 @@ export function tapeFor(visual: RunPicture, glassTop: number): Tape {
 }
 
 export interface DoneMark {
-  visual: RunPicture;
+  visual: FaceOnPicture;
   n: number;
 }
 
@@ -91,7 +97,7 @@ export function RunVisual({
   mark,
   done = [],
 }: {
-  visual: RunPicture;
+  visual: FaceOnPicture;
   views: RunView[];
   glassTop: number;
   value: number | null;

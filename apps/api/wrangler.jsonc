@@ -47,7 +47,10 @@
     // keys are set. See docs/deploying.md before changing it.
     "BILLING": "off",
     // How many days a new company's trial lasts, once billing is on.
-    "TRIAL_DAYS": "14"
+    "TRIAL_DAYS": "14",
+    // Whether the designer deals the cards for measuring with a tape and a
+    // level: "on" or "off". On for staging only until Matt has signed them off.
+    "TAPE_DECKS": "off"
   },
   "d1_databases": [
     {
@@ -89,7 +92,9 @@
         // secret key: sign-ups never open without the bot check.
         "SIGNUPS": "open",
         "BILLING": "off",
-        "TRIAL_DAYS": "14"
+        "TRIAL_DAYS": "14",
+        // The tape and level measuring cards, to try before Matt signs them off.
+        "TAPE_DECKS": "on"
       },
       "d1_databases": [
         {
@@ -131,7 +136,9 @@
         // signed up here would use SetOut for nothing.
         "SIGNUPS": "closed",
         "BILLING": "off",
-        "TRIAL_DAYS": "14"
+        "TRIAL_DAYS": "14",
+        // Off until Matt has signed the tape and level measuring cards off.
+        "TAPE_DECKS": "off"
       },
       "d1_databases": [
         {

@@ -15,10 +15,10 @@
 import type { RunView } from '@setout/engine';
 import { Fragment, useMemo, type ReactNode } from 'react';
 import type { RunPicture } from '../RunVisual';
-import { BODY, Beam, Dimension, LaserBody, Note, ReadPoint, StartPoint, Tape, TripodLaser } from './Kit';
+import { BODY, Beam, Dimension, LEVEL, LaserBody, Note, ReadPoint, SpiritLevel, StartPoint, Tape, TripodLaser } from './Kit';
 import { Face, Floor, Mask, RunGlass, Tray, WallMask, Walls, WallShade } from './Room';
 import { Stage, type Ctx } from './Stage';
-import { MM, add, along, boxOf, dir, glassTop, grow, lift, planFor, roomTop, v, type Box, type Camera, type Plan, type Run, type RunPanes, type V3 } from './space';
+import { MM, add, along, boxOf, dir, glassTop, grow, lift, planFor, roomTop, v, type Box, type Camera, type P, type Plan, type Run, type RunPanes, type V3 } from './space';
 
 export interface SceneInput {
   views: RunView[];
@@ -405,6 +405,12 @@ export function IsoReading({ input, visual, value, laserAt }: { input: SceneInpu
       return <UpToCeiling plan={plan} run={r} side={visual.side} value={value} />;
     case 'wall-gap':
       return <WallGap plan={plan} run={r} side={visual.side} at={visual.at} value={value} onFloor={plan.runs.length > 1} />;
+    case 'run-top':
+      return <TopAcross plan={plan} run={r} value={value} />;
+    case 'level-floor':
+      return <LevelOnFloor plan={plan} run={r} side={visual.side} value={value} />;
+    case 'level-wall':
+      return <LevelOnWall plan={plan} run={r} side={visual.side} at={visual.at} value={value} />;
     default:
       return null;
   }
@@ -707,6 +713,160 @@ function WallGap({ plan, run, side, at: where, value, onFloor }: { plan: Plan; r
           ),
           value,
           avoid: [laserReach(standAt, !onFloor)],
+        },
+      })}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Measuring with a tape and a level
+// ---------------------------------------------------------------------------
+
+/** A run between two walls, measured again with the tape held level across the top. */
+function TopAcross({ plan, run, value }: { plan: Plan; run: Run; value: number | null }) {
+  const z = plan.toCeiling ? roomTop(plan) - 25 : glassTop(plan);
+  const out = (p: V3) => lift(add(p, run.out, MM.tapeOut), z);
+  const hook = out(run.a);
+  const read = out(run.b);
+  // The case butts up against the far wall and is read there.
+  const tapeEnd = add(read, dir(run.b, run.a), 110);
+  const m: Measured = { from: hook, to: read, off: run.out, by: 300, laser: false, value };
+  return (
+    <Stage
+      plan={plan}
+      label={`A tape held level across the top${plan.toCeiling ? ', just under the ceiling,' : ', at the mark on the wall,'} from the left wall to the right wall`}
+      focus={readingFocus(plan, [...reachOf(m), lift(hook, z + 160)])}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={
+              <>
+                <EndMask plan={plan} run={run} end={endOf(run, 'left')} />
+                <EndMask plan={plan} run={run} end={endOf(run, 'right')} />
+                {!plan.toCeiling && <WallMask at={lift(add(add(run.a, run.out, 110), dir(run.a, run.b), 2), z)} face={dir(run.a, run.b)} along={run.out} />}
+              </>
+            }
+            things={[{ key: 'tape', node: <Tape hook={hook} end={tapeEnd} face={v(0, 0, 1)} />, at: along(hook, tapeEnd, 0.5), reach: [hook, tapeEnd] }]}
+          />
+        ),
+        overlay: <MeasureMarks m={m} ctx={ctx} />,
+      })}
+    />
+  );
+}
+
+/**
+ * How far the level is drawn off what it rests against, the same at both
+ * ends, so the picture shows where to measure without saying which end
+ * touches. Not to scale: big enough to see in the lens.
+ */
+const LEVEL_GAP = 24;
+
+/** A surface's edge drawn firmly in a lens, where the room's own line is too faint to measure from. */
+function Seg2({ a, b }: { a: P; b: P }) {
+  return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--iso-line)" strokeWidth={2.2} strokeLinecap="round" />;
+}
+
+/** A long level laid along a run's glass line, and the gap under it at one end, in a lens. */
+function LevelOnFloor({ plan, run, side, value }: { plan: Plan; run: Run; side: 'left' | 'right'; value: number | null }) {
+  const H = plan.base;
+  const u = dir(run.a, run.b);
+  const length = Math.hypot(run.b.x - run.a.x, run.b.y - run.a.y);
+  // As long as the run allows, centred on it, just outside the glass.
+  const span = Math.min(LEVEL.long, length - 60);
+  const middle = lift(add(along(run.a, run.b, 0.5), run.out, MM.tapeOut), H + LEVEL_GAP);
+  const endAt = add(middle, u, (side === 'left' ? -1 : 1) * (span / 2 - 40));
+  const under = lift(endAt, H);
+  const end = endOf(run, side);
+  return (
+    <Stage
+      plan={plan}
+      label={`A long level laid along ${onWhat(plan) === 'the floor' ? 'the glass line' : 'the bath rim'}, and the gap under it at the ${side} end, measured where it is`}
+      focus={readingFocus(plan, [middle, add(middle, u, -span / 2), add(middle, u, span / 2), lift(middle, H + 300)])}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={<EndMask plan={plan} run={run} end={end} />}
+            things={[
+              {
+                key: 'level',
+                node: <SpiritLevel base={middle} along={u} off={v(0, 0, 1)} cross={run.out} long={span} />,
+                at: middle,
+                reach: [add(middle, u, -span / 2), add(middle, u, span / 2), lift(middle, H + LEVEL_GAP + LEVEL.deep)],
+              },
+            ]}
+          />
+        ),
+        lens: {
+          target: lift(endAt, H + LEVEL_GAP / 2),
+          zoom: [lift(add(endAt, u, -40), H - 6), lift(add(endAt, u, 40), H + LEVEL_GAP + 16)],
+          fill: 1.05,
+          overlay: (to) => (
+            <g>
+              {/* What the gap is between: the surface, and the underside of the level. */}
+              <Seg2 a={to(lift(add(endAt, u, -110), H))} b={to(lift(add(endAt, u, 110), H))} />
+              <Dimension from={under} to={lift(endAt, H + LEVEL_GAP)} off={u} by={side === 'left' ? -24 : 24} project={to} />
+              <StartPoint at={to(under)} />
+              <ReadPoint at={to(lift(endAt, H + LEVEL_GAP))} laser={false} />
+            </g>
+          ),
+          value,
+        },
+      })}
+    />
+  );
+}
+
+/** A long level held upright against a wall on the glass line, and the gap behind it at the bottom or the top, in a lens. */
+function LevelOnWall({ plan, run, side, at: where, value }: { plan: Plan; run: Run; side: 'left' | 'right'; at: 'bottom' | 'top'; value: number | null }) {
+  const H = plan.base;
+  const end = endOf(run, side);
+  const into = dir(end.at, end.other);
+  // Standing on the floor at the wall, just outside the glass, its edge a little off the wall.
+  const foot = lift(add(add(end.at, run.out, MM.tapeOut), into, LEVEL_GAP), H + 4);
+  const middle = lift(foot, H + 4 + LEVEL.long / 2);
+  const z = where === 'bottom' ? H + 60 : H + LEVEL.long - 60;
+  const wallAt = lift(add(end.at, run.out, MM.tapeOut), z);
+  const edgeAt = lift(foot, z);
+  return (
+    <Stage
+      plan={plan}
+      label={`A long level held upright against the wall on the glass line, and the gap behind it at the ${where === 'bottom' ? 'bottom' : 'top'}, measured where it is`}
+      // Close in on the end of the glass at the wall, as every reading at a wall does.
+      focus={focusOn([foot, lift(foot, H + LEVEL.long + 120), add(foot, into, 600), add(foot, run.out, 400), lift(add(end.at, into, 650), H)], 150)}
+      draw={(ctx) => ({
+        scene: (
+          <RoomWith
+            ctx={ctx}
+            onFloor={<Mask at={end.at} along={into} shift={1} />}
+            things={[
+              {
+                key: 'level',
+                node: <SpiritLevel base={middle} along={v(0, 0, 1)} off={into} cross={run.out} />,
+                at: foot,
+                reach: [lift(foot, H + LEVEL.long), add(foot, into, LEVEL.deep)],
+              },
+            ]}
+          />
+        ),
+        lens: {
+          target: along(wallAt, edgeAt, 0.5),
+          zoom: [lift(add(wallAt, into, -12), z - 40), lift(add(edgeAt, into, 24), z + 40)],
+          fill: 1.05,
+          size: 1.12,
+          overlay: (to) => (
+            <g>
+              {/* What the gap is between: the face of the wall, and the edge of the level. */}
+              <Seg2 a={to(lift(wallAt, z - 120))} b={to(lift(wallAt, z + 120))} />
+              <Dimension from={wallAt} to={edgeAt} off={v(0, 0, where === 'bottom' ? 1 : -1)} by={22} project={to} />
+              <StartPoint at={to(wallAt)} />
+              <ReadPoint at={to(edgeAt)} laser={false} />
+            </g>
+          ),
+          value,
         },
       })}
     />

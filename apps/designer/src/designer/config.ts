@@ -82,6 +82,11 @@ export interface DesignerConfig {
    */
   sliding?: boolean;
   /**
+   * Whether measuring with a tape and a level is done on cards too, rather
+   * than the older screens. Staging only, until Matt has signed them off.
+   */
+  tapeDecks?: boolean;
+  /**
    * Shown on the review step and repeated to the company. Spells out who is
    * responsible for the measurements being right, which matters when glass is
    * cut from them.

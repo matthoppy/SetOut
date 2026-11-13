@@ -70,6 +70,32 @@ export function LaserBody({ at: p }: { at: V3 }) {
   );
 }
 
+/** A spirit level: 1200 long, as the cards ask for a long one, 62 deep and 26 thick. */
+export const LEVEL = { long: 1200, deep: 62, thick: 26 };
+const aluminium = (light: number) => `hsl(210 8% ${Math.round(56 + light * 32)}%)`;
+
+/**
+ * A spirit level resting against a surface: `base` is the middle of the edge
+ * that rests on it, `along` its length, `off` the way away from the surface,
+ * and `cross` its thickness. Its bubble window is in the middle of whichever
+ * side is turned to the eye.
+ */
+export function SpiritLevel({ base, along: u, off, cross, long = LEVEL.long }: { base: V3; along: V3; off: V3; cross: V3; long?: number }) {
+  const { cam } = useIso();
+  const side = cam.facing(cross) ? cross : v(-cross.x, -cross.y, -cross.z);
+  const face = add(add(base, off, LEVEL.deep / 2), side, LEVEL.thick / 2 + 0.5);
+  const win = (a: number, b: number) => add(add(face, u, a), off, b);
+  return (
+    <g>
+      {/* Aluminium, its two ends capped dark. */}
+      <Block base={base} u={u} w={cross} n={off} su={long} sw={LEVEL.thick} sn={LEVEL.deep} paint={(l, normal) => (Math.abs(normal.x * u.x + normal.y * u.y + normal.z * u.z) > 0.9 ? graphite(0.35 + l * 0.3) : aluminium(l))} />
+      {/* The bubble's window, and the bubble in the middle of it. */}
+      <Face ps={[win(-48, -17), win(48, -17), win(48, 17), win(-48, 17)]} fill="var(--iso-vial)" stroke="var(--iso-vial-edge)" width={0.8} />
+      <Face ps={[win(-12, -8), win(12, -8), win(12, 8), win(-12, 8)]} fill="var(--iso-paper)" stroke="var(--iso-vial-edge)" width={0.6} />
+    </g>
+  );
+}
+
 /** A soft shadow on the floor under something standing on it. */
 export function Contact({ at: p, r, strength = 0.2 }: { at: V3; r: number; strength?: number }) {
   const { id } = useIso();

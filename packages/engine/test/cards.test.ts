@@ -283,6 +283,8 @@ function reading(field: CardField): number {
       return field.end === 'start' ? 1000 : 1004;
     case 'ceiling':
       return field.end === 'start' ? 2400 : 2392;
+    case 'top':
+      return 851;
   }
 }
 
@@ -297,7 +299,7 @@ const EVERY_DECK = TEMPLATES.flatMap((t) => [
 ]);
 
 describe('a deck for every layout', () => {
-  test('there is one for a laser, and not yet for a tape', () => {
+  test('there is one for a laser, and for a tape only where the tape decks are switched on', () => {
     for (const template of TEMPLATES) {
       const state = designFromTemplate(template.id);
       expect(hasDeck({ ...state, opening: { ...state.opening, method: 'laser' } })).toBe(true);
@@ -693,3 +695,119 @@ describe('typing a reading on any layout', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Measuring with a tape and a level
+// ---------------------------------------------------------------------------
+
+describe('the tape decks', () => {
+  const TAPE = TEMPLATES.filter((t) => t.id !== 'alcove-door').flatMap((t) => [
+    { id: t.id, toCeiling: false },
+    { id: t.id, toCeiling: true },
+  ]);
+  const options = (id: string) => ({ overBath: id === 'over-bath', tape: true });
+  const tapeLayout = (id: string, toCeiling = false): ConfiguratorState => {
+    const state = layout(id, toCeiling);
+    return { ...state, opening: { ...state.opening, method: 'packers' } };
+  };
+  const tapeDeck = (id: string, toCeiling = false) => buildCards(tapeLayout(id, toCeiling), options(id));
+  /** What a careful person reads with a tape and a level: the end of a level that touches reads 0. */
+  const tapeReading = (field: CardField): number => {
+    // Both walls 3mm further off at the top makes the top 6mm wider than the floor's 850.
+    if (field.kind === 'top') return 856;
+    if (field.kind === 'wall') return field.at === 'bottom' ? 0 : 3;
+    if (field.kind === 'floor') return field.end === 'start' ? 0 : 4;
+    return reading(field);
+  };
+  const typeTape = (start: ConfiguratorState, cards: MeasureCardDef[]) =>
+    readingCards(cards).reduce((state, card) => writeField(rules, state, card.field!, tapeReading(card.field!)), start);
+
+  test('are dealt only where switched on, and never for a single door, which keeps the older screens', () => {
+    for (const template of TEMPLATES) {
+      const state = tapeLayout(template.id);
+      expect(hasDeck(state)).toBe(false);
+      expect(hasDeck(state, { tape: true })).toBe(template.id !== 'alcove-door');
+      // Without a laser and switched off, the laser deck is what is dealt, as before.
+      expect(buildCards(state, { overBath: template.id === 'over-bath' })).toEqual(
+        buildCards({ ...state, opening: { ...state.opening, method: 'laser' } }, { overBath: template.id === 'over-bath' })
+      );
+    }
+  });
+
+  test.each(TAPE)('$id (to the ceiling: $toCeiling) is well formed, and never asks for a laser', ({ id, toCeiling }) => {
+    const cards = tapeDeck(id, toCeiling);
+    expect(new Set(ids(cards)).size).toBe(cards.length);
+    expect(cards.at(-1)?.kind).toBe('review');
+    expect(cards[0].id).toBe('marks');
+    const readings = readingCards(cards);
+    expect(readings.map((c) => c.readingIndex)).toEqual(readings.map((_, i) => i + 1));
+    expect(readings.map((c) => c.mark)).toEqual(readings.map((_, i) => i + 1));
+    expect(new Set(readings.map((c) => c.title)).size).toBe(readings.length);
+    for (const card of cards) {
+      if (card.kind === 'review') continue;
+      expect(card.instruction).not.toMatch(/laser/i);
+      expect(card.instruction.length).toBeLessThanOrEqual(260);
+      expect(card.title.length).toBeLessThanOrEqual(44);
+      expect(['laser-on', 'wall-gap', 'run-floor', 'cross-reading', 'laser-setup']).not.toContain(card.visual?.kind);
+      if (card.visual?.kind === 'run-width') expect(card.visual.laser).toBeUndefined();
+      if (card.kind === 'reading') {
+        expect(tapeReading(card.field!)).toBeGreaterThanOrEqual(card.minMm!);
+        expect(tapeReading(card.field!)).toBeLessThanOrEqual(card.maxMm!);
+      }
+    }
+  });
+
+  test.each(TAPE)('$id (to the ceiling: $toCeiling): asks for everything the checks need, and reads back as typed', ({ id, toCeiling }) => {
+    const start = tapeLayout(id, toCeiling);
+    const cards = buildCards(start, options(id));
+    const state = typeTape(start, cards);
+    for (const card of readingCards(cards)) expect(readField(state, card.field!)).toBe(tapeReading(card.field!));
+    expect(unreadCards(state, buildCards(state, options(id)))).toEqual([]);
+    const stops = checkMeasurements(state.opening, openingContext(state))
+      .filter((c) => c.level === 'blocking')
+      .map((c) => c.code);
+    expect(stops).toEqual(['shape-unconfirmed']);
+    // Filled in, it is the same deck.
+    expect(ids(buildCards(state, options(id)))).toEqual(ids(cards));
+  });
+
+  test.each(TAPE.filter((d) => !d.toCeiling))('$id: the first measurement is along the bottom, and the height comes after the widths', ({ id }) => {
+    const readings = readingCards(tapeDeck(id));
+    const at = readings.findIndex((c) => c.field?.kind === 'height');
+    expect(readings[0].field?.kind).toBe('width');
+    expect(readings.slice(0, at).every((c) => c.field?.kind === 'width' || c.field?.kind === 'tray')).toBe(true);
+  });
+
+  test('a run between two walls is measured again at the top; a corner has nothing to measure the top to', () => {
+    expect(ids(tapeDeck('alcove-panel-door'))).toEqual([
+      'marks',
+      'width-0',
+      'height',
+      'width-top-0',
+      'floor-0-start',
+      'floor-0-end',
+      'wall-start-bottom',
+      'wall-start-top',
+      'wall-end-bottom',
+      'wall-end-top',
+      'review',
+    ]);
+    for (const id of ['corner-door-return', 'three-sided', 'walk-in', 'over-bath']) expect(ids(tapeDeck(id))).not.toContain('width-top-0');
+  });
+
+  test('the gaps under and behind a level become a fall and a lean, the end that touches reading 0', () => {
+    let state = tapeLayout('walk-in');
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'start' }, 0);
+    state = writeField(rules, state, { kind: 'floor', run: 0, end: 'end' }, 4);
+    expect(state.opening.runs[0]).toMatchObject({ floorFallMm: 4, floorLowEnd: 'end' });
+    state = writeField(rules, state, { kind: 'wall', wall: 'start', at: 'bottom' }, 0);
+    state = writeField(rules, state, { kind: 'wall', wall: 'start', at: 'top' }, 3);
+    // A gap at the top: the wall falls away from the level up there, so it leans out.
+    expect(wallLean(state.opening.startWall)).toMatchObject({ leanMm: 3, direction: 'out' });
+  });
+
+  test('the width at the top is kept as the check it is', () => {
+    const state = writeField(rules, tapeLayout('alcove-panel-door'), { kind: 'top', run: 0 }, 1104);
+    expect(state.opening.runs[0].widthAtTopCheckMm).toBe(1104);
+    expect(readField(state, { kind: 'top', run: 0 })).toBe(1104);
+  });
+});

@@ -34,6 +34,8 @@ colors:
   shadow: "#4a5159"
   mask: "#93c3ec"
   mask-edge: "#3f7fbd"
+  vial: "#cfe8b4"
+  vial-edge: "#5f7f3f"
   pencil: "#1e2227"
 typography:
   value:
@@ -136,6 +138,7 @@ A near-colourless architectural room in white and cool light greys, with three s
 - **Hardware**: `metal` and `metal-dark` for hinges, handles, channels, rail and the waste.
 - **Shadow** (`shadow`): every soft shadow and wall-foot shade, always at low opacity.
 - **Masking Tape Blue** (`mask`, `mask-edge`) with **Pencil** (`pencil`): the decorator's tape the glass lines are drawn on. This is a material colour, the colour of real painter's tape, not a meaning colour.
+- **Vial Green** (`vial`, `vial-edge`): a spirit level's bubble window, the one green on the page, as every level has it. A material colour too.
 - **Tool graphite** (built as computed paint, not a token): laser body and tripod in `hsl(216 11% 11–36%)` by light; the laser's window band in `hsl(352 32% 14–28%)`; the tape hook `hsl(216 10% 34%)`.
 
 ### Named Rules
@@ -235,6 +238,10 @@ A graphite box 105mm square and 210mm tall on a contact shadow, a dark red windo
 ### Tape measure
 
 A yellow blade 46mm wide lying with its face to the surface it is held against, ticks every 50mm (30% of the blade's width, 50% every 100mm, 90% every 500mm), a hook bent square at the start, and a 110mm case beyond the end, yellow on its sides and graphite on its ends. Where the laser lights the blade, a short red beam crosses it.
+
+### Spirit level
+
+For measuring with a tape and a level (staging only until Matt signs the cards off). 1200 long, 62 deep and 26 thick, lit aluminium with its two ends dark, its bubble window (96 × 34, a 24 × 16 bubble in it) in the middle of the side turned to the eye. It lies along the glass line just outside the glass, or stands upright on the mark against the wall. It is drawn 24mm off what it rests against at both ends, not to scale, so the picture shows where the gap is measured without saying which end touches; the card's words say that the end that touches reads 0. The gap is read in a lens, close enough that the start and the read point stand apart, with the surface or the face of the wall drawn firm (2.2px) because the room's own line is too faint there, and the number under the lens.
 
 ### Measuring marks
 

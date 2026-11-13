@@ -9,7 +9,7 @@ import { MarksVisual } from './MarksVisual';
 import { PlanMarksVisual } from './PlanMarksVisual';
 import { RunMarksVisual } from './RunMarksVisual';
 import { RunHeightVisual } from './RunHeightVisual';
-import { RunVisual, type DoneMark, type RunPicture } from './RunVisual';
+import { faceOn, RunVisual, type DoneMark, type RunPicture } from './RunVisual';
 import { FLOOR } from './Scene';
 
 /** Where the top of the glass sits in the picture, from the real height. */
@@ -91,7 +91,8 @@ export function CardPicture({ card, cards, state, options }: { card: MeasureCard
     }
     default: {
       if (tray) return <IsoReading input={input} visual={visual} value={value} laserAt={laserBefore(cards, card)} />;
-      const done: DoneMark[] = taken.filter(onRun).flatMap((c) => (c.visual.view.run === visual.view.run ? [{ visual: c.visual, n: c.mark! }] : []));
+      if (!faceOn(visual)) return null;
+      const done: DoneMark[] = taken.filter(onRun).flatMap((c) => (c.visual.view.run === visual.view.run && faceOn(c.visual) ? [{ visual: c.visual, n: c.mark! }] : []));
       return <RunVisual visual={visual} views={views} glassTop={glassTop} value={value} mark={card.mark} done={done} />;
     }
   }

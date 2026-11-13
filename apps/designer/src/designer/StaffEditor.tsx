@@ -100,8 +100,8 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
       return { ...next, opening: syncRuns(next.opening, runWidthsMm(next.panels, next.junctions)) };
     });
 
-  const usesDeck = hasDeck(state);
-  const deckOptions = useMemo(() => ({ overBath: templateId === 'over-bath' }), [templateId]);
+  const deckOptions = useMemo(() => ({ overBath: templateId === 'over-bath', tape: !!config.tapeDecks }), [templateId, config.tapeDecks]);
+  const usesDeck = hasDeck(state, deckOptions);
   const screens = usesDeck ? 0 : measureScreenCount(state);
 
   const stepProps: StepProps = {

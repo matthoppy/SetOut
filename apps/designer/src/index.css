@@ -190,6 +190,9 @@ All colors MUST be HSL.
   --iso-mask: #93c3ec;
   --iso-mask-edge: #3f7fbd;
   --iso-pencil: #1e2227;
+  /* A spirit level's bubble window: the one green on the page, as every level has it. */
+  --iso-vial: #cfe8b4;
+  --iso-vial-edge: #5f7f3f;
 }
 .dark .mw-iso {
   /* The room stays light on a dark page, on its own light ground, so its

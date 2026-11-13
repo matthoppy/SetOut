@@ -372,8 +372,8 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
   // Measured with a laser, every layout has the card deck, one reading to a
   // card. Measuring with a tape keeps the older screens until its decks are
   // written.
-  const usesDeck = hasDeck(state);
-  const deckOptions = useMemo(() => ({ overBath: templateId === 'over-bath' }), [templateId]);
+  const deckOptions = useMemo(() => ({ overBath: templateId === 'over-bath', tape: !!config.tapeDecks }), [templateId, config.tapeDecks]);
+  const usesDeck = hasDeck(state, deckOptions);
   const cardTotal = usesDeck ? buildCards(state, deckOptions).length : measureScreenCount(state);
   const inMeasureCards = stepId === 'measure' && !usesDeck;
   useEffect(() => {

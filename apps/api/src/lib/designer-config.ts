@@ -192,7 +192,7 @@ export function handlePhotos(handle: Handle, finishes: Finish[]): { photo?: stri
 const text = (v: unknown, fallback: string): string => (typeof v === 'string' && v.length > 0 ? v : fallback);
 
 /** The config for one of a company's designers, or null if there is no such designer. */
-export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, designerId: string) {
+export async function designerConfig(env: Pick<Env, 'DB' | 'TAPE_DECKS'>, companyId: string, designerId: string) {
   const db = companyDb(env, companyId);
   const [company, row, ruleset] = await Promise.all([db.company(), db.get('designers', designerId), db.rulesets.current()]);
   if (!company || !row) return null;
@@ -219,6 +219,8 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     hinges: hingesOf(settings),
     ...choicesOf(settings),
     sliding: slidingOf(settings),
+    // The cards for measuring with a tape and a level, where switched on: staging only until Matt signs them off.
+    tapeDecks: env.TAPE_DECKS === 'on',
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),
     ...(settings.turnstileSiteKey ? { turnstileSiteKey: settings.turnstileSiteKey } : {}),
