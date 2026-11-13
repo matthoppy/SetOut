@@ -90,8 +90,15 @@ test('three sided: both ends of the back wall are named apart', () => {
     start: 'the back wall, at the left end',
     end: 'the back wall, at the right end',
   });
-  assert.deepStrictEqual(runEndNames(s, 1), { start: 'corner', end: 'corner' });
+  assert.deepStrictEqual(runEndNames(s, 1), { start: 'left corner', end: 'right corner' });
   assert.strictEqual(measureScreenCount(s), 13);
+});
+
+test('three sided: what was measured says which corner of the front is lower', () => {
+  const s = design('three-sided', 'laser');
+  const runs = s.opening.runs.map((run, i) => (i === 1 ? { ...run, floorStartMm: 900, floorEndMm: 902, floorFallMm: 2, floorLowEnd: 'end' } : run));
+  const rows = journeySummary({ ...s, opening: { ...s.opening, runs } });
+  assert.strictEqual(rows.find((r) => r.screenId === 'floor-1').value, '2mm lower at the right corner');
 });
 
 test('walk-in with return: the one wall is just "the wall"', () => {

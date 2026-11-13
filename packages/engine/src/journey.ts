@@ -17,13 +17,13 @@
  */
 
 import {
-  derivePlanes,
   hasTransom,
   isSingleDoor,
   openingContext,
+  runEndNames,
   runLabelsFor,
   runPanelIndices,
-  type Plane,
+  wallNames,
 } from './geometry';
 import {
   ceilingSlope,
@@ -42,6 +42,9 @@ import {
   type OpeningMeasurements,
 } from './measure';
 import type { ConfiguratorJunction, ConfiguratorPanel } from './types';
+
+// What the walls and the ends of each run are called lives with the geometry it is traced from.
+export { runEndNames, wallNames };
 
 /** The slice of the design the journey needs. */
 export interface JourneyState {
@@ -120,76 +123,6 @@ function friendlyRun(label: string): string {
 /** Each run as the customer would point at it: 'the front', 'the left side'. */
 export function runNames(state: JourneyState): string[] {
   return runLabelsFor(state.panels, state.junctions).map(friendlyRun);
-}
-
-/**
- * What to call the two walls the glass meets, or null where an end is open.
- *
- * Worked out from the traced geometry rather than the panel order: on
- * "Corner, door and side" the first panel is the side, so the first wall is
- * the back wall, not the left one.
- */
-export function wallNames(state: JourneyState): { start: string | null; end: string | null } {
-  const runs = runPanelIndices(state.panels, state.junctions);
-  const planes = derivePlanes(state.panels, state.junctions);
-  const start = state.leftWall;
-  const end = state.rightWall;
-
-  if (!start && !end) return { start: null, end: null };
-  // One wall needs no telling apart, however many runs there are.
-  if (start !== end) return { start: start ? 'the wall' : null, end: end ? 'the wall' : null };
-  if (runs.length <= 1) return { start: 'the left wall', end: 'the right wall' };
-
-  const startPlane: Plane = planes[runs[0][0]] ?? 'front';
-  const endPlane: Plane = planes[runs[runs.length - 1][0]] ?? 'front';
-  const isReturn = (p: Plane) => p !== 'front';
-  const bothReturns = isReturn(startPlane) && isReturn(endPlane);
-  const lastPanel = state.panels[state.panels.length - 1];
-  const firstPanel = state.panels[0];
-
-  const startName = !start
-    ? null
-    : isReturn(startPlane)
-      ? bothReturns
-        ? 'the back wall, at the left end'
-        : 'the back wall'
-      : firstPanel?.kind === 'door'
-        ? 'the left wall, beside the door'
-        : 'the left wall';
-  const endName = !end
-    ? null
-    : isReturn(endPlane)
-      ? bothReturns
-        ? 'the back wall, at the right end'
-        : 'the back wall'
-      : lastPanel?.kind === 'door'
-        ? 'the right wall, beside the door'
-        : 'the right wall';
-  return { start: startName, end: endName };
-}
-
-/**
- * What is at each end of a run: a wall, a corner, or the open end. Used to
- * label the two readings on the floor and ceiling screens, and the halves of
- * a width.
- */
-export function runEndNames(state: JourneyState, runIndex: number): { start: string; end: string } {
-  const runs = runPanelIndices(state.panels, state.junctions);
-  const walls = wallNames(state);
-  const last = runs.length - 1;
-  const wallWord = (name: string | null) =>
-    name ? name.replace(/^the /, '').replace(/,.*$/, '') : 'open end';
-
-  if (runs.length <= 1) {
-    return {
-      start: state.leftWall ? (state.rightWall ? 'left wall' : 'wall') : 'open end',
-      end: state.rightWall ? (state.leftWall ? 'right wall' : 'wall') : 'open end',
-    };
-  }
-  return {
-    start: runIndex === 0 ? (state.leftWall ? wallWord(walls.start) : 'open end') : 'corner',
-    end: runIndex === last ? (state.rightWall ? wallWord(walls.end) : 'open end') : 'corner',
-  };
 }
 
 // ---------------------------------------------------------------------------

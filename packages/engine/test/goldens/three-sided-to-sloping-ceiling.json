@@ -307,7 +307,7 @@
       },
       "rakeNotes": [
         "Left return: 600mm measured at the floor, 600mm derived at the top; Front: 700mm measured at the floor, 700mm derived at the top; Right return: 600mm measured at the floor, 600mm derived at the top",
-        "Out of true: ceiling along the left return 2390mm at the start falling to 2382mm at the end (8mm slope, top edge cut straight between them); ceiling along the right return 2382mm at the start falling to 2371mm at the end (11mm slope, top edge cut straight between them)",
+        "Out of true: ceiling along the left return 2390mm at the back wall falling to 2382mm at the corner (8mm slope, top edge cut straight between them); ceiling along the right return 2382mm at the corner falling to 2371mm at the back wall (11mm slope, top edge cut straight between them)",
         "Checked with: Spirit level.",
         "Left return: ceiling 2390mm at one end falling 8mm to 2382mm at the end — top edge cut as one straight line between them.",
         "Front: ceiling 2382mm at both ends.",

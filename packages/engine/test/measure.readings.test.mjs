@@ -72,6 +72,8 @@ test('floor: a large fall from two readings is queried, not blocked', () => {
   assert.ok(codes(m, alcove).includes('run0-floor-large-fall'));
   assert.ok(!checkMeasurements(m, alcove).some((c) => c.level === 'blocking'));
   assert.match(describeOpening(m, alcove), /floor 25mm lower at the end \(readings 0 and 25\)/);
+  // Told what is at each end, it says which.
+  assert.match(describeOpening(m, { ...alcove, ends: [{ start: 'left wall', end: 'right wall' }] }), /floor 25mm lower at the right wall \(readings 0 and 25\)/);
 });
 
 test('floor: the laser cross writes its readings 5 and 6 as the floor readings', () => {
@@ -166,7 +168,7 @@ test('ceiling: glass that stops short is checked against a ceiling that comes do
   const c = find(m, alcove, 'run0-ceiling-below-glass');
   assert.ok(c);
   assert.strictEqual(c.level, 'confirm');
-  assert.match(c.message, /At the end end the ceiling is 1990mm/);
+  assert.match(c.message, /At the end the ceiling is 1990mm/);
   // Clear of the glass: nothing but the slope query.
   m.runs[0] = { ...m.runs[0], ceilingEndMm: 2100 };
   assert.ok(!codes(m, alcove).includes('run0-ceiling-below-glass'));

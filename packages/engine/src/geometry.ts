@@ -240,11 +240,94 @@ export function openingContext(state: {
     hasEndWall: state.rightWall,
     glassHeightMm: state.heightMm,
     labels: runLabelsFor(state.panels, state.junctions),
+    // What each end of each run is, so a note can say which end is lower.
+    ends: runPanelIndices(state.panels, state.junctions).map((_, i) => runEndNames(state, i)),
     // A run with a door in it is an opening; a run of fixed glass alone can
     // be a short return.
     minWidthsMm: runPanelIndices(state.panels, state.junctions).map((indices) =>
       indices.some((i) => state.panels[i].kind === 'door') ? MIN_PLAUSIBLE_MM : MIN_PLAUSIBLE_RETURN_MM
     ),
+  };
+}
+
+/** What naming the walls and the ends of a run reads from a design. */
+interface EndsState {
+  panels: ConfiguratorPanel[];
+  junctions: ConfiguratorJunction[];
+  leftWall: boolean;
+  rightWall: boolean;
+}
+
+/**
+ * What to call the two walls the glass meets, or null where an end is open.
+ *
+ * Worked out from the traced geometry rather than the panel order: on
+ * "Corner, door and side" the first panel is the side, so the first wall is
+ * the back wall, not the left one.
+ */
+export function wallNames(state: EndsState): { start: string | null; end: string | null } {
+  const runs = runPanelIndices(state.panels, state.junctions);
+  const planes = derivePlanes(state.panels, state.junctions);
+  const start = state.leftWall;
+  const end = state.rightWall;
+
+  if (!start && !end) return { start: null, end: null };
+  // One wall needs no telling apart, however many runs there are.
+  if (start !== end) return { start: start ? 'the wall' : null, end: end ? 'the wall' : null };
+  if (runs.length <= 1) return { start: 'the left wall', end: 'the right wall' };
+
+  const startPlane: Plane = planes[runs[0][0]] ?? 'front';
+  const endPlane: Plane = planes[runs[runs.length - 1][0]] ?? 'front';
+  const isReturn = (p: Plane) => p !== 'front';
+  const bothReturns = isReturn(startPlane) && isReturn(endPlane);
+  const lastPanel = state.panels[state.panels.length - 1];
+  const firstPanel = state.panels[0];
+
+  const startName = !start
+    ? null
+    : isReturn(startPlane)
+      ? bothReturns
+        ? 'the back wall, at the left end'
+        : 'the back wall'
+      : firstPanel?.kind === 'door'
+        ? 'the left wall, beside the door'
+        : 'the left wall';
+  const endName = !end
+    ? null
+    : isReturn(endPlane)
+      ? bothReturns
+        ? 'the back wall, at the right end'
+        : 'the back wall'
+      : lastPanel?.kind === 'door'
+        ? 'the right wall, beside the door'
+        : 'the right wall';
+  return { start: startName, end: endName };
+}
+
+/**
+ * What is at each end of a run: a wall, a corner, or the open end. Used to
+ * label the two readings on the floor and ceiling screens, the halves of a
+ * width, and what was measured. A run between two corners, the front of a
+ * three-sided shower, says which: the left corner and the right corner, as
+ * the customer stands facing it, as the measuring cards call them.
+ */
+export function runEndNames(state: EndsState, runIndex: number): { start: string; end: string } {
+  const runs = runPanelIndices(state.panels, state.junctions);
+  const walls = wallNames(state);
+  const last = runs.length - 1;
+  const wallWord = (name: string | null) =>
+    name ? name.replace(/^the /, '').replace(/,.*$/, '') : 'open end';
+
+  if (runs.length <= 1) {
+    return {
+      start: state.leftWall ? (state.rightWall ? 'left wall' : 'wall') : 'open end',
+      end: state.rightWall ? (state.leftWall ? 'right wall' : 'wall') : 'open end',
+    };
+  }
+  const between = runIndex > 0 && runIndex < last;
+  return {
+    start: runIndex === 0 ? (state.leftWall ? wallWord(walls.start) : 'open end') : between ? 'left corner' : 'corner',
+    end: runIndex === last ? (state.rightWall ? wallWord(walls.end) : 'open end') : between ? 'right corner' : 'corner',
   };
 }
 

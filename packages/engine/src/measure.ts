@@ -218,6 +218,12 @@ export interface OpeningContext {
    */
   labels?: string[];
   /**
+   * What is at each end of each run, as `runEndNames` says it: 'left wall',
+   * 'right corner', 'open end'. Lets a note say which end is lower. Without
+   * it, the ends are 'start' and 'end', walking along the run.
+   */
+  ends?: { start: string; end: string }[];
+  /**
    * The narrowest each run could plausibly be. A run of fixed glass alone can
    * be a short return panel; a run with a door in it cannot be that short.
    * Left out, every run is held to MIN_PLAUSIBLE_MM.
@@ -602,6 +608,9 @@ function unitSlip(
   return null;
 }
 
+/** An end of a run as a note names it: 'the right corner', or 'the end' where nothing says what is there. */
+const endOf = (ctx: OpeningContext, run: number, end: 'start' | 'end'): string => `the ${ctx.ends?.[run]?.[end] ?? end}`;
+
 export function checkMeasurements(
   m: OpeningMeasurements,
   ctx: OpeningContext
@@ -946,11 +955,11 @@ export function checkMeasurements(
         code: `run${i}-ceiling-large-slope`,
         level: 'confirm',
         runIndex: i,
-        message: `The ceiling${where} is ${slope.dropMm}mm lower at the ${slope.lowEnd} end (${slope.highMm}mm down to ${slope.lowMm}mm). It happens, especially under a roof — please double-check both readings, because the top of the glass will be cut on that slope to match.`,
+        message: `The ceiling${where} is ${slope.dropMm}mm lower at ${slope.lowEnd ? endOf(ctx, i, slope.lowEnd) : 'one end'} (${slope.highMm}mm down to ${slope.lowMm}mm). It happens, especially under a roof — please double-check both readings, because the top of the glass will be cut on that slope to match.`,
       });
     }
     if (!toCeiling && ceilingAsked && slope.lowMm <= ctx.glassHeightMm) {
-      const at = slope.lowEnd ? `At the ${slope.lowEnd} end the ceiling is` : 'The ceiling is';
+      const at = slope.lowEnd ? `At ${endOf(ctx, i, slope.lowEnd)} the ceiling is` : 'The ceiling is';
       checks.push({
         code: `run${i}-ceiling-below-glass`,
         level: 'confirm',
@@ -1023,14 +1032,14 @@ export function describeOpening(m: OpeningMeasurements, ctx: OpeningContext): st
       const readings = floorMeasured(run)
         ? ` (readings ${run.floorStartMm} and ${run.floorEndMm})`
         : '';
-      parts.push(`floor${where} ${run.floorFallMm}mm lower at the ${run.floorLowEnd}${readings}`);
+      parts.push(`floor${where} ${run.floorFallMm}mm lower at ${endOf(ctx, i, run.floorLowEnd)}${readings}`);
     }
     // The single door's ceiling is reported from its cross below.
     const slope = i === 0 && crossStarted(m.crossReadings) ? null : ceilingSlope(run);
     if (slope && slope.dropMm > 0) {
       parts.push(
-        `ceiling${where} ${slope.highMm}mm at the ${slope.lowEnd === 'start' ? 'end' : 'start'} ` +
-          `falling to ${slope.lowMm}mm at the ${slope.lowEnd} (${slope.dropMm}mm slope, top edge cut straight between them)`
+        `ceiling${where} ${slope.highMm}mm at ${endOf(ctx, i, slope.lowEnd === 'start' ? 'end' : 'start')} ` +
+          `falling to ${slope.lowMm}mm at ${endOf(ctx, i, slope.lowEnd === 'start' ? 'start' : 'end')} (${slope.dropMm}mm slope, top edge cut straight between them)`
       );
     }
   });
