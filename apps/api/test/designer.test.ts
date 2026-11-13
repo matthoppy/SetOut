@@ -391,6 +391,29 @@ describe('the bot check', () => {
   });
 });
 
+describe('glass the company offers', () => {
+  const inGlass = (siteKey: string, mm: 8 | 10 | 12) =>
+    enquiry(siteKey, { document: createDocument(designFromTemplate('alcove-panel-door', mm)) });
+  const warnings = async (db: CompanyDb) => {
+    const [revision] = await db.find('design_revisions', { limit: 1 });
+    return (revision.computed as unknown as { warnings: string[] }).warnings;
+  };
+
+  test('is the company’s own choice, so a customer’s 12mm is not called a special', async () => {
+    const shop = await company('Thick Glass', 'TG', { glassThicknessesMm: [8, 10, 12], glassThicknessMm: 10 });
+    expect((await send(inGlass(shop.siteKey, 12))).status).toBe(201);
+    expect((await warnings(shop.db)).some((w) => w.includes('is a special'))).toBe(false);
+  });
+
+  test('and glass it does not offer is a special, said against what it does', async () => {
+    const shop = await company('Thin Glass', 'TN', { glassThicknessesMm: [10], glassThicknessMm: 10 });
+    expect((await send(inGlass(shop.siteKey, 8))).status).toBe(201);
+    expect(await warnings(shop.db)).toContain(
+      'Glass: 8mm glass is a special — Thin Glass offers 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.'
+    );
+  });
+});
+
 describe('a sliding door', () => {
   const sliding = (siteKey: string) =>
     enquiry(siteKey, { document: createDocument(designFromTemplate('sliding-alcove')), templateId: 'sliding-alcove' });

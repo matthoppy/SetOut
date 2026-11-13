@@ -14,8 +14,31 @@
 import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
-import { BELLAGIO_FITS, IN_LINE_HINGES, VIENNA_CUTOUTS, WALL_HINGES, type BellagioFit, type ViennaCutout } from '@setout/engine';
-import { BRANDING_DEFAULTS, GLASS_THICKNESSES, glassOf, hingesOf, isThickness, offeredOptions, slidingOf, type Glass, type Hinges } from './designer-config';
+import {
+  BELLAGIO_FITS,
+  GLASS_COATINGS,
+  GLASS_TYPES,
+  IN_LINE_HINGES,
+  MOUNTINGS,
+  VIENNA_CUTOUTS,
+  WALL_HINGES,
+  type BellagioFit,
+  type Offer,
+  type ViennaCutout,
+} from '@setout/engine';
+import {
+  BRANDING_DEFAULTS,
+  GLASS_THICKNESSES,
+  choicesOf,
+  glassOf,
+  hingesOf,
+  isThickness,
+  offeredOptions,
+  slidingOf,
+  type Choices,
+  type Glass,
+  type Hinges,
+} from './designer-config';
 import { RequestError } from './enquiry';
 
 export interface Finish {
@@ -142,6 +165,12 @@ export interface DesignerView {
   handles: Handle[];
   glass: Glass;
   hinges: Hinges;
+  /** The fixing methods customers may choose, and the one a new design starts with. */
+  fixing: Choices['fixing'];
+  /** The glass types customers may choose, and the one a new design starts with. */
+  glassTypes: Choices['glassTypes'];
+  /** The coatings customers may choose, and the one a new design starts with. */
+  coatings: Choices['coatings'];
   /** Whether customers are offered the sliding door layouts. Off until an owner turns it on. */
   sliding: boolean;
   notifyEmails: string[];
@@ -170,6 +199,7 @@ export function designerView(stored: {
     handles,
     glass: glassOf(config),
     hinges: hingesOf(config),
+    ...choicesOf(config),
     sliding: slidingOf(config),
     notifyEmails: list(stored.notify_emails).filter((e): e is string => typeof e === 'string'),
     siteKey: stored.site_key,
@@ -193,16 +223,19 @@ export async function companyVersions(company: CompanyView) {
 }
 
 export async function designerVersions(designer: DesignerView) {
-  const [finishes, handles, glass, hinges, sliding, notifyEmails, websites] = await Promise.all([
+  const [finishes, handles, glass, hinges, fixing, glassTypes, coatings, sliding, notifyEmails, websites] = await Promise.all([
     versionOf(designer.finishes),
     versionOf(designer.handles),
     versionOf(designer.glass),
     versionOf(designer.hinges),
+    versionOf(designer.fixing),
+    versionOf(designer.glassTypes),
+    versionOf(designer.coatings),
     versionOf(designer.sliding),
     versionOf(designer.notifyEmails),
     versionOf(designer.websites),
   ]);
-  return { finishes, handles, glass, hinges, sliding, notifyEmails, websites };
+  return { finishes, handles, glass, hinges, fixing, glassTypes, coatings, sliding, notifyEmails, websites };
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +384,31 @@ export function readGlass(input: unknown): Glass {
   }
   return { offered, standard: g.standard };
 }
+
+/**
+ * One kind of choice, as an owner sent it: ones SetOut knows, at least one,
+ * and the one a new design starts with among them. Kept in SetOut's order.
+ */
+function readOffer<T extends string>(all: readonly T[], input: unknown, words: { many: string; code: string }): Offer<T> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, words.code, `Send the ${words.many} to offer, and the one a new design starts with.`);
+  }
+  const c = input as Record<string, unknown>;
+  if (!Array.isArray(c.offered) || !c.offered.every((id) => all.includes(id as T))) {
+    throw new RequestError(400, words.code, `That is not one of the ${words.many} SetOut knows.`);
+  }
+  const offered = all.filter((id) => (c.offered as unknown[]).includes(id));
+  if (offered.length === 0) throw new RequestError(400, words.code, `Offer at least one of the ${words.many}.`);
+  if (!offered.includes(c.standard as T)) throw new RequestError(400, words.code, `A new design must start with one of the ${words.many} you offer.`);
+  return { offered, standard: c.standard as T };
+}
+
+/** The fixing methods a designer offers, as an owner sent them. */
+export const readFixing = (input: unknown) => readOffer(MOUNTINGS, input, { many: 'fixing methods', code: 'invalid_fixing' });
+/** The glass types a designer offers, as an owner sent them. */
+export const readGlassTypes = (input: unknown) => readOffer(GLASS_TYPES, input, { many: 'glass types', code: 'invalid_glass_types' });
+/** The coatings a designer offers, as an owner sent them. */
+export const readCoatings = (input: unknown) => readOffer(GLASS_COATINGS, input, { many: 'coatings', code: 'invalid_coatings' });
 
 /** Whether a designer offers sliding doors, as an owner sent it: on or off, nothing else. */
 export function readSliding(input: unknown): boolean {
@@ -535,6 +593,8 @@ export type SettingsChange =
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
   | { field: 'slidingDoors'; from: boolean; to: boolean }
+  | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
+  | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
@@ -584,6 +644,21 @@ export function hingeChanges(before: Hinges, after: Hinges): SettingsChange[] {
   }
   if (before.viennaCutout !== after.viennaCutout) changes.push({ field: 'viennaCutout', from: before.viennaCutout, to: after.viennaCutout });
   if (before.bellagioFit !== after.bellagioFit) changes.push({ field: 'bellagioFit', from: before.bellagioFit, to: after.bellagioFit });
+  return changes;
+}
+
+/** The fields a change to the fixing methods, glass types or coatings is recorded under. */
+const CHOICE_FIELDS = {
+  fixing: { offered: 'fixingOffered', standard: 'fixingStandard' },
+  glassTypes: { offered: 'glassTypesOffered', standard: 'glassTypeStandard' },
+  coatings: { offered: 'coatingsOffered', standard: 'coatingStandard' },
+} as const;
+
+export function choiceChanges(kind: keyof Choices, before: Offer<string>, after: Offer<string>): SettingsChange[] {
+  const fields = CHOICE_FIELDS[kind];
+  const changes: SettingsChange[] = [];
+  if (before.offered.join() !== after.offered.join()) changes.push({ field: fields.offered, from: before.offered, to: after.offered });
+  if (before.standard !== after.standard) changes.push({ field: fields.standard, from: before.standard, to: after.standard });
   return changes;
 }
 
@@ -643,8 +718,15 @@ export function storedSettings(text: string, before: QuoteSettings, after: Quote
 }
 
 /** The designer's config with new lists of finishes or handles, or new glass, and everything else it holds kept. */
-export function storedConfig(text: string, changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass; hinges?: Hinges; sliding?: boolean }): string {
+export function storedConfig(
+  text: string,
+  changes: { finishes?: Finish[]; handles?: Handle[]; glass?: Glass; hinges?: Hinges; sliding?: boolean } & Partial<Choices>
+): string {
   const stored = parsed(text);
+  for (const kind of ['fixing', 'glassTypes', 'coatings'] as const) {
+    const offer = changes[kind];
+    if (offer) stored[kind] = { offered: offer.offered, standard: offer.standard };
+  }
   if (changes.finishes) stored.finishes = changes.finishes;
   if (changes.handles) stored.handles = changes.handles;
   if (changes.glass) {

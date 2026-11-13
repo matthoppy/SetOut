@@ -1,6 +1,7 @@
 /**
  * What a designer needs to know about its company: its name and colours, the
- * finishes and handles it offers, and its making rules.
+ * finishes, handles, glass, hinges, fixings and coatings it offers, and its
+ * making rules.
  *
  * The public designer is sent this for its site key. Staff changing a design
  * in the workspace are sent the same, for the designer the job came from, so
@@ -12,15 +13,24 @@
 
 import {
   BELLAGIO_FITS,
+  GLASS_COATINGS,
+  GLASS_TYPES,
   IN_LINE_HINGES,
+  MOUNTINGS,
+  STANDARD_CHOICES,
   STANDARD_HINGES,
   VIENNA_CUTOUTS,
   WALL_HINGES,
   crlFinishCode,
   handlePhotoOf,
+  offerOf,
   type BellagioFit,
+  type GlassCoating,
+  type GlassType,
   type HingeStyles,
   type InLineHinge,
+  type Mounting,
+  type Offer,
   type ViennaCutout,
   type WallHinge,
 } from '@setout/engine';
@@ -28,7 +38,7 @@ import { companyDb, type CompanyDb } from '../db/company-db';
 import type { DesignerSettings } from '../db/platform';
 import type { Row } from '../db/tables';
 
-export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey' | 'slidingDoors'>> = {
+export const DEFAULT_SETTINGS: Required<Omit<DesignerSettings, 'intro' | 'turnstileSiteKey' | 'slidingDoors' | 'fixing' | 'glassTypes' | 'coatings'>> = {
   finishes: [
     { id: 'chrome', label: 'Polished chrome', swatch: '#d4d8db' },
     { id: 'brushed-nickel', label: 'Brushed nickel', swatch: '#b0aaa2' },
@@ -96,6 +106,33 @@ export function hingesOf(settings: DesignerSettings): Hinges {
     bellagioFit: BELLAGIO_FITS.includes(settings.hinges?.bellagioFit as BellagioFit) ? (settings.hinges?.bellagioFit as BellagioFit) : STANDARD_HINGES.bellagioFit,
   };
 }
+
+/** The fixing methods, glass types and coatings a designer offers, each in SetOut's order, and the standard of each. */
+export interface Choices {
+  fixing: Offer<Mounting>;
+  glassTypes: Offer<GlassType>;
+  coatings: Offer<GlassCoating>;
+}
+
+/**
+ * The fixing methods, glass types and coatings a designer offers. Each is
+ * every one SetOut knows until the company chooses, as before it could, and
+ * a new design always starts with one of those offered.
+ */
+export function choicesOf(settings: DesignerSettings): Choices {
+  return {
+    fixing: offerOf(MOUNTINGS, settings.fixing, STANDARD_CHOICES.mounting),
+    glassTypes: offerOf(GLASS_TYPES, settings.glassTypes, STANDARD_CHOICES.glassType),
+    coatings: offerOf(GLASS_COATINGS, settings.coatings, STANDARD_CHOICES.glassCoating),
+  };
+}
+
+/** Every fixing method, glass type and coating, for staff, who may make any shower with any of them. */
+export const ALL_CHOICES = (choices: Choices): Choices => ({
+  fixing: { offered: [...MOUNTINGS], standard: choices.fixing.standard },
+  glassTypes: { offered: [...GLASS_TYPES], standard: choices.glassTypes.standard },
+  coatings: { offered: [...GLASS_COATINGS], standard: choices.coatings.standard },
+});
 
 /**
  * Whether a designer offers the sliding door layouts. Only when an owner has
@@ -180,6 +217,7 @@ export async function designerConfig(env: Pick<Env, 'DB'>, companyId: string, de
     glassThicknessMm: glass.standard,
     glassThicknesses: glass.offered,
     hinges: hingesOf(settings),
+    ...choicesOf(settings),
     sliding: slidingOf(settings),
     measurementDisclaimer: text(settings.measurementDisclaimer, DEFAULT_SETTINGS.measurementDisclaimer),
     ...(settings.intro ? { intro: settings.intro } : {}),

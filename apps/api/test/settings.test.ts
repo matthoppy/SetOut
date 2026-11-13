@@ -34,10 +34,27 @@ interface DesignerBody {
   handles: Handle[];
   glass: { offered: number[]; standard: number };
   hinges: Hinges;
+  fixing: Offer;
+  glassTypes: Offer;
+  coatings: Offer;
   sliding: boolean;
   notifyEmails: string[];
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string };
+  versions: {
+    finishes: string;
+    handles: string;
+    glass: string;
+    hinges: string;
+    fixing: string;
+    glassTypes: string;
+    coatings: string;
+    sliding: string;
+    notifyEmails: string;
+  };
+}
+interface Offer {
+  offered: string[];
+  standard: string;
 }
 interface Hinges {
   wall: { offered: string[]; standard: string };
@@ -70,6 +87,9 @@ interface PublicConfig {
   glassThicknessMm: number;
   glassThicknesses: number[];
   hinges: Hinges;
+  fixing: Offer;
+  glassTypes: Offer;
+  coatings: Offer;
   sliding: boolean;
   intro?: string;
 }
@@ -792,5 +812,91 @@ describe('sliding doors', () => {
     await saved(await changeDesigner({ sliding: true }));
     expect(await errorOf(await patch(`/settings/designers/${old.id}`, { sliding: true, basedOn: old.versions }))).toEqual([409, 'stale']);
     await saved(await changeDesigner({ sliding: false }));
+  });
+});
+
+describe('the fixing methods, glass types and coatings a designer offers', () => {
+  const ALL_TYPES = ['clear', 'low-iron', 'satin', 'bronze', 'grey'];
+
+  test('are every one SetOut knows until an owner chooses, a new design in U-channel, clear glass and no coating', async () => {
+    const designer = await ours();
+    expect(designer.fixing).toEqual({ offered: ['channel', 'clamps'], standard: 'channel' });
+    expect(designer.glassTypes).toEqual({ offered: ALL_TYPES, standard: 'clear' });
+    expect(designer.coatings).toEqual({ offered: ['none', 'easy-clean'], standard: 'none' });
+    const config = await publicConfig(shop);
+    expect([config.fixing, config.glassTypes, config.coatings]).toEqual([designer.fixing, designer.glassTypes, designer.coatings]);
+  });
+
+  test('an owner chooses which, and the one a new design starts with, and the designer and the record follow', async () => {
+    const { designer } = await saved(
+      await changeDesigner({
+        fixing: { offered: ['clamps'], standard: 'clamps' },
+        glassTypes: { offered: ['satin', 'clear', 'low-iron', 'clear'], standard: 'low-iron' },
+        coatings: { offered: ['easy-clean', 'none'], standard: 'easy-clean' },
+      })
+    );
+    expect(designer.fixing).toEqual({ offered: ['clamps'], standard: 'clamps' });
+    expect(designer.glassTypes).toEqual({ offered: ['clear', 'low-iron', 'satin'], standard: 'low-iron' });
+    expect(designer.coatings).toEqual({ offered: ['none', 'easy-clean'], standard: 'easy-clean' });
+    const config = await publicConfig(shop);
+    expect([config.fixing, config.glassTypes, config.coatings]).toEqual([designer.fixing, designer.glassTypes, designer.coatings]);
+    // The rest of the designer's own settings are kept.
+    expect(config.intro).toBe('Design yours.');
+    const { changes } = await read();
+    expect(changes?.[0].data.changes).toEqual([
+      { field: 'fixingOffered', from: ['channel', 'clamps'], to: ['clamps'] },
+      { field: 'fixingStandard', from: 'channel', to: 'clamps' },
+      { field: 'glassTypesOffered', from: ALL_TYPES, to: ['clear', 'low-iron', 'satin'] },
+      { field: 'glassTypeStandard', from: 'clear', to: 'low-iron' },
+      { field: 'coatingStandard', from: 'none', to: 'easy-clean' },
+    ]);
+  });
+
+  test.each([
+    ['fixing', 'not a choice at all', 'channel', 'invalid_fixing'],
+    ['fixing', 'a fixing SetOut does not know', { offered: ['channel', 'glue'], standard: 'channel' }, 'invalid_fixing'],
+    ['glassTypes', 'none offered', { offered: [], standard: 'clear' }, 'invalid_glass_types'],
+    ['coatings', 'new designs starting with one not offered', { offered: ['none'], standard: 'easy-clean' }, 'invalid_coatings'],
+  ])('%s, %s, is refused, and nothing changes', async (part, _, value, code) => {
+    const before = await ours();
+    expect(await errorOf(await changeDesigner({ [part]: value }))).toEqual([400, code]);
+    expect(await ours()).toEqual(before);
+  });
+
+  test('a staff member sees them, and cannot change them', async () => {
+    const seen = (await read(staff)).designers[0];
+    expect(seen.fixing).toEqual({ offered: ['clamps'], standard: 'clamps' });
+    const designer = await ours();
+    const response = await patch(`/settings/designers/${designer.id}`, { fixing: { offered: ['channel'], standard: 'channel' }, basedOn: designer.versions }, staff);
+    expect(response.status).toBe(403);
+    expect((await ours()).fixing).toEqual({ offered: ['clamps'], standard: 'clamps' });
+  });
+
+  test('staff changing a shower may choose any of them, and are told what customers are offered in glass', async () => {
+    const job = await firstJob();
+    const { designs } = await json<{ designs: { id: string }[] }>(await api(`/jobs/${job}`, { cookie: staff }));
+    const editor = await json<{ config: PublicConfig; offeredGlassThicknesses: number[] }>(
+      await api(`/jobs/${job}/designs/${designs[0].id}/editor`, { cookie: staff })
+    );
+    expect(editor.config.fixing).toEqual({ offered: ['channel', 'clamps'], standard: 'clamps' });
+    expect(editor.config.glassTypes).toEqual({ offered: ALL_TYPES, standard: 'low-iron' });
+    expect(editor.config.coatings).toEqual({ offered: ['none', 'easy-clean'], standard: 'easy-clean' });
+    expect(editor.offeredGlassThicknesses).toEqual((await publicConfig(shop)).glassThicknesses);
+  });
+
+  test('a shower staff make in glass customers are not offered is said to be a special', async () => {
+    expect((await publicConfig(shop)).glassThicknesses).toEqual([10]);
+    const job = await firstJob();
+    const { designs } = await json<{ designs: { id: string; revision: { number: number } }[] }>(await api(`/jobs/${job}`, { cookie: staff }));
+    const editor = await json<{ revision: { number: number; document: { design: Record<string, unknown> } } }>(
+      await api(`/jobs/${job}/designs/${designs[0].id}/editor`, { cookie: staff })
+    );
+    const document = { ...editor.revision.document, design: { ...editor.revision.document.design, glassThicknessMm: 12 } };
+    const response = await post(`/jobs/${job}/designs/${designs[0].id}/revisions`, { basedOn: editor.revision.number, document, reason: 'Made in 12mm.' }, { cookie: staff });
+    expect(response.status).toBe(201);
+    const after = await json<{ designs: { revision: { computed: { warnings: string[] } } }[] }>(await api(`/jobs/${job}`, { cookie: staff }));
+    expect(after.designs[0].revision.computed.warnings).toContain(
+      `Glass: 12mm glass is a special — ${(await read()).company.name} offers 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.`
+    );
   });
 });

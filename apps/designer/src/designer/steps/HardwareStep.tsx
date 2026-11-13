@@ -1,8 +1,9 @@
 /**
  * Hardware step — fixing method, finish, handle and glass.
  *
- * Options come from the config's catalog, so each glazier only offers what
- * they actually stock.
+ * Every option comes from the company's settings, so each glazier only
+ * offers what they actually stock. Where the company offers one, it is shown
+ * as it is, with nothing to choose.
  */
 
 import { Label } from '@/components/ui/label';
@@ -15,34 +16,23 @@ import {
   doorMountsOf,
   hingeMountOf,
   hingePhotoOf,
+  GLASS_COATING_TEXT,
+  GLASS_TYPE_TEXT,
   IN_LINE_HINGE_STYLES,
+  MOUNTING_TEXT,
   WALL_HINGE_STYLES,
-  type GlassType,
-  type GlassCoating,
   type HingeMount,
   type HingeStyle,
 } from '@setout/engine';
 import { crlPhotoSrc } from '@setout/ui';
-import { hingesOf, thicknessesOf } from '../config';
+import { choicesOf, hingesOf, thicknessesOf } from '../config';
 import { useEngine } from '../engine';
-
-const GLASS_TYPES: { id: GlassType; label: string; description: string }[] = [
-  { id: 'clear', label: 'Clear', description: 'Standard clear glass' },
-  { id: 'low-iron', label: 'Low Iron', description: 'Ultra-clear with minimal green tint' },
-  { id: 'satin', label: 'Satin / Frosted', description: 'Translucent privacy glass' },
-  { id: 'bronze', label: 'Bronze Tinted', description: 'Warm bronze tint' },
-  { id: 'grey', label: 'Grey Tinted', description: 'Neutral grey tint' },
-];
-
-const GLASS_COATINGS: { id: GlassCoating; label: string; description: string }[] = [
-  { id: 'none', label: 'None', description: 'Standard glass' },
-  { id: 'easy-clean', label: 'Easy-clean coating', description: 'Protective coating that repels water and soap' },
-];
 
 export function HardwareStep({ config, state, update }: StepProps) {
   const thicknesses = thicknessesOf(config);
   const standard = config.glassThicknessMm;
   const hinges = hingesOf(config);
+  const { fixing, glassTypes, coatings } = choicesOf(config);
   // A sliding door has no hinges to choose, and its pull comes in its kit.
   const mounts = new Set(state.sliding ? [] : doorMountsOf(state));
   const wallChoice = mounts.has('wall-to-glass') && hinges.wall.offered.length > 1;
@@ -60,34 +50,29 @@ export function HardwareStep({ config, state, update }: StepProps) {
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Fixing method
         </Label>
-        <div className="grid gap-2">
-          <button
-            type="button"
-            onClick={() => update({ mounting: 'channel' })}
-            className={`rounded-lg border p-4 text-left transition-colors ${
-              state.mounting === 'channel' ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
-            }`}
-          >
-            <div className="font-semibold">U-channel</div>
-            <div className="text-sm text-muted-foreground">
-              Slim profile along the wall and floor. Most popular, and the most forgiving of walls
-              that are out of plumb.
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => update({ mounting: 'clamps' })}
-            className={`rounded-lg border p-4 text-left transition-colors ${
-              state.mounting === 'clamps' ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
-            }`}
-          >
-            <div className="font-semibold">Glass clamps</div>
-            <div className="text-sm text-muted-foreground">
-              Minimal hardware for a fully frameless look. Needs a straighter wall and a silicone
-              seal down the edge.
-            </div>
-          </button>
-        </div>
+        {fixing.offered.length > 1 ? (
+          <div className="grid gap-2">
+            {fixing.offered.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => update({ mounting: id })}
+                className={`rounded-lg border p-4 text-left transition-colors ${
+                  state.mounting === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                }`}
+              >
+                <div className="font-semibold">{MOUNTING_TEXT[id].label}</div>
+                <div className="text-sm text-muted-foreground">{MOUNTING_TEXT[id].description}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          // One fixing on offer, so there is nothing to choose.
+          <div className="rounded-lg border bg-muted p-4">
+            <div className="font-semibold">{MOUNTING_TEXT[state.mounting].label}</div>
+            <div className="text-sm text-muted-foreground">{MOUNTING_TEXT[state.mounting].description}</div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -177,21 +162,29 @@ export function HardwareStep({ config, state, update }: StepProps) {
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Glass type
         </Label>
-        <div className="grid gap-2">
-          {GLASS_TYPES.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              onClick={() => update({ glassType: type.id })}
-              className={`rounded-lg border p-3 text-left transition-colors ${
-                state.glassType === type.id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
-              }`}
-            >
-              <div className="font-medium">{type.label}</div>
-              <div className="text-sm text-muted-foreground">{type.description}</div>
-            </button>
-          ))}
-        </div>
+        {glassTypes.offered.length > 1 ? (
+          <div className="grid gap-2">
+            {glassTypes.offered.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => update({ glassType: id })}
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  state.glassType === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                }`}
+              >
+                <div className="font-medium">{GLASS_TYPE_TEXT[id].label}</div>
+                <div className="text-sm text-muted-foreground">{GLASS_TYPE_TEXT[id].description}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          // One glass on offer, so there is nothing to choose.
+          <div className="rounded-lg border bg-muted p-3">
+            <div className="font-medium">{GLASS_TYPE_TEXT[state.glassType].label}</div>
+            <div className="text-sm text-muted-foreground">{GLASS_TYPE_TEXT[state.glassType].description}</div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -227,26 +220,37 @@ export function HardwareStep({ config, state, update }: StepProps) {
         )}
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Coating
-        </Label>
-        <div className="grid gap-2">
-          {GLASS_COATINGS.map((coating) => (
-            <button
-              key={coating.id}
-              type="button"
-              onClick={() => update({ glassCoating: coating.id })}
-              className={`rounded-lg border p-3 text-left transition-colors ${
-                state.glassCoating === coating.id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
-              }`}
-            >
-              <div className="font-medium">{coating.label}</div>
-              <div className="text-sm text-muted-foreground">{coating.description}</div>
-            </button>
-          ))}
+      {/* No coating, and nothing else on offer, is nothing to show. */}
+      {(coatings.offered.length > 1 || state.glassCoating !== 'none') && (
+        <div className="space-y-3">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Coating
+          </Label>
+          {coatings.offered.length > 1 ? (
+            <div className="grid gap-2">
+              {coatings.offered.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => update({ glassCoating: id })}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    state.glassCoating === id ? 'border-foreground bg-muted' : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="font-medium">{GLASS_COATING_TEXT[id].label}</div>
+                  <div className="text-sm text-muted-foreground">{GLASS_COATING_TEXT[id].description}</div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            // One coating on offer, so there is nothing to choose.
+            <div className="rounded-lg border bg-muted p-3">
+              <div className="font-medium">{GLASS_COATING_TEXT[state.glassCoating].label}</div>
+              <div className="text-sm text-muted-foreground">{GLASS_COATING_TEXT[state.glassCoating].description}</div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

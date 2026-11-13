@@ -6,7 +6,19 @@
  * sign-in page.
  */
 
-import type { BellagioFit, ConfiguratorSpec, ConfiguratorState, HingeStyles, InLineHinge, ViennaCutout, WallHinge } from '@setout/engine';
+import type {
+  BellagioFit,
+  ConfiguratorSpec,
+  ConfiguratorState,
+  GlassCoating,
+  GlassType,
+  HingeStyles,
+  InLineHinge,
+  Mounting,
+  Offer,
+  ViennaCutout,
+  WallHinge,
+} from '@setout/engine';
 
 export class SignedOut extends Error {
   constructor() {
@@ -378,6 +390,12 @@ export interface DesignerSettings {
   glass: { offered: number[]; standard: number };
   /** The hinge styles customers may choose for a door hung from a wall and one hung in line, and the standard of each. */
   hinges: Hinges;
+  /** The fixing methods customers may choose, and the one a new design starts with. */
+  fixing: Offer<Mounting>;
+  /** The glass types customers may choose, and the one a new design starts with. */
+  glassTypes: Offer<GlassType>;
+  /** The coatings customers may choose, and the one a new design starts with. */
+  coatings: Offer<GlassCoating>;
   /** Whether customers are offered the sliding door layouts (CRL Serenity). Off until an owner turns it on. */
   sliding: boolean;
   notifyEmails: string[];
@@ -387,7 +405,18 @@ export interface DesignerSettings {
   websites: string[];
   /** How many showers on the company's jobs use each option, by id. */
   inUse: { finishes: Record<string, number>; handles: Record<string, number> };
-  versions: { finishes: string; handles: string; glass: string; hinges: string; sliding: string; notifyEmails: string; websites: string };
+  versions: {
+    finishes: string;
+    handles: string;
+    glass: string;
+    hinges: string;
+    fixing: string;
+    glassTypes: string;
+    coatings: string;
+    sliding: string;
+    notifyEmails: string;
+    websites: string;
+  };
 }
 
 export type SettingsChangeItem =
@@ -409,6 +438,8 @@ export type SettingsChangeItem =
   | { field: 'wallHingeStandard' | 'inLineHingeStandard'; from: string; to: string }
   | { field: 'viennaCutout' | 'bellagioFit'; from: string; to: string }
   | { field: 'slidingDoors'; from: boolean; to: boolean }
+  | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
+  | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'websites'; added: string[]; removed: string[] };
 
@@ -443,6 +474,9 @@ export interface DesignerChanges {
   handles?: NewOption<Handle>[];
   glass?: DesignerSettings['glass'];
   hinges?: Hinges;
+  fixing?: DesignerSettings['fixing'];
+  glassTypes?: DesignerSettings['glassTypes'];
+  coatings?: DesignerSettings['coatings'];
   sliding?: boolean;
   notifyEmails?: string[];
   websites?: string[];

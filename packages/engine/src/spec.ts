@@ -199,7 +199,7 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     }
   };
 
-  record('Glass', checkGlassSpec(rules, state.glassThicknessMm));
+  record('Glass', checkGlassSpec(context, state.glassThicknessMm));
 
   if (state.heightMm > making.review.standardHeightMaxMm) {
     warnings.push(

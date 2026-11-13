@@ -17,7 +17,7 @@ import {
 import { Hono } from 'hono';
 import { companyDb } from '../db/company-db';
 import { resolveDesigner, type DesignerSettings } from '../db/platform';
-import { DEFAULT_SETTINGS, designerConfig, slidingOf } from '../lib/designer-config';
+import { DEFAULT_SETTINGS, designerConfig, glassOf, slidingOf } from '../lib/designer-config';
 import { checkBot, MAX_BODY_BYTES, readEnquiry, RequestError, type BotCheck } from '../lib/enquiry';
 import { mailIsSetUp, notifyEnquiry, type MailSettings } from '../lib/notify';
 import { drafts } from './drafts';
@@ -98,16 +98,16 @@ designer.post('/enquiries', async (c) => {
     }
     throw error;
   }
+  const [designerRow, { context, rulesetVersion }] = await Promise.all([db.get('designers', found.designerId), db.engineContext()]);
+  const settings = (designerRow?.config ?? {}) as DesignerSettings;
   // Sliding doors are offered only where the company has turned them on: their
   // sizes are not confirmed yet, so a design with one is not taken otherwise.
-  if (document.design.sliding) {
-    const designer = await db.get('designers', found.designerId);
-    if (!slidingOf((designer?.config ?? {}) as DesignerSettings)) {
-      return c.json({ error: 'sliding_not_offered', message: 'This designer does not offer sliding doors. Choose another layout.' }, 422);
-    }
+  if (document.design.sliding && !slidingOf(settings)) {
+    return c.json({ error: 'sliding_not_offered', message: 'This designer does not offer sliding doors. Choose another layout.' }, 422);
   }
-  const { context, rulesetVersion } = await db.engineContext();
-  const computed = buildSpec(document.design, context);
+  // Glass in a thickness the company offers its customers is the company's
+  // own choice, so it is not flagged as a special.
+  const computed = buildSpec(document.design, { ...context, glassThicknessesMm: glassOf(settings).offered });
 
   const { customer } = enquiry;
   const sentQuickly = enquiry.elapsedMs !== null && enquiry.elapsedMs < SUSPICIOUS_ELAPSED_MS;

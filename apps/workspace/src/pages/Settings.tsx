@@ -1,7 +1,7 @@
 /**
- * The company's settings: the finishes and handles its customers choose from
- * in the designer, who hears about each design, how its quotes start, its
- * colours and logo, and its name.
+ * The company's settings: the finishes, handles, fixing, glass and hinges its
+ * customers choose from in the designer, who hears about each design, how its
+ * quotes start, its colours and logo, and its name.
  *
  * Everyone on the team can see them. Only an owner can change them, a part at
  * a time, and sees a record of each change. The server checks everything
@@ -12,13 +12,21 @@
 import {
   CRL_CODE,
   crlFinishCode,
+  GLASS_COATING_TEXT,
+  GLASS_COATINGS,
+  GLASS_TYPE_TEXT,
+  GLASS_TYPES,
   handlePhotoOf,
   hingePhotoOf,
   IN_LINE_HINGE_STYLES,
   IN_LINE_HINGES,
+  MOUNTING_TEXT,
+  MOUNTINGS,
   WALL_HINGE_STYLES,
   WALL_HINGES,
+  type ChoiceText,
   type HingeStyle,
+  type Offer,
 } from '@setout/engine';
 import { crlPhotoSrc } from '@setout/ui';
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -29,6 +37,7 @@ import {
   SignedOut,
   type Branding,
   type CompanySettings,
+  type DesignerChanges,
   type DesignerSettings,
   type Me,
   type Settings as SettingsData,
@@ -124,8 +133,17 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
                 onSaved={() => onSaved(`handles:${designer.id}`)}
                 onReload={settings.reload}
               />
+              <FixingPart
+                key={designer.versions.fixing}
+                designer={designer}
+                owner={owner}
+                limits={data.limits}
+                justSaved={saved === `fixing:${designer.id}`}
+                onSaved={() => onSaved(`fixing:${designer.id}`)}
+                onReload={settings.reload}
+              />
               <GlassPart
-                key={designer.versions.glass}
+                key={`${designer.versions.glass}-${designer.versions.glassTypes}-${designer.versions.coatings}`}
                 designer={designer}
                 owner={owner}
                 limits={data.limits}
@@ -790,12 +808,117 @@ const EMAIL = /^[^\s@<>,;:"]+@[^\s@<>,;:"]+\.[^\s@<>,;:"]+$/;
 const THICKNESSES = [8, 10, 12];
 const millimetres = (list: number[]) => listed(list.map((mm) => `${mm}mm`));
 
+/** The same offer: the same ones, in the same order, with the same standard. */
+const sameOffer = <T extends string>(a: Offer<T>, b: Offer<T>) => a.offered.join() === b.offered.join() && a.standard === b.standard;
+const validOffer = <T extends string>(o: Offer<T>) => o.offered.length > 0 && o.offered.includes(o.standard);
+/** An offer in words: "U-channel and glass clamps. A new design starts with U-channel." */
+const offerWords = <T extends string>(o: Offer<T>, text: Record<T, ChoiceText>) =>
+  `${listed(o.offered.map((id) => text[id].words))}. A new design starts with ${text[o.standard].words}.`;
+
+/** One kind of choice: which customers may choose, and the one a new design starts with. */
+function OfferList<T extends string>({
+  legend,
+  ids,
+  text,
+  offer,
+  onChange,
+  name,
+}: {
+  legend: string;
+  ids: readonly T[];
+  text: Record<T, ChoiceText>;
+  offer: Offer<T>;
+  onChange: (offer: Offer<T>) => void;
+  name: string;
+}) {
+  const toggle = (id: T) => {
+    const offered = offer.offered.includes(id) ? offer.offered.filter((o) => o !== id) : ids.filter((o) => o === id || offer.offered.includes(o));
+    onChange({ offered, standard: offered.includes(offer.standard) || offered.length === 0 ? offer.standard : offered[0] });
+  };
+  return (
+    <fieldset className="mt-4 first:mt-0">
+      <legend className="text-sm font-semibold">{legend}</legend>
+      <ul className="mt-2 divide-y divide-rule rounded-md border border-rule">
+        {ids.map((id) => (
+          <li key={id} className="flex items-start gap-3 px-3 py-2">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={offer.offered.includes(id)} onChange={() => toggle(id)} className="mt-1 h-4 w-4 shrink-0" />
+              <span className="min-w-0">
+                <span className="font-medium">{text[id].label}</span>
+                <span className="block text-xs text-quiet">{text[id].description}</span>
+              </span>
+            </label>
+            <label className={`flex shrink-0 items-center gap-1.5 text-xs ${offer.offered.includes(id) ? 'cursor-pointer' : 'invisible'}`}>
+              <input type="radio" name={name} checked={offer.standard === id} onChange={() => onChange({ ...offer, standard: id })} className="h-4 w-4" />
+              Standard
+            </label>
+          </li>
+        ))}
+      </ul>
+      {offer.offered.length === 0 && <p className="mt-2 text-xs text-bad">Offer at least one.</p>}
+    </fieldset>
+  );
+}
+
+/** How the fixed glass is held: which ways customers may choose, and the one a new design starts with. */
+export function FixingPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
+  const [fixing, setFixing] = useState(designer.fixing);
+  const saving = useSave(onSaved);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(
+      () => api.saveDesignerSettings(designer.id, { fixing, basedOn: { fixing: designer.versions.fixing } }),
+      'The fixing could not be saved. Please try again.'
+    );
+  };
+
+  const about =
+    'How the fixed glass is held: in U-channel along the wall and floor, or with glass clamps. Your customers choose from the ones you offer, and a new design starts with your standard one. Staff can make any shower with either.';
+
+  if (!owner) {
+    return (
+      <Section title="Fixing">
+        <div className={`${CARD} text-sm`}>
+          <Hint>{about}</Hint>
+          <p>
+            Offered: <span className="font-medium">{offerWords(designer.fixing, MOUNTING_TEXT)}</span>
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Fixing">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>{about}</Hint>
+        <OfferList legend="Fixing your customers can choose" ids={MOUNTINGS} text={MOUNTING_TEXT} offer={fixing} onChange={setFixing} name={`fixing-${designer.id}`} />
+        <SaveRow
+          label="Save the fixing"
+          dirty={!sameOffer(fixing, designer.fixing)}
+          valid={validOffer(fixing)}
+          saving={saving}
+          onUndo={() => setFixing(designer.fixing)}
+          justSaved={justSaved}
+          savedNote="Saved. Your designer offers these within a minute."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
 export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: DesignerPartProps) {
   const [offered, setOffered] = useState<number[]>(designer.glass.offered);
   const [standard, setStandard] = useState(designer.glass.standard);
+  const [types, setTypes] = useState(designer.glassTypes);
+  const [coatings, setCoatings] = useState(designer.coatings);
   const saving = useSave(onSaved);
-  const dirty = offered.join() !== designer.glass.offered.join() || standard !== designer.glass.standard;
-  const valid = offered.length > 0 && offered.includes(standard);
+  const thicknessChanged = offered.join() !== designer.glass.offered.join() || standard !== designer.glass.standard;
+  const typesChanged = !sameOffer(types, designer.glassTypes);
+  const coatingsChanged = !sameOffer(coatings, designer.coatings);
+  const dirty = thicknessChanged || typesChanged || coatingsChanged;
+  const valid = offered.length > 0 && offered.includes(standard) && validOffer(types) && validOffer(coatings);
 
   const toggle = (mm: number) => {
     const next = offered.includes(mm) ? offered.filter((t) => t !== mm) : [...offered, mm].sort((a, b) => a - b);
@@ -806,17 +929,30 @@ export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: Des
   const undo = () => {
     setOffered(designer.glass.offered);
     setStandard(designer.glass.standard);
+    setTypes(designer.glassTypes);
+    setCoatings(designer.coatings);
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void saving.save(
-      () => api.saveDesignerSettings(designer.id, { glass: { offered, standard }, basedOn: { glass: designer.versions.glass } }),
-      'The glass could not be saved. Please try again.'
-    );
+    // Only what changed is sent, so a change someone else made to the rest is not in the way.
+    const changes: DesignerChanges = { basedOn: {} };
+    if (thicknessChanged) {
+      changes.glass = { offered, standard };
+      changes.basedOn.glass = designer.versions.glass;
+    }
+    if (typesChanged) {
+      changes.glassTypes = types;
+      changes.basedOn.glassTypes = designer.versions.glassTypes;
+    }
+    if (coatingsChanged) {
+      changes.coatings = coatings;
+      changes.basedOn.coatings = designer.versions.coatings;
+    }
+    void saving.save(() => api.saveDesignerSettings(designer.id, changes), 'The glass could not be saved. Please try again.');
   };
 
   const about =
-    'Your customers choose from the thicknesses you offer, and a new design starts at your standard one. Staff can make any shower in any of them. A thickness you have not quoted before starts with its glass unpriced.';
+    'Your customers choose from the thicknesses, glass types and coatings you offer, and a new design starts with your standard of each. Staff can make any shower in any of them. Glass you have not quoted before starts unpriced.';
 
   if (!owner) {
     return (
@@ -826,6 +962,12 @@ export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: Des
           <p>
             Offered: <span className="font-medium">{millimetres(designer.glass.offered)}</span>. A new design starts at{' '}
             <span className="font-medium">{designer.glass.standard}mm</span>.
+          </p>
+          <p className="mt-2">
+            Glass types: <span className="font-medium">{offerWords(designer.glassTypes, GLASS_TYPE_TEXT)}</span>
+          </p>
+          <p className="mt-2">
+            Coatings: <span className="font-medium">{offerWords(designer.coatings, GLASS_COATING_TEXT)}</span>
           </p>
         </div>
       </Section>
@@ -861,6 +1003,8 @@ export function GlassPart({ designer, owner, justSaved, onSaved, onReload }: Des
             </div>
           </fieldset>
         )}
+        <OfferList legend="Glass types your customers can choose" ids={GLASS_TYPES} text={GLASS_TYPE_TEXT} offer={types} onChange={setTypes} name={`glass-type-${designer.id}`} />
+        <OfferList legend="Coatings your customers can choose" ids={GLASS_COATINGS} text={GLASS_COATING_TEXT} offer={coatings} onChange={setCoatings} name={`coating-${designer.id}`} />
         <SaveRow
           label="Save the glass"
           dirty={dirty}
@@ -1717,6 +1861,16 @@ function Changes({ changes, me, several }: { changes: SettingsChange[]; me: Me; 
 
 const listed = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 
+/** What each fixing, glass type and coating is called, by the field a change to it is recorded under. */
+const CHOICE_TEXT: Record<string, Record<string, ChoiceText>> = {
+  fixingOffered: MOUNTING_TEXT,
+  fixingStandard: MOUNTING_TEXT,
+  glassTypesOffered: GLASS_TYPE_TEXT,
+  glassTypeStandard: GLASS_TYPE_TEXT,
+  coatingsOffered: GLASS_COATING_TEXT,
+  coatingStandard: GLASS_COATING_TEXT,
+};
+
 /** One change to the settings, in words. */
 function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
@@ -1749,6 +1903,22 @@ function describe(item: SettingsChangeItem, by: string): string {
     }
     case 'slidingDoors':
       return item.to ? `${by} started offering customers sliding doors.` : `${by} stopped offering customers sliding doors.`;
+    case 'fixingOffered':
+    case 'glassTypesOffered':
+    case 'coatingsOffered': {
+      const text = CHOICE_TEXT[item.field];
+      const words = (ids: string[]) => listed(ids.map((id) => text[id]?.words ?? id));
+      const added = item.to.filter((id) => !item.from.includes(id));
+      const removed = item.from.filter((id) => !item.to.includes(id));
+      const parts = [...(added.length ? [`started offering customers ${words(added)}`] : []), ...(removed.length ? [`stopped offering customers ${words(removed)}`] : [])];
+      return `${by} ${parts.join(' and ') || 'changed what customers can choose'}.`;
+    }
+    case 'fixingStandard':
+    case 'glassTypeStandard':
+    case 'coatingStandard': {
+      const text = CHOICE_TEXT[item.field];
+      return `${by} started new designs with ${text[item.to]?.words ?? item.to}, from ${text[item.from]?.words ?? item.from}.`;
+    }
     case 'bellagioFit':
       return `${by} made Bellagio fitted ${item.to === 'without-seals' ? 'without' : 'with'} seals as standard, from ${item.from === 'without-seals' ? 'without' : 'with'}.`;
     case 'viennaCutout':

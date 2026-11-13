@@ -96,6 +96,21 @@ describe('two companies, one design', () => {
     expect(theirs.warnings.some((w) => w.includes('is a special'))).toBe(false);
   });
 
+  test('glass a company offers its customers is not a special, whichever a new design starts at', () => {
+    const offers = { ...company('Custom Showers'), glassThicknessesMm: [8, 10, 12] };
+    for (const thickness of [8, 10, 12] as const) {
+      const spec = buildSpec(designFromTemplate('alcove-door', thickness), offers);
+      expect(spec.warnings.some((w) => w.includes('is a special'))).toBe(false);
+    }
+  });
+
+  test('glass a company does not offer is a special, said against what it does offer', () => {
+    const spec = buildSpec(designFromTemplate('alcove-door', 12), { ...company('Custom Showers'), glassThicknessesMm: [8, 10] });
+    expect(spec.warnings).toContain(
+      'Glass: 12mm glass is a special — Custom Showers offers 8mm and 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.'
+    );
+  });
+
   test('review notes name the company the customer is dealing with', () => {
     const tall = { ...designFromTemplate('alcove-panel-door'), heightMm: 2300 };
     const theirs = buildSpec(tall, company('Brennan Glass'));

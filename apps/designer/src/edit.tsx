@@ -29,6 +29,8 @@ interface Editor {
   design: { id: string; label: string };
   revision: { number: number; document: { format: number; design: ConfiguratorState } };
   templateId: string | null;
+  /** The thicknesses customers are offered. Staff may choose any, and glass in another is said to be a special. */
+  offeredGlassThicknesses?: number[];
 }
 
 type Loaded = { state: 'loading' } | { state: 'ready'; editor: Editor; initial: ConfiguratorState } | { state: 'failed'; reason: string };
@@ -73,7 +75,11 @@ function App() {
   const engine = useMemo<EngineContext | null>(
     () =>
       loaded.state === 'ready'
-        ? { rules: resolveRuleset(loaded.editor.config.rules.overrides), companyName: loaded.editor.config.brand.name }
+        ? {
+            rules: resolveRuleset(loaded.editor.config.rules.overrides),
+            companyName: loaded.editor.config.brand.name,
+            ...(loaded.editor.offeredGlassThicknesses ? { glassThicknessesMm: loaded.editor.offeredGlassThicknesses } : {}),
+          }
         : null,
     [loaded]
   );

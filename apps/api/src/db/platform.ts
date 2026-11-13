@@ -254,6 +254,14 @@ export interface DesignerSettings {
    * Off unless an owner has turned it on: the sliding sizes are not confirmed yet.
    */
   slidingDoors?: boolean;
+  /**
+   * The fixing methods, glass types and coatings customers may choose, and
+   * the one a new design starts with. Where one is not set, customers may
+   * choose any, as before a company could choose.
+   */
+  fixing?: { offered?: string[]; standard?: string };
+  glassTypes?: { offered?: string[]; standard?: string };
+  coatings?: { offered?: string[]; standard?: string };
   measurementDisclaimer?: string;
   intro?: string;
   turnstileSiteKey?: string;

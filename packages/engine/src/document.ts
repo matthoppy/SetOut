@@ -17,6 +17,7 @@
  *    width of "wide" or NaN must be a refused request, not a cut size.
  */
 
+import { GLASS_COATINGS, GLASS_TYPES, MOUNTINGS } from './choices';
 import { runWidthsMm } from './geometry';
 import {
   createOpeningMeasurements,
@@ -372,10 +373,10 @@ function readDesign(v: unknown): ConfiguratorState {
     rightWall: bool(d.rightWall, 'rightWall'),
     heightMm: mm(d.heightMm, 'heightMm', 1),
     isFloorToCeiling: bool(d.isFloorToCeiling, 'isFloorToCeiling'),
-    mounting: oneOf(d.mounting, ['channel', 'clamps'] as const, 'mounting'),
+    mounting: oneOf(d.mounting, MOUNTINGS, 'mounting'),
     glassThicknessMm: oneOf(d.glassThicknessMm, [6, 8, 10, 12] as const, 'glassThicknessMm'),
-    glassType: oneOf(d.glassType, ['clear', 'low-iron', 'satin', 'bronze', 'grey'] as const, 'glassType'),
-    glassCoating: oneOf(d.glassCoating, ['none', 'easy-clean'] as const, 'glassCoating'),
+    glassType: oneOf(d.glassType, GLASS_TYPES, 'glassType'),
+    glassCoating: oneOf(d.glassCoating, GLASS_COATINGS, 'glassCoating'),
     finishId: text(d.finishId, 'finishId'),
     handleId: text(d.handleId, 'handleId'),
     opening: readOpening(d.opening, runWidthsMm(panels, junctions).length),

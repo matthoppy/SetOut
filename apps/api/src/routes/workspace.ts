@@ -28,11 +28,11 @@ import {
 } from '../db/auth';
 import { companyDb } from '../db/company-db';
 import { setUpOf } from '../db/onboarding';
-import { usersByIds } from '../db/platform';
+import { usersByIds, type DesignerSettings } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
 import { billingIsOn, standingOf, subscriptionOf } from '../lib/billing';
-import { ALL_HINGES, designerConfig, GLASS_THICKNESSES, optionLabelsFor } from '../lib/designer-config';
+import { ALL_CHOICES, ALL_HINGES, designerConfig, GLASS_THICKNESSES, glassOf, optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -560,12 +560,16 @@ staff.get('/jobs/:id/designs/:designId/editor', async (c) => {
   ]);
   return c.json(
     {
-      // Staff may make a shower in any glass, and hang it on any hinge, SetOut knows, offered to customers or not.
+      // Staff may make a shower in any glass, hang it on any hinge and fix it
+      // any way SetOut knows, offered to customers or not.
       config: {
         ...config,
         glassThicknesses: [...GLASS_THICKNESSES],
         hinges: ALL_HINGES(config.hinges),
+        ...ALL_CHOICES(config),
       },
+      // What customers are offered, so glass in any other thickness is said to be a special.
+      offeredGlassThicknesses: config.glassThicknesses,
       job: { id: job.id, reference: job.reference, customer: customer?.name ?? null },
       design: { id: design.id, label: design.label },
       revision: { number: revision.number, document: revision.document },
@@ -656,8 +660,13 @@ staff.post('/jobs/:id/designs/:designId/revisions', async (c) => {
     throw error;
   }
 
-  const { context, rulesetVersion } = await db.engineContext();
-  const computed = buildSpec(document.design, context);
+  const [{ context, rulesetVersion }, designerRow] = await Promise.all([
+    db.engineContext(),
+    job.designer_id ? db.get('designers', job.designer_id) : Promise.resolve(null),
+  ]);
+  // Glass the job's designer offers its customers is not a special; any other is.
+  const offered = designerRow ? glassOf(designerRow.config as DesignerSettings).offered : undefined;
+  const computed = buildSpec(document.design, offered ? { ...context, glassThicknessesMm: offered } : context);
   const number = revision.number + 1;
   let revisionId = '';
   try {

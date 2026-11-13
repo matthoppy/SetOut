@@ -26,6 +26,7 @@ import {
   companyView,
   designerVersions,
   designerView,
+  choiceChanges,
   emailChanges,
   glassChanges,
   hingeChanges,
@@ -33,8 +34,11 @@ import {
   LIMITS,
   optionChanges,
   readBranding,
+  readCoatings,
   readCompanyName,
   readFinishes,
+  readFixing,
+  readGlassTypes,
   readGlass,
   readHandles,
   readHinges,
@@ -177,22 +181,33 @@ staffSettings.patch('/settings/company', ownersOnly, async (c) => {
 });
 
 /**
- * Change the finishes, handles, glass and hinges a designer offers, who it
- * emails when a design arrives, or the websites that may show it. A list is sent whole, in the order the
+ * Change the finishes, handles, glass, hinges, fixing methods, glass types and
+ * coatings a designer offers, who it emails when a design arrives, or the
+ * websites that may show it. A list is sent whole, in the order the
  * designer shows it. Anything left out stays as it is.
  */
 staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
   const session = c.get('session');
   try {
     const body = await bodyOf(c);
-    const sent = (['finishes', 'handles', 'glass', 'hinges', 'sliding', 'notifyEmails', 'websites'] as const).filter((part) => body[part] !== undefined);
+    const sent = (['finishes', 'handles', 'glass', 'hinges', 'fixing', 'glassTypes', 'coatings', 'sliding', 'notifyEmails', 'websites'] as const).filter(
+      (part) => body[part] !== undefined
+    );
     const basedOn = basedOnOf(body);
     const answer = await withRetry(async () => {
       const stored = await readSettings(c.env, session.companyId);
       const index = stored?.designers.findIndex((d) => d.id === c.req.param('id')) ?? -1;
       if (!stored || index < 0) return c.json(NO_DESIGNER, 404, PRIVATE);
       if (sent.length === 0) {
-        return c.json({ error: 'invalid_request', message: 'Send the finishes, the handles, the glass, the hinges, sliding doors on or off, the addresses to email or the websites.' }, 400, PRIVATE);
+        return c.json(
+          {
+            error: 'invalid_request',
+            message:
+              'Send the finishes, the handles, the glass, the hinges, the fixing methods, the glass types, the coatings, sliding doors on or off, the addresses to email or the websites.',
+          },
+          400,
+          PRIVATE
+        );
       }
       const row = stored.designers[index];
       const first = index === 0;
@@ -206,6 +221,9 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         handles: body.handles === undefined ? before.handles : readHandles(body.handles, before.handles),
         glass: body.glass === undefined ? before.glass : readGlass(body.glass),
         hinges: body.hinges === undefined ? before.hinges : readHinges(body.hinges, before.hinges),
+        fixing: body.fixing === undefined ? before.fixing : readFixing(body.fixing),
+        glassTypes: body.glassTypes === undefined ? before.glassTypes : readGlassTypes(body.glassTypes),
+        coatings: body.coatings === undefined ? before.coatings : readCoatings(body.coatings),
         sliding: body.sliding === undefined ? before.sliding : readSliding(body.sliding),
         notifyEmails: body.notifyEmails === undefined ? before.notifyEmails : readNotifyEmails(body.notifyEmails),
         websites: body.websites === undefined ? before.websites : readWebsites(body.websites),
@@ -215,6 +233,9 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...optionChanges('handle', before.handles, after.handles),
         ...glassChanges(before.glass, after.glass),
         ...hingeChanges(before.hinges, after.hinges),
+        ...choiceChanges('fixing', before.fixing, after.fixing),
+        ...choiceChanges('glassTypes', before.glassTypes, after.glassTypes),
+        ...choiceChanges('coatings', before.coatings, after.coatings),
         ...slidingChanges(before.sliding, after.sliding),
         ...emailChanges(before.notifyEmails, after.notifyEmails),
         ...websiteChanges(before.websites, after.websites),
@@ -228,10 +249,13 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         ...(changes.some((ch) => ch.field === 'handle') ? { handles: after.handles } : {}),
         ...(changes.some((ch) => ch.field === 'glassOffered' || ch.field === 'glassStandard') ? { glass: after.glass } : {}),
         ...(changes.some((ch) => HINGE_FIELDS.includes(ch.field)) ? { hinges: after.hinges } : {}),
+        ...(changes.some((ch) => ch.field === 'fixingOffered' || ch.field === 'fixingStandard') ? { fixing: after.fixing } : {}),
+        ...(changes.some((ch) => ch.field === 'glassTypesOffered' || ch.field === 'glassTypeStandard') ? { glassTypes: after.glassTypes } : {}),
+        ...(changes.some((ch) => ch.field === 'coatingsOffered' || ch.field === 'coatingStandard') ? { coatings: after.coatings } : {}),
         ...(changes.some((ch) => ch.field === 'slidingDoors') ? { sliding: after.sliding } : {}),
       };
       const columns = {
-        ...(options.finishes || options.handles || options.glass || options.hinges || options.sliding !== undefined
+        ...(options.finishes || options.handles || options.glass || options.hinges || options.fixing || options.glassTypes || options.coatings || options.sliding !== undefined
           ? { config: { was: row.config, now: storedConfig(row.config, options) } }
           : {}),
         ...(changes.some((ch) => ch.field === 'notifyEmails')

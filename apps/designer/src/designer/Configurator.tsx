@@ -702,10 +702,14 @@ export function Configurator({ config, embedded = false, fillsViewport = !embedd
                   onStartFromScratch={() => {
                     setTemplateId(null);
                     const fresh = createInitialState(config.glassThicknessMm);
+                    // The hardware is not about shape, so it is kept as chosen.
                     setState((s) => ({
                       ...fresh,
                       finishId: s.finishId,
                       handleId: s.handleId,
+                      mounting: s.mounting,
+                      glassType: s.glassType,
+                      glassCoating: s.glassCoating,
                       opening: keepSetup(s.opening, fresh.opening),
                     }));
                     setActivePanelId(fresh.panels[0].id);

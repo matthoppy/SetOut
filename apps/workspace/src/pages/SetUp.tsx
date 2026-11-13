@@ -13,7 +13,7 @@ import { api, signInAgain, SignedOut, type DesignerSettings, type Me, type Setti
 import { useLoad } from '../lib/load';
 import { go, Link } from '../lib/router';
 import { Problem } from './parts';
-import { BrandingPart, EmailsPart, FinishesPart, GlassPart, HandlesPart, HingesPart, NamePart, SlidingPart, UnsavedContext, WebsitesPart } from './Settings';
+import { BrandingPart, EmailsPart, FinishesPart, FixingPart, GlassPart, HandlesPart, HingesPart, NamePart, SlidingPart, UnsavedContext, WebsitesPart } from './Settings';
 
 interface Step {
   id: string;
@@ -28,7 +28,8 @@ const STEPS: Step[] = [
   { id: 'branding', name: 'Colours and logo', title: 'Your colours and logo', about: 'So the designer and your quotes look like part of your own website.' },
   { id: 'finishes', name: 'Finishes', title: 'The finishes you offer', about: 'Your customers choose the finish of their hinges and handle from this list. Start from ours, and add, rename or remove to match what you fit.' },
   { id: 'handles', name: 'Handles', title: 'The handles you offer', about: 'Your customers choose one of these for their door.' },
-  { id: 'glass', name: 'Glass', title: 'The glass you offer', about: 'Most companies offer 10mm alone. Offer others only if you make showers in them.' },
+  { id: 'fixing', name: 'Fixing', title: 'How the glass is fixed', about: 'U-channel, glass clamps or both. Offer only the ones you fit.' },
+  { id: 'glass', name: 'Glass', title: 'The glass you offer', about: 'Most companies offer 10mm alone. Offer only the thicknesses, glass types and coatings you make showers in.' },
   { id: 'hinges', name: 'Hinges', title: 'The hinges you offer', about: 'One standard hinge for each way of hanging a door is enough to start. Offer more styles if your customers should choose.' },
   { id: 'sliding', name: 'Sliding doors', title: 'Sliding doors', about: 'Off unless you make them. Turn it on and your customers are offered the sliding layouts too.' },
   { id: 'emails', name: 'Who is emailed', title: 'Who hears about each design', about: 'A design that arrives is in your inbox here at once. These addresses are emailed it too.' },
@@ -139,7 +140,15 @@ export function SetUp({ me, onChanged }: { me: Me; onChanged: () => void }) {
           )}
           {designer && current.id === 'finishes' && <FinishesPart key={designer.versions.finishes} designer={designer} limits={data.limits} {...part('finishes')} />}
           {designer && current.id === 'handles' && <HandlesPart key={designer.versions.handles} designer={designer} limits={data.limits} {...part('handles')} />}
-          {designer && current.id === 'glass' && <GlassPart key={designer.versions.glass} designer={designer} limits={data.limits} {...part('glass')} />}
+          {designer && current.id === 'fixing' && <FixingPart key={designer.versions.fixing} designer={designer} limits={data.limits} {...part('fixing')} />}
+          {designer && current.id === 'glass' && (
+            <GlassPart
+              key={`${designer.versions.glass}-${designer.versions.glassTypes}-${designer.versions.coatings}`}
+              designer={designer}
+              limits={data.limits}
+              {...part('glass')}
+            />
+          )}
           {designer && current.id === 'hinges' && <HingesPart key={designer.versions.hinges} designer={designer} limits={data.limits} {...part('hinges')} />}
           {designer && current.id === 'sliding' && <SlidingPart key={designer.versions.sliding} designer={designer} limits={data.limits} {...part('sliding')} />}
           {designer && current.id === 'emails' && <EmailsPart key={designer.versions.notifyEmails} designer={designer} limits={data.limits} {...part('emails')} />}

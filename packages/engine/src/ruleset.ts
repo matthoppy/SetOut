@@ -303,6 +303,12 @@ export interface EngineContext {
   rules: Ruleset;
   /** How the company is named in the review notes its customers read. */
   companyName: string;
+  /**
+   * The glass thicknesses the company offers its customers. Glass in one of
+   * them is the company's own choice, so it is not flagged as a special.
+   * Where this is not given, only the ruleset's standard thickness is not.
+   */
+  glassThicknessesMm?: readonly number[];
 }
 
 // ---------------------------------------------------------------------------

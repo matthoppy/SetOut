@@ -150,7 +150,7 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
   const blockingIssues: string[] = [];
   const unconfirmed: string[] = [];
 
-  for (const c of checkGlassSpec(rules, t)) (c.severity === 'blocking' ? blockingIssues : warnings).push(`Glass: ${c.message}`);
+  for (const c of checkGlassSpec(context, t)) (c.severity === 'blocking' ? blockingIssues : warnings).push(`Glass: ${c.message}`);
   if (!s.glassMm.includes(t)) {
     blockingIssues.push(
       `Glass: the Deluxe Serenity kit takes ${s.glassMm.join(' or ')}mm glass, not ${t}mm. 12mm glass takes CRL’s Senior kit, which is not designed here yet.`

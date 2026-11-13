@@ -12,7 +12,7 @@ import { resolveRuleset, type EngineContext } from '@setout/engine';
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Configurator } from './designer/Configurator';
-import { loadConfig, type DesignerConfig } from './designer/config';
+import { loadConfig, thicknessesOf, type DesignerConfig } from './designer/config';
 import { DraftError, openDraft, type OpenedDraft } from './designer/drafts';
 import { EngineProvider } from './designer/engine';
 import { applyBrand } from './lib/brand';
@@ -99,6 +99,8 @@ function App() {
     return {
       rules: resolveRuleset(loaded.config.rules.overrides),
       companyName: loaded.config.brand.name,
+      // Glass the company offers is its own choice, so it is never called a special.
+      glassThicknessesMm: thicknessesOf(loaded.config),
     };
   }, [loaded]);
 

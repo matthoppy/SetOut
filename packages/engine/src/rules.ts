@@ -14,7 +14,7 @@
  * made and can change.
  */
 
-import type { Ruleset } from './ruleset';
+import type { EngineContext, Ruleset } from './ruleset';
 
 export type { HingeKit, HingeRating } from './ruleset';
 
@@ -325,16 +325,37 @@ export function checkPanelLimits(
   return out;
 }
 
+const millimetres = (list: readonly number[]): string => {
+  const mm = list.map((t) => `${t}mm`);
+  return mm.length > 1 ? `${mm.slice(0, -1).join(', ')} and ${mm[mm.length - 1]}` : (mm[0] ?? '');
+};
+
 /**
  * Seals and gaskets are thickness-specific.
  *
  * [CONFIRMED] Changing a job from 10mm to 12mm silently dropped the PCR10 and
  * P990WS seals from the parts list and moved the door base gap from 10mm back
  * to 7mm — flagged only as a low-severity note, easy to click past. Worth
- * saying loudly whenever the glass is not the company's standard.
+ * saying loudly whenever the glass is a special.
+ *
+ * The company chooses the thicknesses its customers may have (Matt, 13
+ * November 2026), so glass in one of those is not a special, whichever a new
+ * design starts at. Glass in any other, which only staff can choose, is.
+ * Without the company's choice, the ruleset's standard is the only one.
  */
-export function checkGlassSpec(rules: Ruleset, thicknessMm: number): LimitCheck[] {
-  const standard = rules.making.glass.standardThicknessMm;
+export function checkGlassSpec(context: Pick<EngineContext, 'rules' | 'companyName' | 'glassThicknessesMm'>, thicknessMm: number): LimitCheck[] {
+  const offered = context.glassThicknessesMm;
+  if (offered?.length) {
+    if (offered.includes(thicknessMm)) return [];
+    return [
+      {
+        code: 'non-standard-glass',
+        severity: 'warning',
+        message: `${thicknessMm}mm glass is a special — ${context.companyName} offers ${millimetres(offered)}. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.`,
+      },
+    ];
+  }
+  const standard = context.rules.making.glass.standardThicknessMm;
   if (thicknessMm === standard) return [];
   return [
     {

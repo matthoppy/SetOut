@@ -25,6 +25,7 @@
  */
 export * from './version';
 export * from './types';
+export * from './choices';
 export * from './document';
 export * from './ruleset';
 export * from './rules';

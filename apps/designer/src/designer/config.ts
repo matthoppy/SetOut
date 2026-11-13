@@ -10,11 +10,20 @@
  */
 
 import {
+  GLASS_COATINGS,
+  GLASS_TYPES,
+  MOUNTINGS,
+  STANDARD_CHOICES,
   STANDARD_HINGES,
+  offerOf,
   type ConfiguratorState,
+  type GlassCoating,
   type GlassThickness,
+  type GlassType,
   type InLineHinge,
   type BellagioFit,
+  type Mounting,
+  type Offer,
   type RulesetOverrides,
   type ViennaCutout,
   type WallHinge,
@@ -59,6 +68,14 @@ export interface DesignerConfig {
   glassThicknesses?: GlassThickness[];
   /** The hinge styles the customer may choose for a door hung from a wall and one hung in line, and the standard of each. */
   hinges?: DesignerHinges;
+  /**
+   * The fixing methods, glass types and coatings the customer may choose,
+   * and the one a new design starts with. Older servers send none, and the
+   * customer may choose any.
+   */
+  fixing?: Offer<Mounting>;
+  glassTypes?: Offer<GlassType>;
+  coatings?: Offer<GlassCoating>;
   /**
    * Whether the company offers the sliding door layouts (CRL Serenity). Off
    * unless it has turned them on: their sizes are not confirmed yet.
@@ -135,13 +152,30 @@ export async function loadConfig(siteKey: string | null): Promise<DesignerConfig
 
 /**
  * A new design starts with the first finish and the first handle the company
- * offers, so one it has stopped offering is never chosen for the customer.
+ * offers, and its standard fixing, glass type and coating, so one it has
+ * stopped offering is never chosen for the customer.
  */
-export function withOfferedHardware(state: ConfiguratorState, config: Pick<DesignerConfig, 'finishes' | 'handles'>): ConfiguratorState {
+export function withOfferedHardware(
+  state: ConfiguratorState,
+  config: Pick<DesignerConfig, 'finishes' | 'handles' | 'fixing' | 'glassTypes' | 'coatings'>
+): ConfiguratorState {
+  const choices = choicesOf(config);
   return {
     ...state,
     finishId: config.finishes[0]?.id ?? state.finishId,
     handleId: config.handles[0]?.id ?? state.handleId,
+    mounting: choices.fixing.standard,
+    glassType: choices.glassTypes.standard,
+    glassCoating: choices.coatings.standard,
+  };
+}
+
+/** The fixing methods, glass types and coatings on offer, each with its standard among them: every one where the server sends none. */
+export function choicesOf(config: Pick<DesignerConfig, 'fixing' | 'glassTypes' | 'coatings'>) {
+  return {
+    fixing: offerOf(MOUNTINGS, config.fixing, STANDARD_CHOICES.mounting),
+    glassTypes: offerOf(GLASS_TYPES, config.glassTypes, STANDARD_CHOICES.glassType),
+    coatings: offerOf(GLASS_COATINGS, config.coatings, STANDARD_CHOICES.glassCoating),
   };
 }
 
