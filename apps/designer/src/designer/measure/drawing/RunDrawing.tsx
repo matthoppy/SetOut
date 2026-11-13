@@ -46,6 +46,8 @@ export function RunDrawing({ state, cards, view, className }: { state: Configura
   const wallL = i === 0 && view.left === 'wall' ? { bottom: read({ kind: 'wall', wall: 'start', at: 'bottom' }), top: read({ kind: 'wall', wall: 'start', at: 'top' }) } : null;
   const wallR = i === view.of - 1 && view.right === 'wall' ? { bottom: read({ kind: 'wall', wall: 'end', at: 'bottom' }), top: read({ kind: 'wall', wall: 'end', at: 'top' }) } : null;
   const height = read({ kind: 'height' });
+  // Measured with a tape between two walls: the width again at the top.
+  const topWidth = read({ kind: 'top', run: i });
 
   const inHalves = halfA.value !== null && halfB.value !== null;
   const width = inHalves ? (halfA.value ?? 0) + (halfB.value ?? 0) : whole.value;
@@ -81,7 +83,7 @@ export function RunDrawing({ state, cards, view, className }: { state: Configura
   // Rows above and below the glass: a wall's two readings nearest it, then
   // the width, then what the width adds up to.
   const gapRows = wallL || wallR ? 20 : 0;
-  const top = 8 + gapRows;
+  const top = 8 + gapRows + (topWidth.value !== null ? 30 : 0);
   const twoRows = inHalves || trayMm !== null;
   const below = gapRows + (twoRows ? 56 : 34);
 
@@ -236,6 +238,9 @@ export function RunDrawing({ state, cards, view, className }: { state: Configura
           <Reading n={wallR.top.n} value={wallR.top.value ?? 0} x={Math.max(trx, brx) + 7} y={gapT} anchor="start" />
         </>
       )}
+
+      {/* The width again at the top, wall to wall, where a tape measured it. */}
+      {topWidth.value !== null && <AcrossReading n={topWidth.n} value={topWidth.value} outerX={trx} innerX={tlx} y={gapT - 24} labelY={gapT - 30} />}
 
       {/* How long the run is: in one pull, or the two halves and what they add up to. */}
       {inHalves && splitX !== null ? (
