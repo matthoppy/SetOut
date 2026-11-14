@@ -52,6 +52,7 @@ import {
   mateNotchHeightMm,
   type LimitCheck,
 } from './rules';
+import { hingeStylesOf } from './hinges';
 import type { EngineContext } from './ruleset';
 import { buildSlidingSpec, type PanelSliding, type SlidingSpec } from './sliding';
 import type { ConfiguratorState } from './types';
@@ -87,6 +88,12 @@ export interface PanelSpec {
     swing: 'out' | 'both';
     sealType: SealType;
     swingDeductionMm: number;
+    /**
+     * The seal down the door's hinge edge: a bubble seal on a door hung on the
+     * wall with seals, none on glass or fitted without seals. Missing from
+     * specs made before engine 0.12.0, which had none.
+     */
+    hingeSealType?: 'bubble seal' | null;
     hingeBrand: string;
     hingeCount: number;
     hingeReason: string;
@@ -292,24 +299,43 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     const tightHeight = underTransom
       ? (state.doorHeightMm ?? making.heights.transomDoorHeightMm)
       : state.heightMm;
-    const deductions = calculatePanelDeductions(
-      rules,
-      p.width_mm,
-      tightHeight,
-      model,
-      state.isFloorToCeiling && !isSingleDoor(state) && !underTransom,
-      // Glass over a door's head, a brace or a glass transom, takes a little
-      // off its top. An open transom leaves nothing over it.
-      support.supportPanelRequired || (underTransom && state.aboveDoor !== 'open'),
-      {
-        // At a corner the panel in the front plane runs long and the return
-        // tucks behind it, so only one of the pair takes the glass thickness.
-        isLongPanel: plane === 'front' || plane === 'back',
-        hasLeftCorner,
-        hasRightCorner,
-        glassThicknessMm: state.glassThicknessMm,
+    // A door's hinge side: on the wall or on the glass beside it.
+    const hingeOnGlass = p.door ? Boolean(state.panels[p.door.hinge_side === 'left' ? i - 1 : i + 1]) : false;
+    const deductionsFor = (withoutSeals: boolean) =>
+      calculatePanelDeductions(
+        rules,
+        p.width_mm,
+        tightHeight,
+        model,
+        state.isFloorToCeiling && !isSingleDoor(state) && !underTransom,
+        // Glass over a door's head, a brace or a glass transom, takes a little
+        // off its top. An open transom leaves nothing over it.
+        support.supportPanelRequired || (underTransom && state.aboveDoor !== 'open'),
+        {
+          // At a corner the panel in the front plane runs long and the return
+          // tucks behind it, so only one of the pair takes the glass thickness.
+          isLongPanel: plane === 'front' || plane === 'back',
+          hasLeftCorner,
+          hasRightCorner,
+          glassThicknessMm: state.glassThicknessMm,
+          door: p.door ? { hingeSide: p.door.hinge_side, hingeOnGlass, withoutSeals } : undefined,
+        }
+      );
+    let deductions = deductionsFor(false);
+    // A door hung on the wall has a bubble seal down its hinge edge. A
+    // Bellagio door may be fitted without seals instead, and then leaves CRL's
+    // smaller gap at its hinges. The hinge is chosen for the glass that is
+    // cut, so the smaller gap stands only if that glass still hangs on Bellagio.
+    const hingeAtWall = p.door ? (p.door.hinge_side === 'left' ? model.wall_fix.left : model.wall_fix.right) : false;
+    let hingeSealType: 'bubble seal' | null = hingeAtWall ? 'bubble seal' : null;
+    if (p.door && hingeAtWall && hingeStylesOf(state, context.hinges).bellagioFit === 'without-seals') {
+      const seal = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', latchMeetsOf(state, i));
+      const without = deductionsFor(true);
+      if (selectHingeForDoor(rules, without.cutWidth - seal.deduction, without.cutHeight, state.glassThicknessMm).brand === 'Bellagio') {
+        deductions = without;
+        hingeSealType = null;
       }
-    );
+    }
 
     const notches: PanelSpec['notches'] = [];
     if (p.notches?.bottom_left) {
@@ -367,6 +393,7 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
         swing: p.door.swing,
         sealType: doorDeduction.sealType,
         swingDeductionMm: doorDeduction.deduction,
+        hingeSealType,
         hingeBrand: hinge.brand,
         hingeCount: hinge.hingeCount,
         hingeReason: hinge.reason,

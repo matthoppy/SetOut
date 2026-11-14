@@ -86,7 +86,7 @@ describe('the email to the company', () => {
       'Asha Patel',
       '020 7946 0000',
       '390 × 1995',
-      '690 × 1983',
+      '687 × 1983',
       '2 × Geneva hinges, offset back plate, right hand',
       'hinge centres 250 / 1733mm from the bottom',
       'Hinge notch 58 × 47, r8',
@@ -167,7 +167,7 @@ describe('the copy to the customer', () => {
     expect(message.subject).toBe('Your shower design CS-1001: Custom Showers');
     expect(message.html).toContain('Thanks, Asha');
     expect(message.html).toContain('Custom Showers has your design');
-    expect(message.html).toContain('690 × 1983');
+    expect(message.html).toContain('687 × 1983');
     expect(message.html).toContain('You confirmed: I have measured this myself.');
   });
 

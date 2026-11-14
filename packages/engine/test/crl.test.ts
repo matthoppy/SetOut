@@ -157,7 +157,7 @@ describe('hinges', () => {
 
 describe('seals, channel and handles', () => {
   test('a seal is clear, so it has one number for the glass it is on', () => {
-    const seal = (s: string): Fitting => ({ kind: 'seal', pane: 0, seal: s, lengthMm: 1900, meets: 'wall' });
+    const seal = (s: string): Fitting => ({ kind: 'seal', pane: 0, seal: s, lengthMm: 1900, meets: 'wall', edge: 'latch' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PCR10' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PC1090' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
@@ -235,7 +235,7 @@ describe('every known design', () => {
     });
     const brand = spec.panels[1].door!.hingeBrand;
     // The door closes against the panel in line, on CRL's soft-finned Y-jamb.
-    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PCC10', 'P990WS', 'SDT980CLR10', 'SDCD38MBL']);
+    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PCC10', 'PCR10', 'P990WS', 'SDT980CLR10', 'SDCD38MBL']);
   });
 });
 

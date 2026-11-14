@@ -22,9 +22,11 @@ export type Fitting =
   | { kind: 'handle'; pane: number; handleId: string }
   /**
    * Where the door closes, as long as its latch edge: on the door, on the
-   * panel beside it, or siliconed to the wall, by what it closes against.
+   * panel beside it, or siliconed to the wall, by what it closes against. A
+   * door hung on the wall and fitted with seals also has a bubble seal down
+   * its hinge edge.
    */
-  | { kind: 'seal'; pane: number; seal: string; lengthMm: number; meets: LatchMeets }
+  | { kind: 'seal'; pane: number; seal: string; lengthMm: number; meets: LatchMeets; edge: 'latch' | 'hinge' }
   /** A wipe with a drip rail along the door's bottom edge, as long as that edge. */
   | { kind: 'bottom-seal'; pane: number; lengthMm: number }
   /** A clear threshold on the tray under the door, as wide as the door was measured. */
@@ -66,7 +68,13 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     fittings.push({ kind: 'handle', pane: i, handleId: state.handleId });
     const { bottomLeft, bottomRight, topLeft, topRight } = shapes[i].corners;
     const latch = door.hingeSide === 'left' ? topRight.y - bottomRight.y : topLeft.y - bottomLeft.y;
-    fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch, meets: latchMeetsOf(state, i) });
+    fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch, meets: latchMeetsOf(state, i), edge: 'latch' });
+    // Hung on the wall with seals, its hinge edge has a bubble seal too (Matt,
+    // 14 November 2026), as the spec says the door was cut for.
+    if (door.hingeSealType) {
+      const hingeEdge = door.hingeSide === 'left' ? topLeft.y - bottomLeft.y : topRight.y - bottomRight.y;
+      fittings.push({ kind: 'seal', pane: i, seal: door.hingeSealType, lengthMm: hingeEdge, meets: 'wall', edge: 'hinge' });
+    }
     // Every door has a wipe under it, as Custom Showers always fit, closing
     // on a clear threshold on the tray (Matt, 14 November 2026).
     fittings.push({ kind: 'bottom-seal', pane: i, lengthMm: Math.round(Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) });

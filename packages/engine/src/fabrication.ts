@@ -121,24 +121,34 @@ export function calculateHorizontalDeductions(
   hasLeftCorner: boolean,
   hasRightCorner: boolean,
   glassThicknessMm: number,
-  isDoor = false
+  isDoor = false,
+  /** A door's hinge side, what its hinges fix to, and whether it is fitted without seals. */
+  door?: { hingeSide: 'left' | 'right'; hingeOnGlass: boolean; withoutSeals: boolean }
 ): HorizontalDeductions {
   const d = rules.making.deductions;
   const breakdown: string[] = [];
   let left = 0;
   let right = 0;
 
-  // Wall channel deductions. A door's edge at a wall is in no channel and no
-  // clamps: it hangs on wall hinges or closes against the wall, so it leaves
-  // its own gap rather than sitting half way into a 19mm channel.
+  // A door sits in no channel and no clamps. Its hinge side leaves the gap
+  // its hinges need: on the wall, a bubble seal's, or CRL's gap for the hinge
+  // without seals; on glass, the glass-to-glass hinge's. Its latch side loses
+  // its seal alone, which the door's own deduction takes (calculateDoorDeductions).
   if (isDoor) {
-    if (hasLeftWallChannel) {
-      left += d.door.wallMm;
-      breakdown.push(`Left wall, door gap: -${d.door.wallMm}mm`);
-    }
-    if (hasRightWallChannel) {
-      right += d.door.wallMm;
-      breakdown.push(`Right wall, door gap: -${d.door.wallMm}mm`);
+    const hingeLeft = door?.hingeSide === 'left';
+    const atWall = hingeLeft ? hasLeftWallChannel : hasRightWallChannel;
+    const gap = door?.hingeOnGlass
+      ? rules.fixed.hinges.glassToGlassGapMm
+      : atWall
+        ? door?.withoutSeals
+          ? rules.fixed.hinges.wallGapWithoutSealsMm
+          : d.door.hingeWallMm
+        : 0;
+    const what = door?.hingeOnGlass ? 'hinged on glass' : door?.withoutSeals ? 'hung on the wall, no seals' : 'hung on the wall, bubble seal';
+    if (door && gap) {
+      if (hingeLeft) left += gap;
+      else right += gap;
+      breakdown.push(`${hingeLeft ? 'Left' : 'Right'}, ${what}: -${gap}mm`);
     }
   } else if (mountingStyle === 'channel') {
     if (hasLeftWallChannel) {
@@ -232,6 +242,7 @@ export function calculatePanelDeductions(
     hasLeftCorner: boolean;
     hasRightCorner: boolean;
     glassThicknessMm: number;
+    door?: { hingeSide: 'left' | 'right'; hingeOnGlass: boolean; withoutSeals: boolean };
   }
 ): PanelDeductions {
   const vertical = calculateVerticalDeductions(
@@ -253,7 +264,8 @@ export function calculatePanelDeductions(
     cornerConfig.hasLeftCorner,
     cornerConfig.hasRightCorner,
     cornerConfig.glassThicknessMm,
-    panel.panel_type === 'door_hinged'
+    panel.panel_type === 'door_hinged',
+    cornerConfig.door
   );
 
   return {

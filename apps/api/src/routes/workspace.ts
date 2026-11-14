@@ -32,7 +32,7 @@ import { usersByIds, type DesignerSettings } from '../db/platform';
 import { JOB_STAGES, ROLES, type JobStage, type Role } from '../db/tables';
 import { ADDS_PER_DAY, addToTeam, changeRole, removeFromTeam, teamChanges, teamOf } from '../db/team';
 import { billingIsOn, standingOf, subscriptionOf } from '../lib/billing';
-import { ALL_CHOICES, ALL_HINGES, designerConfig, GLASS_THICKNESSES, glassOf, optionLabelsFor } from '../lib/designer-config';
+import { ALL_CHOICES, ALL_HINGES, designerConfig, GLASS_THICKNESSES, glassOf, optionLabelsFor, standardHinges } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -664,9 +664,13 @@ staff.post('/jobs/:id/designs/:designId/revisions', async (c) => {
     db.engineContext(),
     job.designer_id ? db.get('designers', job.designer_id) : Promise.resolve(null),
   ]);
-  // Glass the job's designer offers its customers is not a special; any other is.
-  const offered = designerRow ? glassOf(designerRow.config as DesignerSettings).offered : undefined;
-  const computed = buildSpec(document.design, offered ? { ...context, glassThicknessesMm: offered } : context);
+  // Glass the job's designer offers its customers is not a special; any other
+  // is. How the company fits its hinges changes a door's size.
+  const settings = designerRow ? (designerRow.config as DesignerSettings) : null;
+  const computed = buildSpec(
+    document.design,
+    settings ? { ...context, glassThicknessesMm: glassOf(settings).offered, hinges: standardHinges(settings) } : context
+  );
   const number = revision.number + 1;
   let revisionId = '';
   try {

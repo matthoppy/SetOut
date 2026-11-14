@@ -24,7 +24,9 @@ describe('the door hardware', () => {
     expect(fittingsOf(state, spec, DEFAULT_RULESET.fixed)).toEqual([
       { kind: 'hinges', pane: 1, count: door.door!.hingeCount, brand: door.door!.hingeBrand, mount: 'wall-to-glass' },
       { kind: 'handle', pane: 1, handleId: 'pull' },
-      { kind: 'seal', pane: 1, seal: 'h seal', lengthMm: door.cutHeightMm, meets: 'glass' },
+      { kind: 'seal', pane: 1, seal: 'h seal', lengthMm: door.cutHeightMm, meets: 'glass', edge: 'latch' },
+      // Hung on the wall, with seals: a bubble seal down its hinge edge too.
+      { kind: 'seal', pane: 1, seal: 'bubble seal', lengthMm: door.cutHeightMm, meets: 'wall', edge: 'hinge' },
       { kind: 'bottom-seal', pane: 1, lengthMm: door.cutWidthMm },
       { kind: 'threshold', pane: 1, lengthMm: door.tightWidthMm },
       { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts },
@@ -62,9 +64,13 @@ describe('every known design', () => {
     const spec = buildSpec(state, context);
     const fittings = fittingsOf(state, spec, DEFAULT_RULESET.fixed);
     const doors = spec.panels.flatMap((p, i) => (p.door ? [i] : []));
-    for (const kind of ['hinges', 'handle', 'seal'] as const) {
+    for (const kind of ['hinges', 'handle'] as const) {
       expect(fittings.filter((f) => f.kind === kind).map((f) => (f as { pane: number }).pane)).toEqual(doors);
     }
+    // One seal at each door's latch, and a bubble seal down the hinge edge of each hung on the wall with seals.
+    expect(fittings.flatMap((f) => (f.kind === 'seal' && f.edge === 'latch' ? [f.pane] : []))).toEqual(doors);
+    const onWall = doors.filter((i) => hingeMountOf(state, spec, i) === 'wall-to-glass' && !(spec.panels[i].door!.hingeBrand === 'Bellagio' && state.bellagioFit === 'without-seals'));
+    expect(fittings.flatMap((f) => (f.kind === 'seal' && f.edge === 'hinge' ? [f.pane] : []))).toEqual(onWall);
     for (const f of fittings) {
       if (f.kind === 'hinges') expect(f.count).toBe(spec.panels[f.pane].door!.hingeCount);
       if (f.kind === 'seal') expect(f.lengthMm).toBeGreaterThan(0);

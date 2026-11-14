@@ -113,11 +113,16 @@ interface Placed {
   specBottom: number;
 }
 
-/** What the shapes need from SetOut's fixed rules: the gap a glass-to-glass hinge leaves. */
+/**
+ * SetOut's fixed rules, as the shapes once took them for the gap a
+ * glass-to-glass hinge leaves. Since engine 0.12.0 that gap is in the spec's
+ * own deductions, so nothing is read from them; they are still taken so that
+ * every caller need not change.
+ */
 export type ShapeRules = Pick<FixedRules, 'hinges'>;
 
 /** Every pane where it stands, run by run, as seen from outside. */
-function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): { frames: Frame[]; placed: (Placed | undefined)[] } {
+function place(state: ConfiguratorState, spec: ConfiguratorSpec): { frames: Frame[]; placed: (Placed | undefined)[] } {
   const frames: Frame[] = [];
   const placed: (Placed | undefined)[] = [];
   const runs = runPanelIndices(state.panels, state.junctions);
@@ -164,14 +169,11 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRul
       const { left, right } = panel.deductions.horizontal;
       const { top, bottom } = panel.deductions.vertical;
       const door = panel.door;
-      // A door's swing deduction comes off its latch edge, less the gap a
-      // glass-to-glass hinge leaves when it hangs in line from the panel
-      // beside it, which stays on its hinge edge.
+      // A door's seal comes off its latch edge. Its hinge side's gap, on the
+      // wall or on the glass beside it, is in its own deductions.
       const latchLeft = door ? door.hingeSide === 'right' : false;
-      const swing = door?.swingDeductionMm ?? 0;
-      const hungFromGlass = door ? (latchLeft ? k < panels.length - 1 : k > 0) : false;
-      const atHinge = hungFromGlass ? Math.min(Math.max(fixed.hinges.glassToGlassGapMm, 0), swing) : 0;
-      const atLatch = swing - atHinge;
+      const atLatch = door?.swingDeductionMm ?? 0;
+      const atHinge = 0;
 
       const leftEdge: Side =
         !door && k === 0 && startWall
@@ -219,12 +221,12 @@ function place(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRul
   return { frames, placed };
 }
 
-export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): PaneShape[] {
+export function shapesOf(state: ConfiguratorState, spec: ConfiguratorSpec, _fixed: ShapeRules): PaneShape[] {
   // [UNCONFIRMED] Sliding glass is cut square, to its maker's formula. See sliding.ts.
   if (spec.sliding) {
     return spec.panels.map((p) => ({ id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 }));
   }
-  const { placed } = place(state, spec, fixed);
+  const { placed } = place(state, spec);
   return spec.panels.map((p, i) => {
     const at0 = placed[i];
     if (!at0) return { id: p.id, widthMm: p.cutWidthMm, heightMm: p.cutHeightMm, corners: square(p.cutWidthMm, p.cutHeightMm), shaped: false, specBottomMm: 0 };
@@ -342,8 +344,8 @@ const wallX = (wall: Side, y: number) => wall.p + wall.q * y;
  * glass out. Worked from the same lines the panes are cut to, so a gap here
  * and a size on the glass order can never disagree.
  */
-export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, fixed: ShapeRules): SetOut {
-  const { frames, placed } = place(state, spec, fixed);
+export function setOutOf(state: ConfiguratorState, spec: ConfiguratorSpec, _fixed: ShapeRules): SetOut {
+  const { frames, placed } = place(state, spec);
   const labels = runLabelsFor(state.panels, state.junctions);
   const transom = hasTransom(state);
 

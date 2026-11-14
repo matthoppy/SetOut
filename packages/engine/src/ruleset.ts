@@ -28,6 +28,8 @@
  *                  Each is a question in docs/sliding-plan.md.
  */
 
+import type { HingeStyles } from './hinges';
+
 // ---------------------------------------------------------------------------
 // Shape
 // ---------------------------------------------------------------------------
@@ -111,12 +113,15 @@ export interface MakingRules {
        */
       bothWaysMm: number;
       /**
-       * [OURS] A door's edge at a wall on a channel job, where it hangs on
-       * wall hinges or closes against the wall. It is not in the channel, so
-       * it keeps the 5mm it has always had when the channel's own deduction
-       * rose to 10 (13 November 2026). Matt to confirm the gap he leaves.
+       * [OURS] At the hinge side of a door hung on the wall, fitted with
+       * seals: a bubble seal on the hinge edge (Matt, 14 November 2026: "A
+       * door hinge on wall is 8mm deduction is bubble seal but with out seals
+       * it's what it says on CRL for the type of hinge"). Without seals it is
+       * CRL's gap for the hinge (hinges.wallGapWithoutSealsMm). At its latch
+       * side a door loses its seal alone, and on a glass-to-glass hinge the
+       * hinge's gap (hinges.glassToGlassGapMm).
        */
-      wallMm: number;
+      hingeWallMm: number;
       /**
        * [OURS] Off the top of a door with glass over its head: a glass brace
        * (the support panel) or a transom. Nothing comes off the top of a door
@@ -319,11 +324,18 @@ export interface FixedRules {
     minClearGapMm: number;
     /**
      * [OURS] Matt, 11 November 2026. The gap a glass-to-glass hinge leaves
-     * between a door and the panel it hangs from, in line. It comes out of the
-     * door's own deduction, so the cut size is the same and the rest of the
-     * deduction stays at the latch.
+     * between a door and the panel it hangs from. It comes off the door at its
+     * hinge side; its seal comes off at its latch side.
      */
     glassToGlassGapMm: number;
+    /**
+     * [MANUFACTURER] The gap at the hinge side of a door hung on the wall and
+     * fitted without seals: CRL Europe's Bellagio drawing gives 3mm without
+     * seals (8mm with), and CRL's Geneva and Vienna wall hinge drawings show
+     * 1/8" (3mm) at the glass edge. Only Bellagio is fitted without seals in
+     * SetOut today (bellagioFit).
+     */
+    wallGapWithoutSealsMm: number;
     /**
      * [MANUFACTURER] Each kit's own cut-outs, by kit id, from its maker's
      * glass fabrication template. A cut-out not given here is SetOut's own
@@ -385,6 +397,12 @@ export interface EngineContext {
    * Where this is not given, only the ruleset's standard thickness is not.
    */
   glassThicknessesMm?: readonly number[];
+  /**
+   * How the company fits its hinges, for a shower that has not chosen for
+   * itself. A Bellagio door hung on the wall and fitted without seals is cut
+   * wider at its hinges. Where this is not given, SetOut's standard is.
+   */
+  hinges?: HingeStyles;
 }
 
 // ---------------------------------------------------------------------------
@@ -399,7 +417,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
     clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 3 },
-    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 17 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, hingeWallMm: 8, glassAboveMm: 4, bottomMm: 17 },
   },
   heights: {
     singleDoorTopGapMm: 30,
@@ -474,6 +492,7 @@ export const FIXED_RULES: FixedRules = {
     cutoutHeightMm: 47,
     minClearGapMm: 400,
     glassToGlassGapMm: 3,
+    wallGapWithoutSealsMm: 3,
     cutouts: {
       geneva: {
         // CRL's Geneva door cut-out is the same in its wall mount (GEN037)
@@ -636,7 +655,7 @@ export const ADJUSTABLE = {
   'deductions.clamps.ceilingMm': { min: 0, max: 15 },
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
-  'deductions.door.wallMm': { min: 2, max: 10 },
+  'deductions.door.hingeWallMm': { min: 2, max: 15 },
   'deductions.door.glassAboveMm': { min: 0, max: 8 },
   'deductions.door.bottomMm': { min: 3, max: 25 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
@@ -748,7 +767,12 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clamps.topMm': { group: 'Glass on clamps', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
   'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', about: 'For the silicone that holds it there: there is no channel.', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
-  'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
+  'deductions.door.hingeWallMm': {
+    group: 'Doors',
+    label: 'Hinge side, hung on the wall',
+    about: 'A bubble seal on the hinge edge. A door fitted without seals takes CRL’s gap for its hinge instead.',
+    unit: 'mm',
+  },
   'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail.', unit: 'mm' },
   'deductions.door.glassAboveMm': {
     group: 'Doors',

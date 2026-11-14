@@ -127,9 +127,9 @@
           "plane": "front",
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
-          "cutWidthMm": 690,
+          "cutWidthMm": 687,
           "cutHeightMm": 1983,
-          "weightKg": 41.05,
+          "weightKg": 40.87,
           "deductions": {
             "vertical": {
               "top": 0,
@@ -141,14 +141,14 @@
             },
             "horizontal": {
               "left": 0,
-              "right": 5,
-              "total": 5,
+              "right": 8,
+              "total": 8,
               "breakdown": [
-                "Right wall, door gap: -5mm",
+                "Right, hung on the wall, bubble seal: -8mm",
                 "Left corner (runs through): -0mm"
               ]
             },
-            "cutWidth": 695,
+            "cutWidth": 692,
             "cutHeight": 1983
           },
           "notches": [],
@@ -184,9 +184,10 @@
             "swing": "out",
             "sealType": "90° stopper seal",
             "swingDeductionMm": 5,
+            "hingeSealType": "bubble seal",
             "hingeBrand": "Geneva",
             "hingeCount": 3,
-            "hingeReason": "3 × Geneva carries 690mm / 41.05kg (rated 813mm / 54kg).",
+            "hingeReason": "3 × Geneva carries 687mm / 40.87kg (rated 813mm / 54kg).",
             "hingeHeightsMm": [
               250,
               992,
@@ -242,7 +243,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 12,
-      "totalGlassWeightKg": 87.5,
+      "totalGlassWeightKg": 87.3,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

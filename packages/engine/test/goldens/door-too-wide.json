@@ -71,9 +71,9 @@
           "plane": "front",
           "tightWidthMm": 1050,
           "tightHeightMm": 2000,
-          "cutWidthMm": 1035,
+          "cutWidthMm": 1037,
           "cutHeightMm": 1983,
-          "weightKg": 51.31,
+          "weightKg": 51.41,
           "deductions": {
             "vertical": {
               "top": 0,
@@ -84,15 +84,14 @@
               ]
             },
             "horizontal": {
-              "left": 5,
-              "right": 5,
-              "total": 10,
+              "left": 0,
+              "right": 8,
+              "total": 8,
               "breakdown": [
-                "Left wall, door gap: -5mm",
-                "Right wall, door gap: -5mm"
+                "Right, hung on the wall, bubble seal: -8mm"
               ]
             },
-            "cutWidth": 1040,
+            "cutWidth": 1042,
             "cutHeight": 1983
           },
           "notches": [],
@@ -128,6 +127,7 @@
             "swing": "out",
             "sealType": "clear 90° angle",
             "swingDeductionMm": 5,
+            "hingeSealType": "bubble seal",
             "hingeBrand": "Geneva",
             "hingeCount": 3,
             "hingeReason": "Beyond the range of 3 × Geneva — needs a different design.",
@@ -164,7 +164,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 51.3,
+      "totalGlassWeightKg": 51.4,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -177,11 +177,11 @@
         "Customer reports the opening as square and level."
       ],
       "warnings": [
-        "P1 — Door (Front): Door is 1035mm wide; the widest we hang is 813mm (3 × Geneva).",
-        "P1 — Door (Front): Panel weighs 51.31kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
+        "P1 — Door (Front): Door is 1037mm wide; the widest we hang is 813mm (3 × Geneva).",
+        "P1 — Door (Front): Panel weighs 51.41kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
       ],
       "blockingIssues": [
-        "P1 — Door (Front): Door is 1035mm wide. 1000mm is the widest single hinged door we hang — consider a double door."
+        "P1 — Door (Front): Door is 1037mm wide. 1000mm is the widest single hinged door we hang — consider a double door."
       ]
     }
   }

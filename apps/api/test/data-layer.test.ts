@@ -49,7 +49,8 @@ describe('what the data layer sets itself', () => {
     const revision = await db.get('design_revisions', rows.design_revisions.id);
     expect(revision?.document.format).toBe(DOCUMENT_FORMAT);
     expect(revision?.document.design.panels[0].width_mm).toBe(700);
-    expect(revision?.computed.panels[0].cutWidthMm).toBe(685);
+    // A 700 door between two walls: 8 at its hinges and 5 for its seal.
+    expect(revision?.computed.panels[0].cutWidthMm).toBe(687);
     expect(revision?.engine_version).toBe(ENGINE_VERSION);
     expect((await db.get('job_events', rows.job_events.id))?.data).toEqual({ via: 'designer' });
     expect((await db.get('designers', rows.designers.id))?.allowed_origins).toEqual(['https://cs.example']);

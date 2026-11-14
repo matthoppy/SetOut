@@ -20,6 +20,7 @@ import {
   type GlassCoating,
   type GlassThickness,
   type GlassType,
+  type HingeStyles,
   type InLineHinge,
   type BellagioFit,
   type Mounting,
@@ -200,6 +201,21 @@ export function hingesOf(config: Pick<DesignerConfig, 'hinges'>): DesignerHinges
   return {
     wall: { ...wall, offered: wall.offered.includes(wall.standard) ? wall.offered : [wall.standard] },
     inLine: { ...inLine, offered: inLine.offered.includes(inLine.standard) ? inLine.offered : [inLine.standard] },
+  };
+}
+
+/**
+ * How the company fits its hinges, for a shower that has not chosen for
+ * itself: the engine cuts a Bellagio door fitted without seals wider at its
+ * hinges, so the designer's sizes match the server's.
+ */
+export function standardHingesOf(config: Pick<DesignerConfig, 'hinges'>): HingeStyles {
+  const { wall, inLine } = hingesOf(config);
+  return {
+    wall: wall.standard,
+    inLine: inLine.standard,
+    viennaCutout: config.hinges?.viennaCutout ?? STANDARD_HINGES.viennaCutout,
+    bellagioFit: config.hinges?.bellagioFit ?? STANDARD_HINGES.bellagioFit,
   };
 }
 

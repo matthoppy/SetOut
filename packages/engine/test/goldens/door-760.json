@@ -71,9 +71,9 @@
           "plane": "front",
           "tightWidthMm": 760,
           "tightHeightMm": 2000,
-          "cutWidthMm": 745,
+          "cutWidthMm": 747,
           "cutHeightMm": 1983,
-          "weightKg": 36.93,
+          "weightKg": 37.03,
           "deductions": {
             "vertical": {
               "top": 0,
@@ -84,15 +84,14 @@
               ]
             },
             "horizontal": {
-              "left": 5,
-              "right": 5,
-              "total": 10,
+              "left": 0,
+              "right": 8,
+              "total": 8,
               "breakdown": [
-                "Left wall, door gap: -5mm",
-                "Right wall, door gap: -5mm"
+                "Right, hung on the wall, bubble seal: -8mm"
               ]
             },
-            "cutWidth": 750,
+            "cutWidth": 752,
             "cutHeight": 1983
           },
           "notches": [],
@@ -123,9 +122,10 @@
             "swing": "out",
             "sealType": "clear 90° angle",
             "swingDeductionMm": 5,
+            "hingeSealType": "bubble seal",
             "hingeBrand": "Vienna",
             "hingeCount": 2,
-            "hingeReason": "2 × Vienna carries 745mm / 36.93kg (rated 864mm / 45kg).",
+            "hingeReason": "2 × Vienna carries 747mm / 37.03kg (rated 864mm / 45kg).",
             "hingeHeightsMm": [
               250,
               1733
@@ -158,7 +158,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 36.9,
+      "totalGlassWeightKg": 37,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

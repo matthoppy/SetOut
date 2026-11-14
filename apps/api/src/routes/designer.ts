@@ -17,7 +17,7 @@ import {
 import { Hono } from 'hono';
 import { companyDb } from '../db/company-db';
 import { resolveDesigner, type DesignerSettings } from '../db/platform';
-import { DEFAULT_SETTINGS, designerConfig, glassOf, slidingOf } from '../lib/designer-config';
+import { DEFAULT_SETTINGS, designerConfig, glassOf, slidingOf, standardHinges } from '../lib/designer-config';
 import { checkBot, MAX_BODY_BYTES, readEnquiry, RequestError, type BotCheck } from '../lib/enquiry';
 import { mailIsSetUp, notifyEnquiry, type MailSettings } from '../lib/notify';
 import { drafts } from './drafts';
@@ -106,8 +106,9 @@ designer.post('/enquiries', async (c) => {
     return c.json({ error: 'sliding_not_offered', message: 'This designer does not offer sliding doors. Choose another layout.' }, 422);
   }
   // Glass in a thickness the company offers its customers is the company's
-  // own choice, so it is not flagged as a special.
-  const computed = buildSpec(document.design, { ...context, glassThicknessesMm: glassOf(settings).offered });
+  // own choice, so it is not flagged as a special. How it fits its hinges
+  // changes a door's size.
+  const computed = buildSpec(document.design, { ...context, glassThicknessesMm: glassOf(settings).offered, hinges: standardHinges(settings) });
 
   const { customer } = enquiry;
   const sentQuickly = enquiry.elapsedMs !== null && enquiry.elapsedMs < SUSPICIOUS_ELAPSED_MS;

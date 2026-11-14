@@ -58,26 +58,27 @@ describe('a door hung from glass', () => {
     panels: s.panels.map((p) => (p.door ? { ...p, door: { ...p.door, hinge_side: 'left' as const } } : p)),
   });
 
-  test('in line, the hinge keeps its gap and the latch has the rest, and the glass is the same size', () => {
+  test('in line, the hinge leaves its gap at the panel and the latch its seal at the wall', () => {
     const state = alcove(hungFromPanel);
     const spec = buildSpec(state, context);
     const [fixed, door] = setOutOf(state, spec, DEFAULT_RULESET.fixed).panes;
     const hinge = DEFAULT_RULESET.fixed.hinges.glassToGlassGapMm;
-    const swing = spec.panels[1].door!.swingDeductionMm;
+    const seal = spec.panels[1].door!.swingDeductionMm;
     expect(hinge).toBe(3);
     expect(fixed.right).toEqual({ meets: 'glass', bottomMm: hinge, topMm: hinge });
     expect(door.left).toEqual(fixed.right);
-    expect(door.right.bottomMm).toBe(swing - hinge + spec.panels[1].deductions.horizontal.right);
+    // Its latch closes against the wall, on the clear angle's 5mm alone.
+    expect(door.right.bottomMm).toBe(seal);
+    expect(spec.panels[1].cutWidthMm).toBe(700 - hinge - seal);
     expect(door.corners.bottomRight.x - door.corners.bottomLeft.x).toBe(spec.panels[1].cutWidthMm);
   });
 
-  test('never more than the door’s own deduction', () => {
-    const state = alcove(hungFromPanel);
+  test('hung on the wall, the hinge side leaves the bubble seal’s 8mm', () => {
+    const state = alcove();
     const spec = buildSpec(state, context);
-    const wide = { ...DEFAULT_RULESET.fixed, hinges: { ...DEFAULT_RULESET.fixed.hinges, glassToGlassGapMm: 20 } };
-    const [, door] = setOutOf(state, spec, wide).panes;
-    expect(door.left.bottomMm).toBe(spec.panels[1].door!.swingDeductionMm);
-    expect(door.right.bottomMm).toBe(spec.panels[1].deductions.horizontal.right);
+    const door = setOutOf(state, spec, DEFAULT_RULESET.fixed).panes[1];
+    expect(spec.panels[1].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm']);
+    expect(door.right.bottomMm).toBe(8);
   });
 
   test('hung from a wall, or from glass round a corner, the latch has all of it', () => {
@@ -124,10 +125,11 @@ describe('the walls', () => {
     const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].end).toMatchObject({ meets: 'wall', leanMm: 3 });
     const door = panes[1];
-    expect(door.right.bottomMm).toBe(5);
+    // The door hangs on that wall, 8mm off it at its hinges.
+    expect(door.right.bottomMm).toBe(8);
     // The wall leans in 3mm over the glass height; the door's top is a little below it.
     const up = (door.corners.topRight.y - door.corners.bottomRight.y) / state.heightMm;
-    expect(door.right.topMm).toBe(Math.round(5 - 3 * up));
+    expect(door.right.topMm).toBe(Math.round(8 - 3 * up));
     expect(door.right.topMm).toBeLessThan(door.right.bottomMm!);
   });
 });

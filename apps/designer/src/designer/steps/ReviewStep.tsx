@@ -344,7 +344,10 @@ export function ReviewStep({
                   </div>
                   <div className="flex justify-between">
                     <span>Seal</span>
-                    <span>{p.door.sealType}</span>
+                    <span>
+                      {p.door.sealType}
+                      {p.door.hingeSealType ? `, ${p.door.hingeSealType} at the hinges` : ''}
+                    </span>
                   </div>
                 </div>
               )}

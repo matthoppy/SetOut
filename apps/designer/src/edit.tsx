@@ -12,7 +12,7 @@ import './index.css';
 import { createDocument, resolveRuleset, type EngineContext } from '@setout/engine';
 import { StrictMode, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { DesignerConfig } from './designer/config';
+import { standardHingesOf, type DesignerConfig } from './designer/config';
 import { EngineProvider } from './designer/engine';
 import { hydrateState } from './designer/hydrate';
 import { StaffEditor, type StaffSave } from './designer/StaffEditor';
@@ -78,6 +78,7 @@ function App() {
         ? {
             rules: resolveRuleset(loaded.editor.config.rules.overrides),
             companyName: loaded.editor.config.brand.name,
+            hinges: standardHingesOf(loaded.editor.config),
             ...(loaded.editor.offeredGlassThicknesses ? { glassThicknessesMm: loaded.editor.offeredGlassThicknesses } : {}),
           }
         : null,

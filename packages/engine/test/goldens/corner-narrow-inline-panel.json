@@ -168,9 +168,9 @@
           "plane": "front",
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
-          "cutWidthMm": 690,
+          "cutWidthMm": 687,
           "cutHeightMm": 1979,
-          "weightKg": 34.14,
+          "weightKg": 33.99,
           "deductions": {
             "vertical": {
               "top": 4,
@@ -183,13 +183,13 @@
             },
             "horizontal": {
               "left": 0,
-              "right": 5,
-              "total": 5,
+              "right": 8,
+              "total": 8,
               "breakdown": [
-                "Right wall, door gap: -5mm"
+                "Right, hung on the wall, bubble seal: -8mm"
               ]
             },
-            "cutWidth": 695,
+            "cutWidth": 692,
             "cutHeight": 1979
           },
           "notches": [],
@@ -220,9 +220,10 @@
             "swing": "out",
             "sealType": "h seal",
             "swingDeductionMm": 5,
+            "hingeSealType": "bubble seal",
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 690mm / 34.14kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 687mm / 33.99kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
               1729
@@ -283,7 +284,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 81.9,
+      "totalGlassWeightKg": 81.8,
       "support": {
         "supportPanelRequired": true,
         "supportPanelReason": "Narrow fixed panel p2 (180mm) adjacent to door",

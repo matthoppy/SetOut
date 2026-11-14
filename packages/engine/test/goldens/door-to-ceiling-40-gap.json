@@ -83,9 +83,9 @@
           "plane": "front",
           "tightWidthMm": 810,
           "tightHeightMm": 2362,
-          "cutWidthMm": 795,
+          "cutWidthMm": 797,
           "cutHeightMm": 2345,
-          "weightKg": 46.61,
+          "weightKg": 46.72,
           "deductions": {
             "vertical": {
               "top": 0,
@@ -96,15 +96,14 @@
               ]
             },
             "horizontal": {
-              "left": 5,
-              "right": 5,
-              "total": 10,
+              "left": 0,
+              "right": 8,
+              "total": 8,
               "breakdown": [
-                "Left wall, door gap: -5mm",
-                "Right wall, door gap: -5mm"
+                "Right, hung on the wall, bubble seal: -8mm"
               ]
             },
-            "cutWidth": 800,
+            "cutWidth": 802,
             "cutHeight": 2345
           },
           "notches": [],
@@ -135,9 +134,10 @@
             "swing": "out",
             "sealType": "clear 90° angle",
             "swingDeductionMm": 5,
+            "hingeSealType": "bubble seal",
             "hingeBrand": "Bellagio",
             "hingeCount": 2,
-            "hingeReason": "2 × Bellagio carries 795mm / 46.61kg (rated 1000mm / 50kg).",
+            "hingeReason": "2 × Bellagio carries 797mm / 46.72kg (rated 1000mm / 50kg).",
             "hingeHeightsMm": [
               250,
               2095
@@ -170,7 +170,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 46.6,
+      "totalGlassWeightKg": 46.7,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -186,7 +186,7 @@
       ],
       "warnings": [
         "Review: the glass is 2362mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
-        "P1 — Door (Front): Review: the door is 2345mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 46.61kg weight and the maker's current limits."
+        "P1 — Door (Front): Review: the door is 2345mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 46.72kg weight and the maker's current limits."
       ],
       "blockingIssues": []
     }

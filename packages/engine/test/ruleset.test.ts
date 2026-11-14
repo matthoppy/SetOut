@@ -16,6 +16,7 @@ import {
   RULE_TEXT,
   ruleValue,
   RulesetError,
+  STANDARD_HINGES,
   type AdjustableRule,
   type EngineContext,
 } from '../src';
@@ -74,8 +75,9 @@ describe('two companies, one design', () => {
   test('a different door clearance gives a different door', () => {
     const ours = buildSpec(door, company('Custom Showers'));
     const theirs = buildSpec(door, company('Brennan Glass', { 'deductions.door.outOnlyMm': 7 }));
-    expect(ours.panels[0].cutWidthMm).toBe(685);
-    expect(theirs.panels[0].cutWidthMm).toBe(683);
+    // 700 between two walls: 8 at its hinges, on the wall, and its seal at the latch.
+    expect(ours.panels[0].cutWidthMm).toBe(687);
+    expect(theirs.panels[0].cutWidthMm).toBe(685);
     expect(theirs.panels[0].cutHeightMm).toBe(ours.panels[0].cutHeightMm);
   });
 
@@ -141,16 +143,41 @@ describe('two companies, one design', () => {
     expect(spec.panels[0].cutWidthMm).toBe(390);
   });
 
-  test('a door at a wall is not in the channel, so it keeps its own 5mm gap', () => {
+  test('a door hung on the wall leaves 8mm at its hinges for the bubble seal, and its latch only its seal', () => {
     const ours = buildSpec(door, company('Custom Showers'));
-    expect(ours.panels[0].deductions.horizontal.breakdown).toEqual([
-      'Left wall, door gap: -5mm',
-      'Right wall, door gap: -5mm',
-    ]);
+    expect(ours.panels[0].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm']);
+    expect(ours.panels[0].door?.swingDeductionMm).toBe(5);
+    // A door sits in no channel, so the channel's allowance does not touch it.
     const deeper = buildSpec(door, company('Brennan Glass', { 'deductions.channel.horizontalMm': 12 }));
     expect(deeper.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm);
-    const wider = buildSpec(door, company('Brennan Glass', { 'deductions.door.wallMm': 7 }));
-    expect(wider.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm - 4);
+    const wider = buildSpec(door, company('Brennan Glass', { 'deductions.door.hingeWallMm': 10 }));
+    expect(wider.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm - 2);
+  });
+
+  test('a Bellagio door fitted without seals leaves CRL’s 3mm at its hinges on the wall', () => {
+    // Wider than Vienna takes (864mm), and light enough for Bellagio (50kg).
+    const heavy = { ...door, panels: door.panels.map((p) => ({ ...p, width_mm: 900 })) };
+    const withSeals = buildSpec(heavy, company('Custom Showers'));
+    expect(withSeals.panels[0].door?.hingeBrand).toBe('Bellagio');
+    expect(withSeals.panels[0].door?.hingeSealType).toBe('bubble seal');
+    const without = buildSpec({ ...heavy, bellagioFit: 'without-seals' as const }, company('Custom Showers'));
+    expect(without.panels[0].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, no seals: -3mm']);
+    expect(without.panels[0].cutWidthMm).toBe(withSeals.panels[0].cutWidthMm + 5);
+    expect(without.panels[0].door?.hingeSealType).toBeNull();
+  });
+
+  test('the company’s own way of fitting Bellagio holds for a shower that has not chosen one', () => {
+    const heavy = { ...door, panels: door.panels.map((p) => ({ ...p, width_mm: 900 })) };
+    const standard = { ...STANDARD_HINGES, bellagioFit: 'without-seals' as const };
+    const theirs = buildSpec(heavy, { ...company('Brennan Glass'), hinges: standard });
+    expect(theirs.panels[0].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, no seals: -3mm']);
+    // The shower’s own choice still wins.
+    const withSeals = buildSpec({ ...heavy, bellagioFit: 'with-seals' as const }, { ...company('Brennan Glass'), hinges: standard });
+    expect(withSeals.panels[0].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm']);
+    // Fitted without seals or not, a door narrow enough for Geneva keeps the bubble seal.
+    const light = buildSpec(door, { ...company('Brennan Glass'), hinges: standard });
+    expect(light.panels[0].door?.hingeBrand).toBe('Geneva');
+    expect(light.panels[0].door?.hingeSealType).toBe('bubble seal');
   });
 
   test('Matt’s screen: 1200 wide and 2200 high at one wall is glass 1190 x 2195, channel cut 1200 and 2181', () => {
@@ -182,9 +209,9 @@ describe('two companies, one design', () => {
     expect(spec.panels[0].deductions.horizontal.breakdown).toEqual(['Left clamps: -3mm']);
     expect(spec.panels[0].cutWidthMm).toBe(397);
     const door = spec.panels[1];
-    expect(door.deductions.horizontal.breakdown).toEqual(['Right wall, door gap: -5mm']);
+    expect(door.deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm']);
     expect(door.deductions.vertical.breakdown).toEqual(['Door, bottom: -17mm']);
-    expect([door.cutWidthMm, door.cutHeightMm]).toEqual([690, 1983]);
+    expect([door.cutWidthMm, door.cutHeightMm]).toEqual([687, 1983]);
   });
 
   test('a company that makes in 8mm is not warned about 8mm', () => {

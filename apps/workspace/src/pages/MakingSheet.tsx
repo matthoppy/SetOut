@@ -239,6 +239,7 @@ function Sheet({
                   <td className="py-1.5">
                     {panel.door?.swing === 'both' ? 'Both ways' : 'Outwards'}
                     {panel.door?.sealType ? `, ${sealName(panel.door.sealType)}` : ''}
+                    {panel.door?.hingeSealType ? `; ${panel.door.hingeSealType} at the hinges` : ''}
                   </td>
                 </tr>
               ))}

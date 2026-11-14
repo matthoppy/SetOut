@@ -364,15 +364,18 @@ function wordsFor(
     case 'handle':
       return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
     case 'seal': {
-      // Where it goes follows from what the door closes against.
+      // Where it goes follows from what the door closes against, or, down
+      // the hinge edge of a door hung on the wall, the wall it hangs on.
       const where =
-        f.meets === 'wall' && f.seal === 'clear 90° angle'
-          ? `Siliconed to the wall where the ${door(f.pane)} closes`
-          : f.meets === 'corner' && f.seal === '90° stopper seal'
-            ? `On the panel at the corner, where the ${door(f.pane)} closes`
-            : f.meets === 'glass' && f.seal === 'h seal'
-              ? `Where the ${door(f.pane)} closes against the fixed panel`
-              : `${door(f.pane)}, latch edge`;
+        f.edge === 'hinge'
+          ? `${door(f.pane)}, hinge edge, against the wall`
+          : f.meets === 'wall' && f.seal === 'clear 90° angle'
+            ? `Siliconed to the wall where the ${door(f.pane)} closes`
+            : f.meets === 'corner' && f.seal === '90° stopper seal'
+              ? `On the panel at the corner, where the ${door(f.pane)} closes`
+              : f.meets === 'glass' && f.seal === 'h seal'
+                ? `Where the ${door(f.pane)} closes against the fixed panel`
+                : `${door(f.pane)}, latch edge`;
       // The h seal keeps its lower case: a capital H is another seal.
       return { qty: '1', item: f.seal === 'h seal' ? f.seal : capitalised(f.seal), where: `${where}, ${f.lengthMm}mm`, finish: '' };
     }

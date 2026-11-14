@@ -127,6 +127,8 @@ function panelSchedule(spec: ConfiguratorSpec, design: ConfiguratorState, labels
           `opens ${p.door.swing === 'both' ? 'both ways' : 'outwards only'}`,
           esc(p.door.sealType)
         );
+        // Hung on the wall with seals, a bubble seal down the hinge edge too.
+        if (p.door.hingeSealType) detail.push(`${esc(p.door.hingeSealType)} at the hinges`);
         if (p.door.hingeHeightsMm.length) {
           detail.push(`hinge centres ${p.door.hingeHeightsMm.map(esc).join(' / ')}mm from the bottom`);
         }
