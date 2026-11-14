@@ -18,7 +18,7 @@ height limit. Geneva's and Bellagio's door limits. Bellagio's cut-outs from
 CRL Europe's drawings. Every Serenity number (OW/2 + 22, H − 5, H − 8, the
 51mm overlap, the header OW − 25 and its holes, the 3mm wall gaps).
 
-**Added from it (engine 0.13.0).**
+**Added from it (engines 0.13.0 and 0.13.1).**
 
 - Two fixed panes siliconed together in line now share the silicone joint, a
   millimetre off each with the 2mm joint (§6, 180° square-cut). Until now
@@ -45,15 +45,26 @@ with a cut-out 54 deep. CRL Europe's own BEL344 drawing, which Custom Showers'
 hinges come with (`docs/hinge-templates/crl-europe-bel344-bellagio-wall.png`),
 gives 3mm and 52 deep. SetOut keeps CRL Europe's.
 
-**Asked of Matt, 14 November 2026.**
+**CRL's suggested gaps sheet (AVDB3078).** Matt sent CRL's own sheet, the
+source of the seal and sweep gaps below; it is saved in `docs/seals/`. Its
+gaps are the ones below. What it adds: the U with a 90° fin comes for 12mm
+glass too (PC1200, 22mm), which SetOut now orders on 12mm; the clear angle
+(P12LJ) is used at the hinge side as well as the strike side; the H-jamb can
+go on the door at its hinge side; and on 8mm glass the wipe (P956WS) leaves
+10mm, 16mm over the threshold, where SetOut keeps Matt's 17 for every glass.
 
-- A door hung off a return at 90° (GEN092, V1E092, BEL392): CRL's chart runs
-  the return through to the outside corner and stops the door 6mm short of it
-  (Bellagio 8 with seals, 3 without). SetOut runs the door through, as at its
-  other corners, and tucks the return in behind it.
-- The 90° stop seal on the panel at a corner: PC1090, which the file gives a
-  20mm gap, or P090SJ, CRL's 90° strike seal that snaps onto the fixed panel
-  with a 4.7mm gap.
+**Asked of Matt, 14 November 2026: which runs through at a door corner?**
+Every one of CRL's 90° door parts is drawn with the panel at the corner
+running through to the outside corner and the door beside it: the 90°
+glass-to-glass hinges (the door 6mm off the panel's inside face; Bellagio 8
+with seals, 3 without) and P090SJ, CRL's 90° strike seal that snaps onto that
+panel (4.7mm). SetOut runs the door through in front, as at its other
+corners, and tucks the panel in behind it, 12mm short, with PC1090 capping
+the panel's edge, its fin along the door (CRL gives PC1090 a 20mm gap, drawn
+its own way). A 700 door hung on the wall and closing on an 800 return:
+SetOut now, door 687 and return 778; CRL's way, door 677 and return 790. A
+three-sided shower, the door hung off one 600 return and closing on the
+other: now 692, 578 and 578; CRL's way 669, 590 and 590.
 
 ---
 

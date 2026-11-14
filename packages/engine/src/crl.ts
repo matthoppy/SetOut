@@ -91,7 +91,9 @@ const THRESHOLD = 'SDT980CLR10';
 /** By the seal SetOut gives a door and the glass it is on. */
 const SEALS: Record<string, Partial<Record<number, string>>> = {
   'bubble seal': { 8: 'PCR8', 10: 'PCR10', 12: 'PCR12' },
-  '90° stopper seal': { 8: 'PC0890', 10: 'PC1090' },
+  // CRL's polycarbonate U with a 90° vinyl fin, by glass (AVDB3078, its
+  // suggested gaps sheet, docs/seals/): PC1200 is the 12mm one.
+  '90° stopper seal': { 8: 'PC0890', 10: 'PC1090', 12: 'PC1200' },
   // Glass to glass in line: CRL's 'Y' jamb seal with a soft leg, for 5/16",
   // 3/8" and 1/2" glass, from Matt's catalogue (Matt, 14 November 2026: "The
   // pcc10 is more commonly used as its got a soft fin"), rather than the

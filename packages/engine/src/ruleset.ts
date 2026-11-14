@@ -333,7 +333,9 @@ export interface FixedRules {
      * fitted without seals: CRL Europe's Bellagio drawing gives 3mm without
      * seals (8mm with), and CRL's Geneva and Vienna wall hinge drawings show
      * 1/8" (3mm) at the glass edge. Only Bellagio is fitted without seals in
-     * SetOut today (bellagioFit).
+     * SetOut today (bellagioFit). CRL North America's Bellagio template book
+     * gives 2mm, with a cut-out 2mm deeper; SetOut follows CRL Europe's
+     * drawing, which the hinges Custom Showers fits come with.
      */
     wallGapWithoutSealsMm: number;
     /**
