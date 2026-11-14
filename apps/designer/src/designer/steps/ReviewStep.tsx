@@ -402,7 +402,7 @@ export function ReviewStep({
           ),
           ['Corners', `${spec.cornerCount}`],
           ['Height', `${spec.heightMm}mm${spec.isFloorToCeiling ? ' (floor to ceiling)' : ''}`],
-          ...(state.mounting === 'channel' ? [['Channel required', `${spec.totalChannelLengthMm}mm`]] : []),
+          ...(state.mounting === 'channel' && spec.totalChannelLengthMm > 0 ? [['Channel required', `${spec.totalChannelLengthMm}mm`]] : []),
           ['Glass type', state.glassType.charAt(0).toUpperCase() + state.glassType.slice(1).replace('-', ' ')],
           ['Glass thickness', `${spec.glassThicknessMm}mm toughened`],
           ['Coating', state.glassCoating === 'easy-clean' ? 'Easy-clean' : 'None'],

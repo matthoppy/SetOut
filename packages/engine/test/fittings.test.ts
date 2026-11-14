@@ -68,9 +68,13 @@ describe('every known design', () => {
       if (f.kind === 'hinges') expect(f.count).toBe(spec.panels[f.pane].door!.hingeCount);
       if (f.kind === 'seal') expect(f.lengthMm).toBeGreaterThan(0);
     }
-    expect(fittings.filter((f) => f.kind === 'channel' || f.kind === 'clamps')).toEqual([
-      spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts } : { kind: 'clamps' },
-    ]);
+    expect(fittings.filter((f) => f.kind === 'channel' || f.kind === 'clamps')).toEqual(
+      spec.mounting !== 'channel'
+        ? [{ kind: 'clamps' }]
+        : spec.totalChannelLengthMm > 0
+          ? [{ kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts }]
+          : []
+    );
     expect(fittings.some((f) => f.kind === 'support-bar')).toBe(spec.support.supportBarRequired);
     expect(fittings.some((f) => f.kind === 'support-panel')).toBe(spec.support.supportPanelRequired);
   });

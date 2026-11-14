@@ -116,7 +116,8 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       }
     }
     if (spec.mounting === 'channel') {
-      line(`channel:${design.finishId}`, `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');
+      // A door alone has no channel to price.
+      if (spec.totalChannelLengthMm > 0) line(`channel:${design.finishId}`, `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');
     } else {
       line(`clamps:${design.finishId}`, `${prefix}Glass clamps, ${finish}`, 1, 'set');
     }

@@ -245,7 +245,7 @@ export function companyEmail(input: EnquiryEmailInput, from: string, to: string[
       <table style="border-collapse:collapse;width:100%;font-size:14px;">
         ${rows(summarise(input.design, spec, input.labels))}
         ${rows([
-          ...(spec.mounting === 'channel' ? [channelRow(spec)] : []),
+          ...(spec.mounting === 'channel' && spec.totalChannelLengthMm > 0 ? [channelRow(spec)] : []),
           ['Total weight', `${spec.totalGlassWeightKg}kg`],
         ])}
       </table>

@@ -69,7 +69,9 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     fittings.push({ kind: 'sliding-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'door'), series: kit, headerLengthMm: header.lengthMm });
     if (returnKit) fittings.push({ kind: 'sliding-return-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'return'), series: returnKit });
   }
-  fittings.push(spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts ?? [] } : { kind: 'clamps' });
+  // A shower with no fixed glass, a door alone, has no channel to order.
+  if (spec.mounting !== 'channel') fittings.push({ kind: 'clamps' });
+  else if (spec.totalChannelLengthMm > 0) fittings.push({ kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts ?? [] });
   if (spec.support.supportBarRequired) fittings.push({ kind: 'support-bar', reason: spec.support.supportBarReason });
   if (spec.support.supportPanelRequired) fittings.push({ kind: 'support-panel', reason: spec.support.supportPanelReason });
   return fittings;
