@@ -152,3 +152,10 @@ MBL, BBRZ; brushed brass only as AUSER78BB) and the return kit SER90 + finish
 - Bellagio cut-out sizes: only on the template in the box.
 - Serenity roller and track-holder hole sizes are not in the catalogue, but
   are on CRL's install sheets, now saved in `docs/sliding/`.
+
+## Deductions
+
+CRL's own deductions, from its Frameless Shower Door Guide (SDT21), its hinge
+templates and its seal pages, checked and sent by Matt on 14 November 2026,
+are in `DEDUCTIONS.md`, with what SetOut takes from them and where Matt's own
+rules differ.

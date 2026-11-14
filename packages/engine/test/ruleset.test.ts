@@ -180,6 +180,20 @@ describe('two companies, one design', () => {
     expect(light.panels[0].door?.hingeSealType).toBe('bubble seal');
   });
 
+  test('two fixed panes siliconed together in line share the 2mm joint, a millimetre each', () => {
+    const screen = designFromTemplate('walk-in');
+    const pane = screen.panels[0];
+    const two = { ...screen, rightWall: true, panels: [{ ...pane, id: 'a', width_mm: 600 }, { ...pane, id: 'b', width_mm: 600 }], junctions: [{ angle_deg: 180 as const }] };
+    const ours = buildSpec(two, company('Custom Showers'));
+    expect(ours.panels.map((p) => p.cutWidthMm)).toEqual([589, 589]);
+    expect(ours.panels[0].deductions.horizontal.breakdown).toEqual(['Left wall channel: -10mm', 'Right, silicone joint in line: -1mm']);
+    // An odd joint still adds up: the left pane takes the smaller half.
+    const wider = buildSpec(two, company('Brennan Glass', { 'glass.siliconeJointMm': 3 }));
+    expect(wider.panels.map((p) => p.cutWidthMm)).toEqual([589, 588]);
+    // A door beside a panel leaves its own gap, not a silicone joint.
+    expect(buildSpec(designFromTemplate('alcove-panel-door'), company('Custom Showers')).panels[0].deductions.horizontal.breakdown).toEqual(['Left wall channel: -10mm']);
+  });
+
   test('Matt’s screen: 1200 wide and 2200 high at one wall is glass 1190 x 2195, channel cut 1200 and 2181', () => {
     const screen = designFromTemplate('walk-in');
     const design = { ...screen, heightMm: 2200, panels: [{ ...screen.panels[0], width_mm: 1200 }] };

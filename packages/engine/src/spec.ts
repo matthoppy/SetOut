@@ -291,6 +291,15 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
 
     const hasLeftCorner = state.junctions[i - 1]?.angle_deg === 90;
     const hasRightCorner = state.junctions[i]?.angle_deg === 90;
+    // Two fixed panes in line are siliconed together: the left one takes the
+    // smaller half of the joint where it is odd, so the two add up to it.
+    const joint = making.glass.siliconeJointMm;
+    const inLine = (n: number, junction: number) =>
+      p.kind === 'fixed' && state.panels[n]?.kind === 'fixed' && state.junctions[junction]?.angle_deg === 180;
+    const inLineJointMm = {
+      left: inLine(i - 1, i - 1) ? joint - Math.floor(joint / 2) : 0,
+      right: inLine(i + 1, i) ? Math.floor(joint / 2) : 0,
+    };
 
     // A single door stops short of the ceiling by its air gap, and a door
     // under a transom stops at its own height. Neither is clamped between
@@ -319,6 +328,7 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
           hasRightCorner,
           glassThicknessMm: state.glassThicknessMm,
           door: p.door ? { hingeSide: p.door.hinge_side, hingeOnGlass, withoutSeals } : undefined,
+          inLineJointMm,
         }
       );
     let deductions = deductionsFor(false);

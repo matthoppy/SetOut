@@ -5,4 +5,4 @@
  *
  * Kept equal to the version in package.json; a test fails if they drift.
  */
-export const ENGINE_VERSION = '0.12.0';
+export const ENGINE_VERSION = '0.13.0';

@@ -123,7 +123,9 @@ export function calculateHorizontalDeductions(
   glassThicknessMm: number,
   isDoor = false,
   /** A door's hinge side, what its hinges fix to, and whether it is fitted without seals. */
-  door?: { hingeSide: 'left' | 'right'; hingeOnGlass: boolean; withoutSeals: boolean }
+  door?: { hingeSide: 'left' | 'right'; hingeOnGlass: boolean; withoutSeals: boolean },
+  /** Each side that meets another fixed pane in line, siliconed to it: its share of the joint. */
+  inLineJointMm: { left: number; right: number } = { left: 0, right: 0 }
 ): HorizontalDeductions {
   const d = rules.making.deductions;
   const breakdown: string[] = [];
@@ -169,6 +171,18 @@ export function calculateHorizontalDeductions(
       right += d.clamps.wallMm;
       breakdown.push(`Right clamps: -${d.clamps.wallMm}mm`);
     }
+  }
+
+  // Two fixed panes siliconed together in line share the silicone joint
+  // between them (CRL's Frameless Shower Door Guide SDT21, p.2-19, with
+  // Matt's 2mm joint: a millimetre off each).
+  if (!isDoor && inLineJointMm.left) {
+    left += inLineJointMm.left;
+    breakdown.push(`Left, silicone joint in line: -${inLineJointMm.left}mm`);
+  }
+  if (!isDoor && inLineJointMm.right) {
+    right += inLineJointMm.right;
+    breakdown.push(`Right, silicone joint in line: -${inLineJointMm.right}mm`);
   }
 
   // Corner deductions. The run carrying the door passes through to the
@@ -243,6 +257,8 @@ export function calculatePanelDeductions(
     hasRightCorner: boolean;
     glassThicknessMm: number;
     door?: { hingeSide: 'left' | 'right'; hingeOnGlass: boolean; withoutSeals: boolean };
+    /** Each side's share of a silicone joint to another fixed pane in line. */
+    inLineJointMm?: { left: number; right: number };
   }
 ): PanelDeductions {
   const vertical = calculateVerticalDeductions(
@@ -265,7 +281,8 @@ export function calculatePanelDeductions(
     cornerConfig.hasRightCorner,
     cornerConfig.glassThicknessMm,
     panel.panel_type === 'door_hinged',
-    cornerConfig.door
+    cornerConfig.door,
+    cornerConfig.inLineJointMm
   );
 
   return {

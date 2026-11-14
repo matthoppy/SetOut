@@ -248,8 +248,8 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
   doorHoles.push(hole('pull', 'Serenity through-glass pull', SER78, doorOuter, s.pullHole.inMm, Math.round(doorH / 2), doorH, s.pullHole.diameterMm));
   unconfirmed.push(
     `Pull: its hole is drilled ${s.pullHole.diameterMm}mm (CRL gives 47 to 50mm), half way up the door as CRL suggests.`,
-    `Fixed panel: its two track holder holes are ${s.fixedPanelHoles.diameterMm}mm. CRL prints the same half inch hole as 12mm on one sheet and 13mm on two.`,
-    `Gaps: ${s.wallGapMm}mm at each end of the front glass, which leaves the door lapping the fixed panel by ${overlap}mm. One of CRL’s drawings shows 6mm at the door’s wall, for the L-seal.`
+    `Fixed panel: its two track holder holes are ${s.fixedPanelHoles.diameterMm}mm, as CRL’s newest Serenity manual (11M0347 Rev D) gives them. Its older sheets print the same half inch hole as 13mm.`,
+    `Gaps: ${s.wallGapMm}mm at each end of the front glass, which leaves the door lapping the fixed panel by ${overlap}mm, as CRL’s width formula works out. Set the door’s stopper so it closes about 6mm off the wall, for the L-seal CRL shows there (DK98L). The glass sizes do not change.`
   );
   const fixedHoles: SlidingHole[] = (['left', 'right'] as const).map((side) =>
     hole('track-holder', 'Serenity track holder holes', SER78, side, s.fixedPanelHoles.inMm, s.fixedPanelHoles.downMm, fixedH, s.fixedPanelHoles.diameterMm)

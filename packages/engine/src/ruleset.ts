@@ -766,7 +766,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clamps.bottomMm': { group: 'Glass on clamps', label: 'Off the bottom', about: 'For the silicone along the bottom.', unit: 'mm' },
   'deductions.clamps.topMm': { group: 'Glass on clamps', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
   'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', about: 'For the silicone that holds it there: there is no channel.', unit: 'mm' },
-  'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
+  'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes siliconed together, at a corner or in line. In line, each pane gives up half of it.', unit: 'mm' },
   'deductions.door.hingeWallMm': {
     group: 'Doors',
     label: 'Hinge side, hung on the wall',
