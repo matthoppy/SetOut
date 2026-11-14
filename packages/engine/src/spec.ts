@@ -295,7 +295,8 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
       tightHeight,
       model,
       state.isFloorToCeiling && !isSingleDoor(state) && !underTransom,
-      support.supportPanelRequired,
+      // Glass over a door's head, a brace or a transom, takes a little off its top.
+      support.supportPanelRequired || underTransom,
       {
         // At a corner the panel in the front plane runs long and the return
         // tucks behind it, so only one of the pair takes the glass thickness.

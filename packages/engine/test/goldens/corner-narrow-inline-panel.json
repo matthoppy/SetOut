@@ -169,17 +169,16 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
           "cutWidthMm": 690,
-          "cutHeightMm": 1976,
-          "weightKg": 34.09,
+          "cutHeightMm": 1986,
+          "weightKg": 34.26,
           "deductions": {
             "vertical": {
-              "top": 14,
+              "top": 4,
               "bottom": 10,
-              "total": 24,
+              "total": 14,
               "breakdown": [
-                "Door, top: -10mm",
-                "Door, bottom: -10mm",
-                "Support panel clearance: -4mm"
+                "Glass over the door: -4mm",
+                "Door, bottom: -10mm"
               ]
             },
             "horizontal": {
@@ -191,7 +190,7 @@
               ]
             },
             "cutWidth": 695,
-            "cutHeight": 1976
+            "cutHeight": 1986
           },
           "notches": [],
           "cutouts": [
@@ -202,17 +201,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1726,
+              "heightMm": 1736,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 886.5,
+              "heightMm": 891.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1089.5,
+              "heightMm": 1094.5,
               "edge": "handle side"
             }
           ],
@@ -223,26 +222,26 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 690mm / 34.09kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 690mm / 34.26kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1726
+              1736
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1429,
+              "clearGap": 1439,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 988,
+              "handleHeight": 993,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 886.5,
-              "upperMm": 1089.5
+              "lowerMm": 891.5,
+              "upperMm": 1094.5
             }
           }
         }
@@ -284,7 +283,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 81.9,
+      "totalGlassWeightKg": 82,
       "support": {
         "supportPanelRequired": true,
         "supportPanelReason": "Narrow fixed panel p2 (180mm) adjacent to door",

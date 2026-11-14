@@ -72,15 +72,14 @@
           "tightWidthMm": 950,
           "tightHeightMm": 2300,
           "cutWidthMm": 935,
-          "cutHeightMm": 2280,
-          "weightKg": 53.3,
+          "cutHeightMm": 2290,
+          "weightKg": 53.53,
           "deductions": {
             "vertical": {
-              "top": 10,
+              "top": 0,
               "bottom": 10,
-              "total": 20,
+              "total": 10,
               "breakdown": [
-                "Door, top: -10mm",
                 "Door, bottom: -10mm"
               ]
             },
@@ -94,7 +93,7 @@
               ]
             },
             "cutWidth": 940,
-            "cutHeight": 2280
+            "cutHeight": 2290
           },
           "notches": [],
           "cutouts": [
@@ -105,22 +104,22 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1140,
+              "heightMm": 1145,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 2030,
+              "heightMm": 2040,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1038.5,
+              "heightMm": 1043.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1241.5,
+              "heightMm": 1246.5,
               "edge": "handle side"
             }
           ],
@@ -134,24 +133,24 @@
             "hingeReason": "Beyond the range of 3 × Geneva — needs a different design.",
             "hingeHeightsMm": [
               250,
-              1140,
-              2030
+              1145,
+              2040
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1733,
+              "clearGap": 1743,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 1140,
+              "handleHeight": 1145,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 1038.5,
-              "upperMm": 1241.5
+              "lowerMm": 1043.5,
+              "upperMm": 1246.5
             }
           }
         }
@@ -165,7 +164,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 53.3,
+      "totalGlassWeightKg": 53.5,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -180,8 +179,8 @@
       "warnings": [
         "Review: the glass is 2300mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
         "P1 — Door (Front): Door is 935mm wide; the widest we hang is 813mm (3 × Geneva).",
-        "P1 — Door (Front): Review: the door is 2280mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 53.3kg weight and the maker's current limits.",
-        "P1 — Door (Front): Panel weighs 53.3kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
+        "P1 — Door (Front): Review: the door is 2290mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 53.53kg weight and the maker's current limits.",
+        "P1 — Door (Front): Panel weighs 53.53kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
       ],
       "blockingIssues": []
     }

@@ -72,15 +72,14 @@
           "tightWidthMm": 1050,
           "tightHeightMm": 2000,
           "cutWidthMm": 1035,
-          "cutHeightMm": 1980,
-          "weightKg": 51.23,
+          "cutHeightMm": 1990,
+          "weightKg": 51.49,
           "deductions": {
             "vertical": {
-              "top": 10,
+              "top": 0,
               "bottom": 10,
-              "total": 20,
+              "total": 10,
               "breakdown": [
-                "Door, top: -10mm",
                 "Door, bottom: -10mm"
               ]
             },
@@ -94,7 +93,7 @@
               ]
             },
             "cutWidth": 1040,
-            "cutHeight": 1980
+            "cutHeight": 1990
           },
           "notches": [],
           "cutouts": [
@@ -105,22 +104,22 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 990,
+              "heightMm": 995,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1730,
+              "heightMm": 1740,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 888.5,
+              "heightMm": 893.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1091.5,
+              "heightMm": 1096.5,
               "edge": "handle side"
             }
           ],
@@ -134,24 +133,24 @@
             "hingeReason": "Beyond the range of 3 × Geneva — needs a different design.",
             "hingeHeightsMm": [
               250,
-              990,
-              1730
+              995,
+              1740
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1433,
+              "clearGap": 1443,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 990,
+              "handleHeight": 995,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 888.5,
-              "upperMm": 1091.5
+              "lowerMm": 893.5,
+              "upperMm": 1096.5
             }
           }
         }
@@ -165,7 +164,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 51.2,
+      "totalGlassWeightKg": 51.5,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -179,7 +178,7 @@
       ],
       "warnings": [
         "P1 — Door (Front): Door is 1035mm wide; the widest we hang is 813mm (3 × Geneva).",
-        "P1 — Door (Front): Panel weighs 51.23kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
+        "P1 — Door (Front): Panel weighs 51.49kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit."
       ],
       "blockingIssues": [
         "P1 — Door (Front): Door is 1035mm wide. 1000mm is the widest single hinged door we hang — consider a double door."

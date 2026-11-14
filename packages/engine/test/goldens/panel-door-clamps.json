@@ -114,29 +114,28 @@
           "plane": "front",
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
-          "cutWidthMm": 692,
-          "cutHeightMm": 1994,
-          "weightKg": 34.5,
+          "cutWidthMm": 690,
+          "cutHeightMm": 1990,
+          "weightKg": 34.33,
           "deductions": {
             "vertical": {
-              "top": 3,
-              "bottom": 3,
-              "total": 6,
+              "top": 0,
+              "bottom": 10,
+              "total": 10,
               "breakdown": [
-                "Top clamps: -3mm",
-                "Bottom clamps: -3mm"
+                "Door, bottom: -10mm"
               ]
             },
             "horizontal": {
               "left": 0,
-              "right": 3,
-              "total": 3,
+              "right": 5,
+              "total": 5,
               "breakdown": [
-                "Right clamps: -3mm"
+                "Right wall, door gap: -5mm"
               ]
             },
-            "cutWidth": 697,
-            "cutHeight": 1994
+            "cutWidth": 695,
+            "cutHeight": 1990
           },
           "notches": [],
           "cutouts": [
@@ -147,17 +146,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1744,
+              "heightMm": 1740,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 895.5,
+              "heightMm": 893.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1098.5,
+              "heightMm": 1096.5,
               "edge": "handle side"
             }
           ],
@@ -168,26 +167,26 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 692mm / 34.5kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 690mm / 34.33kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1744
+              1740
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1447,
+              "clearGap": 1443,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 997,
+              "handleHeight": 995,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 895.5,
-              "upperMm": 1098.5
+              "lowerMm": 893.5,
+              "upperMm": 1096.5
             }
           }
         }
@@ -201,7 +200,7 @@
       "isFloorToCeiling": false,
       "mounting": "clamps",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 54.3,
+      "totalGlassWeightKg": 54.1,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

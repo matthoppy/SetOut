@@ -72,15 +72,14 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
           "cutWidthMm": 685,
-          "cutHeightMm": 1980,
-          "weightKg": 33.91,
+          "cutHeightMm": 1990,
+          "weightKg": 34.08,
           "deductions": {
             "vertical": {
-              "top": 10,
+              "top": 0,
               "bottom": 10,
-              "total": 20,
+              "total": 10,
               "breakdown": [
-                "Door, top: -10mm",
                 "Door, bottom: -10mm"
               ]
             },
@@ -94,7 +93,7 @@
               ]
             },
             "cutWidth": 690,
-            "cutHeight": 1980
+            "cutHeight": 1990
           },
           "notches": [],
           "cutouts": [
@@ -105,7 +104,7 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1730,
+              "heightMm": 1740,
               "edge": "hinge side"
             }
           ],
@@ -116,15 +115,15 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 685mm / 33.91kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 685mm / 34.08kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1730
+              1740
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1433,
+              "clearGap": 1443,
               "warning": null
             },
             "handlePlacement": {
@@ -134,8 +133,8 @@
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 888.5,
-              "upperMm": 1091.5
+              "lowerMm": 893.5,
+              "upperMm": 1096.5
             }
           }
         }
@@ -149,7 +148,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 33.9,
+      "totalGlassWeightKg": 34.1,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

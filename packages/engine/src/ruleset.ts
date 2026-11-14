@@ -75,9 +75,18 @@ export interface MakingRules {
     /** Every edge held by clamps. */
     clampMm: number;
     door: {
-      /** A door that only opens out, on a 90° stopper seal. */
+      /**
+       * [OURS] For the seal, on a door that opens one way, out, as a door does
+       * unless the customer chooses otherwise: a door stop seal or an H seal
+       * (Matt, 14 November 2026: "5 mm if it's door stop seal or h seal and
+       * that can only open 1 way out by default").
+       */
       outOnlyMm: number;
-      /** A door that swings both ways, on a bubble seal. */
+      /**
+       * [OURS] For the seal, on a door that swings both ways: a bubble seal on
+       * the handle side (Matt, 14 November 2026: "If a door has a bubble seal
+       * on handle side it's 9mm and the door can open both ways").
+       */
       bothWaysMm: number;
       /**
        * [OURS] A door's edge at a wall on a channel job, where it hangs on
@@ -87,17 +96,16 @@ export interface MakingRules {
        */
       wallMm: number;
       /**
-       * [OURS] Off the top of a door on a channel job that stops short of
-       * the ceiling. A door has its own deductions (Matt, 14 November 2026:
-       * "the door will have deductions aswell"); until he gives his, it
-       * keeps the 10mm every pane took before.
+       * [OURS] Off the top of a door with glass over its head: a glass brace
+       * (the support panel) or a transom. Nothing comes off the top of a door
+       * with nothing over it (Matt, 14 November 2026: "Doors don't take off
+       * the top unless it has a glass brace on top or a transom above and
+       * that will be 4mm").
        */
-      topMm: number;
-      /** [OURS] Off the bottom of a door on a channel job: its gap above the tray, 10mm as before. */
+      glassAboveMm: number;
+      /** [OURS] Off the bottom of a door: its gap above the tray, 10mm as before, whatever the fixing. */
       bottomMm: number;
     };
-    /** Off the door's height when a support panel runs over its head. */
-    supportPanelHeadMm: number;
   };
   heights: {
     /** [OURS] Air gap above a single door that goes up to the ceiling. */
@@ -362,8 +370,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, floorToCeilingMm: 12, depthMm: 19 },
     clampMm: 3,
-    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, topMm: 10, bottomMm: 10 },
-    supportPanelHeadMm: 4,
+    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 10 },
   },
   heights: {
     singleDoorTopGapMm: 30,
@@ -598,9 +605,8 @@ export const ADJUSTABLE = {
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
   'deductions.door.wallMm': { min: 2, max: 10 },
-  'deductions.door.topMm': { min: 0, max: 15 },
+  'deductions.door.glassAboveMm': { min: 0, max: 8 },
   'deductions.door.bottomMm': { min: 3, max: 20 },
-  'deductions.supportPanelHeadMm': { min: 0, max: 8 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },
   'review.standardHeightMaxMm': { min: 1800, max: 2400 },
@@ -708,11 +714,15 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clampMm': { group: 'Glass on clamps', label: 'Off each clamped edge', about: 'For the silicone down the wall.', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
   'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
-  'deductions.door.topMm': { group: 'Doors', label: 'Off the top', unit: 'mm' },
   'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'Its gap above the tray.', unit: 'mm' },
-  'deductions.door.outOnlyMm': { group: 'Doors', label: 'For the seal, opening out', about: 'On a 90° stopper seal.', unit: 'mm' },
-  'deductions.door.bothWaysMm': { group: 'Doors', label: 'For the seal, swinging both ways', about: 'On a bubble seal.', unit: 'mm' },
-  'deductions.supportPanelHeadMm': { group: 'Doors', label: 'Off the top, under a support panel', unit: 'mm' },
+  'deductions.door.glassAboveMm': {
+    group: 'Doors',
+    label: 'Off the top, under a glass brace or a transom',
+    about: 'Nothing comes off the top of a door with nothing over it.',
+    unit: 'mm',
+  },
+  'deductions.door.outOnlyMm': { group: 'Doors', label: 'For the seal, opening out', about: 'A door stop seal or an H seal. The door opens one way, out.', unit: 'mm' },
+  'deductions.door.bothWaysMm': { group: 'Doors', label: 'For the seal, swinging both ways', about: 'A bubble seal on the handle side.', unit: 'mm' },
   'heights.singleDoorTopGapMm': { group: 'Doors', label: 'Air gap above a door that goes up to the ceiling', unit: 'mm' },
   'heights.transomDoorHeightMm': { group: 'Doors', label: 'Height of a door under a transom, to start with', unit: 'mm' },
   'support.narrowFixedPanelMm': { group: 'Support', label: 'A support panel when a fixed panel beside a door is this narrow or less', unit: 'mm' },

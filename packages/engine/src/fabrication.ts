@@ -44,7 +44,7 @@ export function calculateVerticalDeductions(
   isFloorToCeiling: boolean,
   hasTopChannel: boolean,
   hasBottomChannel: boolean,
-  supportPanelRequired: boolean = false,
+  glassAboveDoor: boolean = false,
   isDoor = false
 ): VerticalDeductions {
   const d = rules.making.deductions;
@@ -52,7 +52,17 @@ export function calculateVerticalDeductions(
   let top = 0;
   let bottom = 0;
 
-  if (mountingStyle === 'channel') {
+  if (isDoor) {
+    // A door sits in no channel and no clamps (Matt, 14 November 2026:
+    // "Doors don't take off the top unless it has a glass brace on top or a
+    // transom above and that will be 4mm"). Below it is its gap above the tray.
+    if (glassAboveDoor && d.door.glassAboveMm) {
+      top = d.door.glassAboveMm;
+      breakdown.push(`Glass over the door: -${top}mm`);
+    }
+    bottom = d.door.bottomMm;
+    if (bottom) breakdown.push(`Door, bottom: -${bottom}mm`);
+  } else if (mountingStyle === 'channel') {
     if (isFloorToCeiling) {
       // Floor-to-ceiling requires larger deduction for installation
       if (hasTopChannel) {
@@ -63,12 +73,6 @@ export function calculateVerticalDeductions(
         bottom = d.channel.floorToCeilingMm;
         breakdown.push(`Bottom channel (F2C): -${bottom}mm`);
       }
-    } else if (isDoor) {
-      // A door is not in the channel: it has its own gaps above and below.
-      top = d.door.topMm;
-      bottom = d.door.bottomMm;
-      if (top) breakdown.push(`Door, top: -${top}mm`);
-      if (bottom) breakdown.push(`Door, bottom: -${bottom}mm`);
     } else {
       // Fixed glass short of the ceiling: its top is free, and it stands a
       // little way up in the bottom channel.
@@ -91,12 +95,6 @@ export function calculateVerticalDeductions(
       bottom = d.clampMm;
       breakdown.push(`Bottom clamps: -${bottom}mm`);
     }
-  }
-
-  // Support panel deduction (affects door height)
-  if (supportPanelRequired) {
-    top += d.supportPanelHeadMm;
-    breakdown.push(`Support panel clearance: -${d.supportPanelHeadMm}mm`);
   }
 
   return {
@@ -126,10 +124,10 @@ export function calculateHorizontalDeductions(
   let left = 0;
   let right = 0;
 
-  // Wall channel deductions. A door's edge at a wall is not in the channel:
-  // it hangs on wall hinges or closes against the wall, so it leaves its own
-  // gap rather than sitting half way into a 19mm channel.
-  if (mountingStyle === 'channel' && isDoor) {
+  // Wall channel deductions. A door's edge at a wall is in no channel and no
+  // clamps: it hangs on wall hinges or closes against the wall, so it leaves
+  // its own gap rather than sitting half way into a 19mm channel.
+  if (isDoor) {
     if (hasLeftWallChannel) {
       left += d.door.wallMm;
       breakdown.push(`Left wall, door gap: -${d.door.wallMm}mm`);
@@ -214,7 +212,8 @@ export function calculatePanelDeductions(
   tightHeightMm: number,
   panel: PanelModel,
   isFloorToCeiling: boolean,
-  supportPanelRequired: boolean,
+  /** Glass runs over the door's head: a support panel bracing it, or a transom. */
+  glassAboveDoor: boolean,
   cornerConfig: {
     isLongPanel: boolean;
     hasLeftCorner: boolean;
@@ -228,7 +227,7 @@ export function calculatePanelDeductions(
     isFloorToCeiling,
     true, // hasTopChannel - typically always true
     true, // hasBottomChannel - typically always true
-    panel.panel_type === 'door_hinged' && supportPanelRequired,
+    panel.panel_type === 'door_hinged' && glassAboveDoor,
     panel.panel_type === 'door_hinged'
   );
 
