@@ -161,8 +161,8 @@ describe('seals, channel and handles', () => {
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PC1090' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toBeNull();
-    expect(crlPartOf(seal('H seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'P516HJ' });
-    expect(crlPartOf(seal('H seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P120HJ' });
+    expect(crlPartOf(seal('H seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCC8' });
+    expect(crlPartOf(seal('H seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PCC12' });
     expect(crlPartOf(seal('clear 90° angle'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P12LJ' });
   });
 
@@ -233,8 +233,8 @@ describe('every known design', () => {
       return part?.status === 'found' ? part.code : null;
     });
     const brand = spec.panels[1].door!.hingeBrand;
-    // The door closes against the panel in line, on CRL's 10mm H-jamb.
-    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'P10MMHJ', 'P990WS', 'SDCD38MBL']);
+    // The door closes against the panel in line, on CRL's soft-finned Y-jamb.
+    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PCC10', 'P990WS', 'SDCD38MBL']);
   });
 });
 
@@ -253,7 +253,7 @@ describe('a door’s seal, by what it closes against', () => {
   };
 
   test('against glass in line, an H seal, opening out', () => {
-    expect(sealOf('alcove-panel-door')).toMatchObject({ seal: 'H seal', allowance: 5, code: 'P10MMHJ' });
+    expect(sealOf('alcove-panel-door')).toMatchObject({ seal: 'H seal', allowance: 5, code: 'PCC10' });
   });
 
   test('against a panel at a corner, a 90° stop seal on that panel, opening out', () => {
