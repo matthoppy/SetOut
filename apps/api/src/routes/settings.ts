@@ -10,15 +10,17 @@
  * over someone else's. Every change goes in the company's audit log, with who
  * made it and what changed.
  *
- * The making rules are not changed here. Setting up, at the foot, is where an
- * owner's place in the set-up wizard is kept.
+ * The company's measurements, what comes off each pane and its other making
+ * rules, are kept as versions of its ruleset: each change is a new version,
+ * and a design keeps the version it was made with. Setting up, at the foot,
+ * is where an owner's place in the set-up wizard is kept.
  */
 
 import { Hono, type Context } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import type { Session } from '../db/auth';
 import { saveSetUp, setUpOf } from '../db/onboarding';
-import { optionsInUse, readSettings, saveSettings, settingsChanges } from '../db/settings';
+import { optionsInUse, readRules, readSettings, saveRules, saveSettings, settingsChanges } from '../db/settings';
 import { RequestError } from '../lib/enquiry';
 import {
   companyChanges,
@@ -45,7 +47,9 @@ import {
   readSliding,
   readNotifyEmails,
   readQuoteSettings,
+  readRuleOverrides,
   readWebsites,
+  ruleChanges,
   storedBranding,
   storedConfig,
   storedSettings,
@@ -115,12 +119,13 @@ staffSettings.get('/settings', async (c) => {
   const stored = await readSettings(c.env, session.companyId);
   if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
   const owner = session.role === 'owner';
-  const [company, designers, changes] = await Promise.all([
+  const [company, designers, rules, changes] = await Promise.all([
     presentCompany(companyView(stored.company)),
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
+    readRules(c.env, session.companyId),
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
-  return c.json({ canChange: owner, company, designers, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) }, 200, PRIVATE);
+  return c.json({ canChange: owner, company, designers, rules, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) }, 200, PRIVATE);
 });
 
 /**
@@ -277,6 +282,34 @@ staffSettings.patch('/settings/designers/:id', ownersOnly, async (c) => {
         : null;
     });
     return answer ?? c.json(STALE, 409, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+/**
+ * Change the company's measurements: what comes off each pane, a door's
+ * gaps, the channel's depth, and its own limits. Sent whole, as every rule
+ * that differs from SetOut's standard, from the version read. Saved as the
+ * next version of the company's rules: new designs and changes from then on
+ * are made to it, and designs already sent keep the sizes they were made to.
+ */
+staffSettings.patch('/settings/rules', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c);
+    if (body.overrides === undefined) {
+      return c.json({ error: 'invalid_request', message: 'Send the measurements.' }, 400, PRIVATE);
+    }
+    const overrides = readRuleOverrides(body.overrides);
+    const before = await readRules(c.env, session.companyId);
+    if (basedOnOf(body).rules !== before.version) return c.json(STALE, 409, PRIVATE);
+    const changes = ruleChanges(before.overrides, overrides);
+    if (changes.length === 0) return c.json({ ok: true, changed: false, rules: before }, 200, PRIVATE);
+    const saved = await saveRules(c.env, session.companyId, session.userId, before.version, overrides, { changes });
+    if (!saved) return c.json(STALE, 409, PRIVATE);
+    return c.json({ ok: true, changed: true, rules: { version: before.version + 1, overrides } }, 200, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;

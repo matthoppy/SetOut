@@ -90,16 +90,15 @@
           "tightWidthMm": 900,
           "tightHeightMm": 2000,
           "cutWidthMm": 890,
-          "cutHeightMm": 1980,
-          "weightKg": 44.06,
+          "cutHeightMm": 1995,
+          "weightKg": 44.39,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -112,7 +111,7 @@
               ]
             },
             "cutWidth": 890,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": []
@@ -125,16 +124,15 @@
           "tightWidthMm": 300,
           "tightHeightMm": 2000,
           "cutWidthMm": 288,
-          "cutHeightMm": 1980,
-          "weightKg": 14.26,
+          "cutHeightMm": 1995,
+          "weightKg": 14.36,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -146,7 +144,7 @@
               ]
             },
             "cutWidth": 288,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": []
@@ -164,12 +162,32 @@
           "widthMm": 300
         }
       ],
-      "totalChannelLengthMm": 1200,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 900
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 1981
+        },
+        {
+          "runs": "floor",
+          "paneId": "p2",
+          "label": "Floor, under P2",
+          "lengthMm": 300
+        }
+      ],
+      "totalChannelLengthMm": 3181,
       "heightMm": 2000,
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 58.3,
+      "totalGlassWeightKg": 58.8,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

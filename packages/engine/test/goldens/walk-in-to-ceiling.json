@@ -98,7 +98,21 @@
       "cornerCount": 0,
       "totalRunWidthMm": 900,
       "wallRuns": [],
-      "totalChannelLengthMm": 900,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 900
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 2312
+        }
+      ],
+      "totalChannelLengthMm": 3212,
       "heightMm": 2350,
       "isFloorToCeiling": true,
       "mounting": "channel",

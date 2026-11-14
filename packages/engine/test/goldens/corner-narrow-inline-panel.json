@@ -102,16 +102,15 @@
           "tightWidthMm": 800,
           "tightHeightMm": 2000,
           "cutWidthMm": 778,
-          "cutHeightMm": 1980,
-          "weightKg": 38.51,
+          "cutHeightMm": 1995,
+          "weightKg": 38.8,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -124,7 +123,7 @@
               ]
             },
             "cutWidth": 778,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": []
@@ -137,16 +136,15 @@
           "tightWidthMm": 180,
           "tightHeightMm": 2000,
           "cutWidthMm": 180,
-          "cutHeightMm": 1980,
-          "weightKg": 8.91,
+          "cutHeightMm": 1995,
+          "weightKg": 8.98,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -158,7 +156,7 @@
               ]
             },
             "cutWidth": 180,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": []
@@ -179,8 +177,8 @@
               "bottom": 10,
               "total": 24,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm",
+                "Door, top: -10mm",
+                "Door, bottom: -10mm",
                 "Support panel clearance: -4mm"
               ]
             },
@@ -261,12 +259,32 @@
           "widthMm": 880
         }
       ],
-      "totalChannelLengthMm": 1680,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 800
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 1981
+        },
+        {
+          "runs": "floor",
+          "paneId": "p2",
+          "label": "Floor, under P2",
+          "lengthMm": 180
+        }
+      ],
+      "totalChannelLengthMm": 2961,
       "heightMm": 2000,
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 81.5,
+      "totalGlassWeightKg": 81.9,
       "support": {
         "supportPanelRequired": true,
         "supportPanelReason": "Narrow fixed panel p2 (180mm) adjacent to door",

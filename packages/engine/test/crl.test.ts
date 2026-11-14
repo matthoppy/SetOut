@@ -171,7 +171,7 @@ describe('seals, channel and handles', () => {
   });
 
   test('the channel is deep U-channel, brite anodised with chrome hardware', () => {
-    const channel: Fitting = { kind: 'channel', lengthMm: 1800 };
+    const channel: Fitting = { kind: 'channel', lengthMm: 1800, cuts: [] };
     expect(crlPartOf(channel, choices('CH'))).toEqual({ status: 'found', code: 'SDCD38BA' });
     expect(crlPartOf(channel, choices('BN'))).toEqual({ status: 'found', code: 'SDCD38BN' });
     expect(crlPartOf(channel, choices('MBL', 12))).toEqual({ status: 'found', code: 'SDCD12MBL' });

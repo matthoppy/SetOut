@@ -16,6 +16,7 @@ import type {
   InLineHinge,
   Mounting,
   Offer,
+  RulesetOverrides,
   ViennaCutout,
   WallHinge,
 } from '@setout/engine';
@@ -441,7 +442,8 @@ export type SettingsChangeItem =
   | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
-  | { field: 'websites'; added: string[]; removed: string[] };
+  | { field: 'websites'; added: string[]; removed: string[] }
+  | { field: 'rule'; rule: string; from: number; to: number };
 
 export interface SettingsChange {
   id: string;
@@ -455,11 +457,19 @@ export interface Settings {
   canChange: boolean;
   company: CompanySettings;
   designers: DesignerSettings[];
+  /** The company's measurements: each rule it differs from SetOut's standard in, and which version that is. */
+  rules: RulesSettings;
   limits: { options: number; label: number; description: number; notifyEmails: number; websites: number; companyName: number; logoUrl: number };
   /** Where the embed script is served from. */
   embedScript: string;
   /** Owners only. */
   changes?: SettingsChange[];
+}
+
+export interface RulesSettings {
+  /** 0 until an owner first changes one. */
+  version: number;
+  overrides: RulesetOverrides;
 }
 
 export interface CompanyChanges {
@@ -550,6 +560,9 @@ export const api = {
   settings: (signal?: AbortSignal) => call<Settings>('/settings', { signal }),
   /** A part left out stays as it is. */
   saveCompanySettings: (changes: CompanyChanges) => send<{ ok: true; changed: boolean }>('PATCH', '/settings/company', changes),
+  /** Every measurement that differs from SetOut's standard, made from the version read. */
+  saveRules: (overrides: RulesetOverrides, basedOn: number) =>
+    send<{ ok: true; changed: boolean; rules: RulesSettings }>('PATCH', '/settings/rules', { overrides, basedOn: { rules: basedOn } }),
   /** A list is sent whole, in order. A part left out stays as it is. */
   saveDesignerSettings: (id: string, changes: DesignerChanges) =>
     send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),

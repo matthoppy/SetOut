@@ -92,8 +92,8 @@
               "bottom": 10,
               "total": 20,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Door, top: -10mm",
+                "Door, bottom: -10mm"
               ]
             },
             "horizontal": {
@@ -165,7 +165,8 @@
       "cornerCount": 0,
       "totalRunWidthMm": 810,
       "wallRuns": [],
-      "totalChannelLengthMm": 810,
+      "channelCuts": [],
+      "totalChannelLengthMm": 0,
       "heightMm": 2362,
       "isFloorToCeiling": false,
       "mounting": "channel",

@@ -42,8 +42,19 @@ export interface MakingRules {
   /** What comes off a measured size to give the cut size. */
   deductions: {
     channel: {
-      /** Top and bottom, each, for glass that stops short of the ceiling. */
-      verticalMm: number;
+      /**
+       * [OURS] Off the top of fixed glass that stops short of the ceiling:
+       * nothing, as its top is free (Matt, 14 November 2026: "nothing off
+       * the top"). Until then CRL's 10mm came off the top and the bottom.
+       */
+      topMm: number;
+      /**
+       * [OURS] Off the bottom of fixed glass in channel, short of the
+       * ceiling: it stands 5mm up in the bottom channel (Matt, 14 November
+       * 2026: a screen 2200 high is cut 2195, "a 5mm deduction for the
+       * bottom").
+       */
+      bottomMm: number;
       /**
        * [OURS] At each wall the glass meets: about half the channel's 19mm
        * depth, so the glass sits half way in it (Matt, 13 November 2026: "the
@@ -53,6 +64,13 @@ export interface MakingRules {
       horizontalMm: number;
       /** Top and bottom, each, when the glass is fitted floor to ceiling. */
       floorToCeilingMm: number;
+      /**
+       * [OURS] How deep the channel is. The wall channel stands on the bottom
+       * channel, so it is cut this much shorter than the glass is high
+       * (Matt, 14 November 2026: a screen 2200 high has a wall channel cut
+       * 2181, "thats -19mm off the vertical channel").
+       */
+      depthMm: number;
     };
     /** Every edge held by clamps. */
     clampMm: number;
@@ -68,6 +86,15 @@ export interface MakingRules {
        * rose to 10 (13 November 2026). Matt to confirm the gap he leaves.
        */
       wallMm: number;
+      /**
+       * [OURS] Off the top of a door on a channel job that stops short of
+       * the ceiling. A door has its own deductions (Matt, 14 November 2026:
+       * "the door will have deductions aswell"); until he gives his, it
+       * keeps the 10mm every pane took before.
+       */
+      topMm: number;
+      /** [OURS] Off the bottom of a door on a channel job: its gap above the tray, 10mm as before. */
+      bottomMm: number;
     };
     /** Off the door's height when a support panel runs over its head. */
     supportPanelHeadMm: number;
@@ -333,9 +360,9 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
     siliconeJointMm: 2,
   },
   deductions: {
-    channel: { verticalMm: 10, horizontalMm: 10, floorToCeilingMm: 12 },
+    channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, floorToCeilingMm: 12, depthMm: 19 },
     clampMm: 3,
-    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, topMm: 10, bottomMm: 10 },
     supportPanelHeadMm: 4,
   },
   heights: {
@@ -562,13 +589,17 @@ export type Adjustable = { min: number; max: number } | { oneOf: number[] };
 export const ADJUSTABLE = {
   'glass.standardThicknessMm': { oneOf: [8, 10, 12] },
   'glass.siliconeJointMm': { min: 1, max: 3 },
-  'deductions.channel.verticalMm': { min: 5, max: 15 },
+  'deductions.channel.topMm': { min: 0, max: 15 },
+  'deductions.channel.bottomMm': { min: 0, max: 15 },
   'deductions.channel.horizontalMm': { min: 2, max: 15 },
   'deductions.channel.floorToCeilingMm': { min: 8, max: 20 },
+  'deductions.channel.depthMm': { min: 10, max: 30 },
   'deductions.clampMm': { min: 2, max: 6 },
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
   'deductions.door.wallMm': { min: 2, max: 10 },
+  'deductions.door.topMm': { min: 0, max: 15 },
+  'deductions.door.bottomMm': { min: 3, max: 20 },
   'deductions.supportPanelHeadMm': { min: 0, max: 8 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },
@@ -638,4 +669,64 @@ export function resolveRuleset(overrides: unknown = {}): Ruleset {
   }
 
   return { making, fixed: FIXED_RULES };
+}
+
+// ---------------------------------------------------------------------------
+// In words
+// ---------------------------------------------------------------------------
+
+/** The headings a company's settings list its rules under, in order. */
+export const RULE_GROUPS = ['Glass in U-channel', 'Glass on clamps', 'Glass to glass', 'Doors', 'Support', 'Checked by hand', 'Your size limits'] as const;
+export type RuleGroup = (typeof RULE_GROUPS)[number];
+
+/** A rule as a company's settings show it. */
+export interface RuleText {
+  group: RuleGroup;
+  /** What it is, in a few words, read under its heading: "Off at each wall". */
+  label: string;
+  /** More about it, where the few words are not enough. */
+  about?: string;
+  unit: 'mm' | 'kg';
+}
+
+/**
+ * Every rule a company can change, in words, in the order its settings list
+ * them. The glass thickness is the one left out: each designer sets it with
+ * the glass it offers.
+ */
+export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessMm'>, RuleText> = {
+  'deductions.channel.horizontalMm': { group: 'Glass in U-channel', label: 'Off at each wall', about: 'So the glass sits about half way into the channel.', unit: 'mm' },
+  'deductions.channel.bottomMm': { group: 'Glass in U-channel', label: 'Off the bottom', about: 'It stands this far up in the bottom channel.', unit: 'mm' },
+  'deductions.channel.topMm': { group: 'Glass in U-channel', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
+  'deductions.channel.floorToCeilingMm': { group: 'Glass in U-channel', label: 'Off the top and the bottom, each, floor to ceiling', unit: 'mm' },
+  'deductions.channel.depthMm': {
+    group: 'Glass in U-channel',
+    label: 'Depth of the channel',
+    about: 'The wall channel stands on the bottom channel, so it is cut this much shorter than the glass is high.',
+    unit: 'mm',
+  },
+  'deductions.clampMm': { group: 'Glass on clamps', label: 'Off each clamped edge', about: 'For the silicone down the wall.', unit: 'mm' },
+  'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
+  'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
+  'deductions.door.topMm': { group: 'Doors', label: 'Off the top', unit: 'mm' },
+  'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'Its gap above the tray.', unit: 'mm' },
+  'deductions.door.outOnlyMm': { group: 'Doors', label: 'For the seal, opening out', about: 'On a 90° stopper seal.', unit: 'mm' },
+  'deductions.door.bothWaysMm': { group: 'Doors', label: 'For the seal, swinging both ways', about: 'On a bubble seal.', unit: 'mm' },
+  'deductions.supportPanelHeadMm': { group: 'Doors', label: 'Off the top, under a support panel', unit: 'mm' },
+  'heights.singleDoorTopGapMm': { group: 'Doors', label: 'Air gap above a door that goes up to the ceiling', unit: 'mm' },
+  'heights.transomDoorHeightMm': { group: 'Doors', label: 'Height of a door under a transom, to start with', unit: 'mm' },
+  'support.narrowFixedPanelMm': { group: 'Support', label: 'A support panel when a fixed panel beside a door is this narrow or less', unit: 'mm' },
+  'support.wideReturnPanelMm': { group: 'Support', label: 'A support bar when a return on its own is this wide or more', unit: 'mm' },
+  'review.standardHeightMaxMm': { group: 'Checked by hand', label: 'Glass taller than this', unit: 'mm' },
+  'review.hingeReviewHeightMm': { group: 'Checked by hand', label: 'A door taller than this, for its hinges', unit: 'mm' },
+  'limits.minDoorWidthMm': { group: 'Your size limits', label: 'Narrowest door', unit: 'mm' },
+  'limits.maxDoorWidthMm': { group: 'Your size limits', label: 'Widest door', unit: 'mm' },
+  'limits.minDoorHeightMm': { group: 'Your size limits', label: 'Shortest door', unit: 'mm' },
+  'limits.minPanelWidthMm': { group: 'Your size limits', label: 'Narrowest panel', unit: 'mm' },
+  'limits.maxPanelWeightKg': { group: 'Your size limits', label: 'Heaviest panel', unit: 'kg' },
+};
+
+/** A rule's value in a set of making rules. */
+export function ruleValue(making: MakingRules, rule: AdjustableRule): number {
+  return rule.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], making) as number;
 }

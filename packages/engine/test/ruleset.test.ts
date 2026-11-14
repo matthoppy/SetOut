@@ -12,6 +12,9 @@ import {
   designFromTemplate,
   FIXED_RULES,
   resolveRuleset,
+  RULE_GROUPS,
+  RULE_TEXT,
+  ruleValue,
   RulesetError,
   type AdjustableRule,
   type EngineContext,
@@ -76,9 +79,24 @@ describe('two companies, one design', () => {
     expect(theirs.panels[0].cutHeightMm).toBe(ours.panels[0].cutHeightMm);
   });
 
-  test('a different channel allowance changes the height of every panel', () => {
-    const theirs = buildSpec(corner, company('Brennan Glass', { 'deductions.channel.verticalMm': 8 }));
-    expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1984, 1984]);
+  test('fixed glass in channel loses 5mm off the bottom and nothing off the top; the door keeps its own', () => {
+    const ours = buildSpec(corner, company('Custom Showers'));
+    expect(ours.panels.map((p) => [p.kind, p.cutHeightMm])).toEqual([
+      ['fixed', 1995],
+      ['door', 1980],
+    ]);
+    expect(ours.panels[0].deductions.vertical.breakdown).toEqual(['Bottom channel: -5mm']);
+    expect(ours.panels[1].deductions.vertical.breakdown).toEqual(['Door, top: -10mm', 'Door, bottom: -10mm']);
+  });
+
+  test('a different allowance in the bottom channel changes the fixed glass, not the door', () => {
+    const theirs = buildSpec(corner, company('Brennan Glass', { 'deductions.channel.bottomMm': 8, 'deductions.channel.topMm': 2 }));
+    expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1990, 1980]);
+  });
+
+  test('a door’s own gaps change the door, not the fixed glass', () => {
+    const theirs = buildSpec(corner, company('Brennan Glass', { 'deductions.door.bottomMm': 12, 'deductions.door.topMm': 0 }));
+    expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1995, 1988]);
   });
 
   test('a 1mm silicone joint takes 11mm off the return, not 12', () => {
@@ -104,6 +122,30 @@ describe('two companies, one design', () => {
     expect(deeper.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm);
     const wider = buildSpec(door, company('Brennan Glass', { 'deductions.door.wallMm': 7 }));
     expect(wider.panels[0].cutWidthMm).toBe(ours.panels[0].cutWidthMm - 4);
+  });
+
+  test('Matt’s screen: 1200 wide and 2200 high at one wall is glass 1190 x 2195, channel cut 1200 and 2181', () => {
+    const screen = designFromTemplate('walk-in');
+    const design = { ...screen, heightMm: 2200, panels: [{ ...screen.panels[0], width_mm: 1200 }] };
+    const spec = buildSpec(design, company('Custom Showers'));
+    expect(spec.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual([[1190, 2195]]);
+    expect((spec.channelCuts ?? []).map((c) => [c.label, c.lengthMm])).toEqual([
+      ['Floor, under P1', 1200],
+      ['Left wall, beside P1', 2181],
+    ]);
+    expect(spec.totalChannelLengthMm).toBe(3381);
+  });
+
+  test('a door sits in no channel, and a clamp job has none', () => {
+    expect(buildSpec(door, company('Custom Showers')).channelCuts).toEqual([]);
+    const clamped = buildSpec({ ...designFromTemplate('alcove-panel-door'), mounting: 'clamps' }, company('Custom Showers'));
+    expect(clamped.channelCuts).toEqual([]);
+    expect(clamped.totalChannelLengthMm).toBe(0);
+  });
+
+  test('a deeper channel cuts the wall channel shorter', () => {
+    const spec = buildSpec(designFromTemplate('alcove-panel-door'), company('Brennan Glass', { 'deductions.channel.depthMm': 25 }));
+    expect(spec.channelCuts?.find((c) => c.runs === 'wall')?.lengthMm).toBe(2000 - 25);
   });
 
   test('on clamps, glass at a wall loses 3mm for the silicone down the wall', () => {
@@ -204,5 +246,18 @@ describe('what a company may not do', () => {
         expect(at(resolveRuleset({ [rule]: value }).making, rule), rule).toBe(value);
       }
     }
+  });
+});
+
+describe('the rules in words', () => {
+  test('every rule a company can change is named, but the glass thickness, which the designer sets', () => {
+    const named = Object.keys(RULE_TEXT).sort();
+    expect(named).toEqual(Object.keys(ADJUSTABLE).filter((rule) => rule !== 'glass.standardThicknessMm').sort());
+    for (const text of Object.values(RULE_TEXT)) expect(RULE_GROUPS).toContain(text.group);
+  });
+
+  test('a rule’s value is read from the rules it is in', () => {
+    expect(ruleValue(DEFAULT_MAKING_RULES, 'deductions.channel.horizontalMm')).toBe(10);
+    expect(ruleValue(resolveRuleset({ 'deductions.channel.bottomMm': 7 }).making, 'deductions.channel.bottomMm')).toBe(7);
   });
 });

@@ -225,7 +225,8 @@
           "widthMm": 700
         }
       ],
-      "totalChannelLengthMm": 1500,
+      "channelCuts": [],
+      "totalChannelLengthMm": 0,
       "heightMm": 2000,
       "isFloorToCeiling": false,
       "mounting": "clamps",

@@ -68,16 +68,15 @@
           "tightWidthMm": 850,
           "tightHeightMm": 1500,
           "cutWidthMm": 840,
-          "cutHeightMm": 1480,
-          "weightKg": 31.08,
+          "cutHeightMm": 1495,
+          "weightKg": 31.4,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -89,7 +88,7 @@
               ]
             },
             "cutWidth": 840,
-            "cutHeight": 1480
+            "cutHeight": 1495
           },
           "notches": [],
           "cutouts": []
@@ -98,12 +97,26 @@
       "cornerCount": 0,
       "totalRunWidthMm": 850,
       "wallRuns": [],
-      "totalChannelLengthMm": 850,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 850
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 1481
+        }
+      ],
+      "totalChannelLengthMm": 2331,
       "heightMm": 1500,
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 31.1,
+      "totalGlassWeightKg": 31.4,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

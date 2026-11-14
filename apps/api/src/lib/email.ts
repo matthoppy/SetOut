@@ -108,6 +108,12 @@ const rows = (pairs: [string, string][]) =>
     .map(([label, value]) => `<tr><td ${TD} width="160"><strong>${esc(label)}</strong></td><td ${TD}>${esc(value)}</td></tr>`)
     .join('');
 
+/** The channel in all, and each length it is cut in, on a job in channel. */
+function channelRow(spec: ConfiguratorSpec): [string, string] {
+  const cuts = spec.channelCuts ?? [];
+  return ['Channel required', `${spec.totalChannelLengthMm}mm${cuts.length ? `: ${cuts.map((cut) => `${cut.label} ${cut.lengthMm}mm`).join(', ')}` : ''}`];
+}
+
 function panelSchedule(spec: ConfiguratorSpec, design: ConfiguratorState, labels: OptionLabels): string {
   const styles = hingeStylesOf(design, labels.hinges ?? STANDARD_HINGES);
   const body = spec.panels
@@ -239,7 +245,7 @@ export function companyEmail(input: EnquiryEmailInput, from: string, to: string[
       <table style="border-collapse:collapse;width:100%;font-size:14px;">
         ${rows(summarise(input.design, spec, input.labels))}
         ${rows([
-          ['Channel required', `${spec.totalChannelLengthMm}mm`],
+          ...(spec.mounting === 'channel' ? [channelRow(spec)] : []),
           ['Total weight', `${spec.totalGlassWeightKg}kg`],
         ])}
       </table>

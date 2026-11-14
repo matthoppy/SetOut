@@ -106,6 +106,8 @@ function Sheet({
   printedAt: string;
 }) {
   const doors = spec.panels.filter((p) => p.door);
+  // Each length of U-channel; a spec from before engine 0.3.0 has none.
+  const channelCuts = spec.mounting === 'channel' ? (spec.channelCuts ?? []) : [];
   const drawn = panesFor(design, spec, hinges);
   const letters = lettersFor(drawn);
   const checker = revision.checkedBy ? (revision.checkedBy.name ?? revision.checkedBy.email) : 'a former member of the team';
@@ -183,6 +185,30 @@ function Sheet({
           ))}
         </tbody>
       </table>
+
+      {channelCuts.length > 0 && (
+        <>
+          <h2 className="mt-4 border-b border-black pb-0.5 text-sm font-bold uppercase tracking-wide">U-channel</h2>
+          <table className="mt-1 w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-black/40 text-xs">
+                <th className="whitespace-nowrap py-1 pr-2 font-semibold">Where, {finish}</th>
+                <th className="whitespace-nowrap py-1 pr-2 text-right font-semibold">Cut mm</th>
+                <th className="w-full py-1 font-semibold" />
+              </tr>
+            </thead>
+            <tbody>
+              {channelCuts.map((cut) => (
+                <tr key={cut.label} className="border-b border-black/20">
+                  <td className="whitespace-nowrap py-1 pr-2">{cut.label}</td>
+                  <td className="whitespace-nowrap py-1 pr-2 text-right text-base font-bold tabular-nums">{cut.lengthMm}</td>
+                  <td className="py-1 text-xs">{cut.runs === 'wall' ? 'Stands on the bottom channel' : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {doors.length > 0 && (
         <>

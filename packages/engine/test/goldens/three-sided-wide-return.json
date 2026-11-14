@@ -115,16 +115,15 @@
           "tightWidthMm": 600,
           "tightHeightMm": 2000,
           "cutWidthMm": 578,
-          "cutHeightMm": 1980,
-          "weightKg": 28.61,
+          "cutHeightMm": 1995,
+          "weightKg": 28.83,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -137,7 +136,7 @@
               ]
             },
             "cutWidth": 578,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": []
@@ -158,8 +157,8 @@
               "bottom": 10,
               "total": 20,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Door, top: -10mm",
+                "Door, bottom: -10mm"
               ]
             },
             "horizontal": {
@@ -235,16 +234,15 @@
           "tightWidthMm": 1300,
           "tightHeightMm": 2000,
           "cutWidthMm": 1278,
-          "cutHeightMm": 1980,
-          "weightKg": 63.26,
+          "cutHeightMm": 1995,
+          "weightKg": 63.74,
           "deductions": {
             "vertical": {
-              "top": 10,
-              "bottom": 10,
-              "total": 20,
+              "top": 0,
+              "bottom": 5,
+              "total": 5,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -257,18 +255,18 @@
               ]
             },
             "cutWidth": 1278,
-            "cutHeight": 1980
+            "cutHeight": 1995
           },
           "notches": [],
           "cutouts": [
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 250,
+              "heightMm": 255,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 1730,
+              "heightMm": 1735,
               "edge": "hinge side"
             }
           ]
@@ -290,12 +288,38 @@
           "widthMm": 1300
         }
       ],
-      "totalChannelLengthMm": 2600,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 600
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 1981
+        },
+        {
+          "runs": "floor",
+          "paneId": "p3",
+          "label": "Floor, under P3",
+          "lengthMm": 1300
+        },
+        {
+          "runs": "wall",
+          "paneId": "p3",
+          "label": "Right wall, beside P3",
+          "lengthMm": 1981
+        }
+      ],
+      "totalChannelLengthMm": 5862,
       "heightMm": 2000,
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 126.3,
+      "totalGlassWeightKg": 127,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -308,7 +332,7 @@
         "Customer reports the opening as square and level."
       ],
       "warnings": [
-        "P3 — Fixed (Return right): Panel weighs 63.26kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit.",
+        "P3 — Fixed (Return right): Panel weighs 63.74kg — over our 50kg handling limit. It will need extra fixing and more than two people to fit.",
         "Support bar required: Return panel p3 is 1300mm+ and free-standing"
       ],
       "blockingIssues": []

@@ -9,7 +9,7 @@
  */
 
 import { shapesOf, type ShapeRules } from './shapes';
-import type { ConfiguratorSpec } from './spec';
+import type { ChannelCut, ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 
 /** How a door's hinges fix: to the wall, or to the glass beside it, in line or round a corner. */
@@ -23,7 +23,8 @@ export type Fitting =
   | { kind: 'seal'; pane: number; seal: string; lengthMm: number }
   /** A wipe with a drip rail along the door's bottom edge, as long as that edge. */
   | { kind: 'bottom-seal'; pane: number; lengthMm: number }
-  | { kind: 'channel'; lengthMm: number }
+  /** `cuts` is each length to cut, where the spec gives them. */
+  | { kind: 'channel'; lengthMm: number; cuts: ChannelCut[] }
   | { kind: 'clamps' }
   | { kind: 'support-bar'; reason: string | null }
   | { kind: 'support-panel'; reason: string | null }
@@ -68,7 +69,7 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     fittings.push({ kind: 'sliding-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'door'), series: kit, headerLengthMm: header.lengthMm });
     if (returnKit) fittings.push({ kind: 'sliding-return-kit', pane: spec.panels.findIndex((p) => p.sliding?.role === 'return'), series: returnKit });
   }
-  fittings.push(spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm } : { kind: 'clamps' });
+  fittings.push(spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts ?? [] } : { kind: 'clamps' });
   if (spec.support.supportBarRequired) fittings.push({ kind: 'support-bar', reason: spec.support.supportBarReason });
   if (spec.support.supportPanelRequired) fittings.push({ kind: 'support-panel', reason: spec.support.supportPanelReason });
   return fittings;

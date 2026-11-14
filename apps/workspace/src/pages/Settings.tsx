@@ -10,8 +10,10 @@
  */
 
 import {
+  ADJUSTABLE,
   CRL_CODE,
   crlFinishCode,
+  DEFAULT_MAKING_RULES,
   GLASS_COATING_TEXT,
   GLASS_COATINGS,
   GLASS_TYPE_TEXT,
@@ -22,11 +24,16 @@ import {
   IN_LINE_HINGES,
   MOUNTING_TEXT,
   MOUNTINGS,
+  resolveRuleset,
+  RULE_GROUPS,
+  RULE_TEXT,
+  ruleValue,
   WALL_HINGE_STYLES,
   WALL_HINGES,
   type ChoiceText,
   type HingeStyle,
   type Offer,
+  type RulesetOverrides,
 } from '@setout/engine';
 import { crlPhotoSrc } from '@setout/ui';
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -40,6 +47,7 @@ import {
   type DesignerChanges,
   type DesignerSettings,
   type Me,
+  type RulesSettings,
   type Settings as SettingsData,
   type SettingsChange,
   type SettingsChangeItem,
@@ -189,6 +197,14 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
               />
             </div>
           ))}
+          <MeasurementsPart
+            key={data.rules.version}
+            rules={data.rules}
+            owner={owner}
+            justSaved={saved === 'rules'}
+            onSaved={() => onSaved('rules')}
+            onReload={settings.reload}
+          />
           <QuotesPart
             key={data.company.versions.quotes}
             company={data.company}
@@ -1505,6 +1521,134 @@ export function WebsitesPart({ designer, owner, limits, justSaved, onSaved, onRe
 }
 
 // ---------------------------------------------------------------------------
+// Measurements
+// ---------------------------------------------------------------------------
+
+type NamedRule = keyof typeof RULE_TEXT;
+const NAMED_RULES = Object.keys(RULE_TEXT) as NamedRule[];
+const boundsOf = (rule: NamedRule) => ADJUSTABLE[rule] as { min: number; max: number };
+const standardOf = (rule: NamedRule) => ruleValue(DEFAULT_MAKING_RULES, rule);
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
+/** The number typed for a rule, or NaN if it is not a whole number inside the rule's bounds. */
+function ruleNumber(rule: NamedRule, typed: string): number {
+  if (!/^\d+$/.test(typed.trim())) return NaN;
+  const value = Number(typed.trim());
+  const { min, max } = boundsOf(rule);
+  return value >= min && value <= max ? value : NaN;
+}
+
+/**
+ * What comes off each pane, a door's gaps, the channel's depth and the
+ * company's own limits. SetOut's standards are filled in until an owner
+ * changes one; only the ones that differ are saved.
+ */
+function MeasurementsPart({ rules, owner, justSaved, onSaved, onReload }: PartProps & { rules: RulesSettings }) {
+  const making = resolveRuleset(rules.overrides).making;
+  const original = Object.fromEntries(NAMED_RULES.map((rule) => [rule, String(ruleValue(making, rule))])) as Record<NamedRule, string>;
+  const [form, setForm] = useState(original);
+  const saving = useSave(onSaved);
+  const numbers = Object.fromEntries(NAMED_RULES.map((rule) => [rule, ruleNumber(rule, form[rule])])) as Record<NamedRule, number>;
+  const valid = NAMED_RULES.every((rule) => !Number.isNaN(numbers[rule]));
+  const dirty = NAMED_RULES.some((rule) => form[rule].trim() !== original[rule]);
+  const grouped = RULE_GROUPS.map((group) => ({ group, rules: NAMED_RULES.filter((rule) => RULE_TEXT[rule].group === group) }));
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const overrides: RulesetOverrides = {};
+    for (const rule of NAMED_RULES) if (numbers[rule] !== standardOf(rule)) overrides[rule] = numbers[rule];
+    void saving.save(() => api.saveRules(overrides, rules.version), 'The measurements could not be saved. Please try again.');
+  };
+
+  if (!owner) {
+    return (
+      <Section title="Measurements">
+        <div className={`${CARD} text-sm`}>
+          <p className="text-quiet">What comes off each pane, and the gaps and limits your showers are made to. Only an owner can change them.</p>
+          {grouped.map(({ group, rules: inGroup }) => (
+            <div key={group} className="mt-4">
+              <h3 className="font-semibold">{group}</h3>
+              <dl className="mt-1 divide-y divide-rule">
+                {inGroup.map((rule) => (
+                  <div key={rule} className="flex items-baseline justify-between gap-4 py-1.5">
+                    <dt>{RULE_TEXT[rule].label}</dt>
+                    <dd className="whitespace-nowrap tabular-nums">
+                      {ruleValue(making, rule)}
+                      {RULE_TEXT[rule].unit}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Measurements">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>
+          What comes off each pane, and the gaps and limits your showers are made to. SetOut’s standards are filled in: change any to your own. New designs, and showers your team changes, are made to these from
+          now on. Designs already sent keep the sizes they were made to.
+        </Hint>
+        {grouped.map(({ group, rules: inGroup }) => (
+          <fieldset key={group} className="mt-6 border-t border-rule pt-4 first-of-type:mt-2 first-of-type:border-t-0 first-of-type:pt-0">
+            <legend className="float-left w-full text-sm font-bold">{group}</legend>
+            <div className="clear-both grid gap-x-6 gap-y-4 pt-3 sm:grid-cols-2">
+              {inGroup.map((rule) => {
+                const text = RULE_TEXT[rule];
+                const { min, max } = boundsOf(rule);
+                const ok = !Number.isNaN(numbers[rule]);
+                const standard = standardOf(rule);
+                return (
+                  <label key={rule} className="text-sm">
+                    <span className="block font-medium">{text.label}</span>
+                    {text.about && <span className="block text-xs text-quiet">{text.about}</span>}
+                    <span className={`mt-1 flex h-10 w-32 items-center rounded-md border bg-ground px-3 ${ok ? 'border-rule' : 'border-bad/60'}`}>
+                      <input
+                        inputMode="numeric"
+                        value={form[rule]}
+                        onChange={(e) => setForm({ ...form, [rule]: e.target.value })}
+                        aria-invalid={ok ? undefined : true}
+                        className="w-full bg-transparent text-base tabular-nums outline-none"
+                      />
+                      <span className="text-quiet">{text.unit}</span>
+                    </span>
+                    {!ok ? (
+                      <span className="mt-1 block text-xs text-bad">
+                        A whole number from {min} to {max}
+                        {text.unit}.
+                      </span>
+                    ) : numbers[rule] !== standard ? (
+                      <span className="mt-1 block text-xs text-quiet">
+                        SetOut’s standard is {standard}
+                        {text.unit}.
+                      </span>
+                    ) : null}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+        <SaveRow
+          label="Save the measurements"
+          dirty={dirty}
+          valid={valid}
+          saving={saving}
+          onUndo={() => setForm(original)}
+          justSaved={justSaved}
+          savedNote="Saved. New designs are made to these from now on."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Quotes
 // ---------------------------------------------------------------------------
 
@@ -1874,6 +2018,12 @@ const CHOICE_TEXT: Record<string, Record<string, ChoiceText>> = {
 /** One change to the settings, in words. */
 function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
+    case 'rule': {
+      const text = (RULE_TEXT as Record<string, (typeof RULE_TEXT)[NamedRule] | undefined>)[item.rule];
+      const unit = text?.unit ?? '';
+      const what = text ? `${lowerFirst(text.group)}, ${lowerFirst(text.label)}` : item.rule;
+      return `${by} set ${what} to ${item.to}${unit}, from ${item.from}${unit}.`;
+    }
     case 'name':
       return `${by} renamed the company from “${item.from}” to “${item.to}”.`;
     case 'primary':

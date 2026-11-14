@@ -5,7 +5,7 @@
  *
  * The tests run in order, each building on the settings the last one left.
  */
-import { handlePhotoOf } from '@setout/engine';
+import { buildSpec, handlePhotoOf, resolveRuleset, type ConfiguratorSpec, type ConfiguratorState } from '@setout/engine';
 import { env, exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { addMember } from '../src/db/auth';
@@ -77,6 +77,7 @@ interface SettingsBody {
     versions: { name: string; branding: string; quotes: string };
   };
   designers: DesignerBody[];
+  rules: { version: number; overrides: Record<string, number> };
   limits: Record<string, number>;
   changes?: Change[];
 }
@@ -898,5 +899,74 @@ describe('the fixing methods, glass types and coatings a designer offers', () =>
     expect(after.designs[0].revision.computed.warnings).toContain(
       `Glass: 12mm glass is a special — ${(await read()).company.name} offers 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.`
     );
+  });
+});
+
+describe('the company’s measurements', () => {
+  const rules = (overrides: unknown, basedOn: number, cookie = owner) => patch('/settings/rules', { overrides, basedOn: { rules: basedOn } }, cookie);
+
+  test('are SetOut’s standard until an owner changes one', async () => {
+    expect((await read()).rules).toEqual({ version: 0, overrides: {} });
+  });
+
+  test('an owner changes them, a rule left at SetOut’s standard is not kept, and the record says what moved', async () => {
+    const response = await rules({ 'deductions.channel.bottomMm': 7, 'deductions.door.outOnlyMm': 7, 'deductions.channel.horizontalMm': 10 }, 0);
+    expect(response.status).toBe(200);
+    const wanted = { version: 1, overrides: { 'deductions.channel.bottomMm': 7, 'deductions.door.outOnlyMm': 7 } };
+    expect(await json(response)).toEqual({ ok: true, changed: true, rules: wanted });
+    const after = await read();
+    expect(after.rules).toEqual(wanted);
+    expect(after.changes?.[0].data.changes).toEqual([
+      { field: 'rule', rule: 'deductions.channel.bottomMm', from: 5, to: 7 },
+      { field: 'rule', rule: 'deductions.door.outOnlyMm', from: 5, to: 7 },
+    ]);
+  });
+
+  test('the next design to arrive is cut to them, and says which version it was made with', async () => {
+    await enquire(shop, 'Rula Rules', 'rula@example.test', 'RR1 1AA');
+    const revisions = await shop.db.find('design_revisions', { orderBy: { column: 'created_at' } });
+    const newest = revisions[revisions.length - 1] as unknown as { ruleset_version: number; computed: ConfiguratorSpec; document: { design: ConfiguratorState } };
+    expect(newest.ruleset_version).toBe(1);
+    const theirs = buildSpec(newest.document.design, { rules: resolveRuleset({ 'deductions.channel.bottomMm': 7, 'deductions.door.outOnlyMm': 7 }), companyName: 'Settings Showers' });
+    const standard = buildSpec(newest.document.design, { rules: resolveRuleset(), companyName: 'Settings Showers' });
+    expect(newest.computed.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual(theirs.panels.map((p) => [p.cutWidthMm, p.cutHeightMm]));
+    expect(newest.computed.panels.map((p) => p.cutWidthMm)).not.toEqual(standard.panels.map((p) => p.cutWidthMm));
+  });
+
+  test.each([
+    ['outside its bounds', { 'deductions.channel.bottomMm': 99 }],
+    ['not a whole number', { 'deductions.channel.bottomMm': 5.5 }],
+    ['one a company cannot change', { 'hinges.geneva.maxDoorWidthMm': 1200 }],
+    ['the glass thickness, which each designer sets', { 'glass.standardThicknessMm': 8 }],
+    ['not a list of measurements at all', 'ten'],
+  ])('%s is refused, and nothing changes', async (_, overrides) => {
+    const before = (await read()).rules;
+    expect(await errorOf(await rules(overrides, before.version))).toEqual([400, 'invalid_rules']);
+    expect((await read()).rules).toEqual(before);
+  });
+
+  test('a change made from an older copy is refused, so it cannot undo someone else’s', async () => {
+    expect(await errorOf(await rules({ 'deductions.channel.bottomMm': 9 }, 0))).toEqual([409, 'stale']);
+    expect((await read()).rules.version).toBe(1);
+  });
+
+  test('a staff member sees them, and cannot change them', async () => {
+    expect((await read(staff)).rules.overrides).toEqual({ 'deductions.channel.bottomMm': 7, 'deductions.door.outOnlyMm': 7 });
+    expect((await rules({}, 1, staff)).status).toBe(403);
+    expect((await read()).rules.version).toBe(1);
+  });
+
+  test('another company’s are its own', async () => {
+    expect((await read(rival)).rules).toEqual({ version: 0, overrides: {} });
+  });
+
+  test('putting them back to SetOut’s standard keeps nothing, as a new version', async () => {
+    const response = await rules({}, 1);
+    expect(await json(response)).toEqual({ ok: true, changed: true, rules: { version: 2, overrides: {} } });
+    expect((await read()).changes?.[0].data.changes).toEqual([
+      { field: 'rule', rule: 'deductions.channel.bottomMm', from: 7, to: 5 },
+      { field: 'rule', rule: 'deductions.door.outOnlyMm', from: 7, to: 5 },
+    ]);
+    expect(await json(await rules({}, 2))).toEqual({ ok: true, changed: false, rules: { version: 2, overrides: {} } });
   });
 });

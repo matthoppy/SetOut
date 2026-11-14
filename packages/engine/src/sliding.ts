@@ -26,7 +26,7 @@ import { derivePlanes, openingContext, runPanelIndices, totalRunWidthMm, type Pl
 import { describeOpening, describeWidths, LASER_OFFSET_DEFAULT_MM, METHOD_LABELS, signedLeanMm } from './measure';
 import { checkGlassSpec, checkPanelLimits, glassWeightKg } from './rules';
 import type { EngineContext, SerenityRules } from './ruleset';
-import type { ConfiguratorSpec, PanelSpec } from './spec';
+import type { ChannelCut, ConfiguratorSpec, PanelSpec } from './spec';
 import type { ConfiguratorState, SlidingSystem } from './types';
 
 /** What a hole in a sliding pane is for. */
@@ -186,7 +186,7 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
       notches: [],
       cutouts: [],
     }));
-    return finish(state, context, panels, 0, warnings, blockingIssues);
+    return finish(state, context, panels, [], warnings, blockingIssues);
   }
 
   const runs = runPanelIndices(state.panels, state.junctions);
@@ -308,7 +308,10 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
     holes: doorHoles,
   });
 
-  let channel = Math.max(fixedW - s.channelShortOfPanelEndMm, 0);
+  // Only fixed glass is in channel, along the floor: the fixed panel's, and a return's.
+  const channel: ChannelCut[] = [];
+  const underFixed = Math.max(fixedW - s.channelShortOfPanelEndMm, 0);
+  if (underFixed) channel.push({ runs: 'floor', paneId: state.panels[layout.fixed].id, label: `Floor, under P${layout.fixed + 1}`, lengthMm: underFixed });
   unconfirmed.push(
     `Channel: the U-channel under the fixed panel stops ${s.channelShortOfPanelEndMm}mm short of its free end, for the bottom door guide to cap the panel. CRL gives 24mm when the guide sits under it.`
   );
@@ -333,7 +336,7 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
         holes: [hole('return-fitting', 'Serenity 90° return fitting hole', SER90, corner, s.returnPanelHole.inMm, s.returnPanelHole.downMm, fixedH, s.returnPanelHole.diameterMm)],
       }
     );
-    channel += cutW;
+    channel.push({ runs: 'floor', paneId: state.panels[ret.index].id, label: `Floor, under P${ret.index + 1}`, lengthMm: cutW });
     // Which pane stands next to the return: the door closing on glass is not drawn by CRL.
     const doorAtReturn = (ret.at === 'start') !== doorOnRight;
     if (doorAtReturn) {
@@ -408,7 +411,7 @@ function finish(
   state: ConfiguratorState,
   context: EngineContext,
   panels: PanelSpec[],
-  channelLengthMm: number,
+  channelCuts: ChannelCut[],
   warnings: string[],
   blockingIssues: string[]
 ): ConfiguratorSpec {
@@ -439,7 +442,8 @@ function finish(
     cornerCount,
     totalRunWidthMm: totalRunWidthMm(state.panels),
     wallRuns,
-    totalChannelLengthMm: channelLengthMm,
+    channelCuts,
+    totalChannelLengthMm: channelCuts.reduce((sum, cut) => sum + cut.lengthMm, 0),
     heightMm: state.heightMm,
     isFloorToCeiling: false,
     mounting: state.mounting,

@@ -181,7 +181,7 @@ describe('cut sizes, to CRL’s formula (11M0347, page 4)', () => {
   });
 
   test('a company’s own deductions do not move a sliding pane: the formula is CRL’s', () => {
-    const theirs = { rules: { ...DEFAULT_RULESET, making: { ...DEFAULT_RULESET.making, deductions: { ...DEFAULT_RULESET.making.deductions, channel: { verticalMm: 14, horizontalMm: 9, floorToCeilingMm: 16 } } } }, companyName: 'Other' };
+    const theirs = { rules: { ...DEFAULT_RULESET, making: { ...DEFAULT_RULESET.making, deductions: { ...DEFAULT_RULESET.making.deductions, channel: { topMm: 6, bottomMm: 14, horizontalMm: 9, floorToCeilingMm: 16, depthMm: 25 } } } }, companyName: 'Other' };
     expect(buildSpec(alcove(), theirs).panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual(sizes(alcove()));
   });
 
@@ -425,7 +425,7 @@ describe('what the fitter takes', () => {
     expect(fittings).toEqual([
       { kind: 'sliding-kit', pane: 1, series: 'SER78', headerLengthMm: 1175 },
       // 622 less the 19mm left for the door guide.
-      { kind: 'channel', lengthMm: 603 },
+      { kind: 'channel', lengthMm: 603, cuts: [expect.objectContaining({ runs: 'floor', label: 'Floor, under P1', lengthMm: 603 })] },
     ]);
     expect(fittingsOf({ ...state, mounting: 'clamps' }, buildSpec({ ...state, mounting: 'clamps' }, context), fixed).at(-1)).toEqual({ kind: 'clamps' });
   });
@@ -435,7 +435,11 @@ describe('what the fitter takes', () => {
     expect(fittingsOf(state, buildSpec(state, context), fixed)).toEqual([
       { kind: 'sliding-kit', pane: 2, series: 'SER78', headerLengthMm: 1165 },
       { kind: 'sliding-return-kit', pane: 0, series: 'SER90' },
-      { kind: 'channel', lengthMm: 617 - 19 + 797 },
+      {
+        kind: 'channel',
+        lengthMm: 617 - 19 + 797,
+        cuts: [expect.objectContaining({ label: 'Floor, under P2', lengthMm: 617 - 19 }), expect.objectContaining({ label: 'Floor, under P1', lengthMm: 797 })],
+      },
     ]);
   });
 

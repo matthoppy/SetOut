@@ -368,7 +368,12 @@ function wordsFor(
     case 'bottom-seal':
       return { qty: '1', item: 'Bottom wipe', where: `${door(f.pane)}, bottom edge, ${f.lengthMm}mm`, finish: '' };
     case 'channel':
-      return { qty: `${(f.lengthMm / 1000).toFixed(2)}m`, item: 'U-channel', where: 'In all, cut on site', finish };
+      return {
+        qty: `${(f.lengthMm / 1000).toFixed(2)}m`,
+        item: 'U-channel',
+        where: f.cuts.length ? f.cuts.map((cut) => `${cut.label}: ${cut.lengthMm}`).join('; ') : 'In all, cut on site',
+        finish,
+      };
     case 'clamps':
       return { qty: '', item: 'Glass clamps', where: 'For the fixed glass', finish };
     case 'support-bar':

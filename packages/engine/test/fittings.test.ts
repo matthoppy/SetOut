@@ -26,7 +26,7 @@ describe('the door hardware', () => {
       { kind: 'handle', pane: 1, handleId: 'pull' },
       { kind: 'seal', pane: 1, seal: '90° stopper seal', lengthMm: door.cutHeightMm },
       { kind: 'bottom-seal', pane: 1, lengthMm: door.cutWidthMm },
-      { kind: 'channel', lengthMm: spec.totalChannelLengthMm },
+      { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts },
     ]);
   });
 
@@ -69,7 +69,7 @@ describe('every known design', () => {
       if (f.kind === 'seal') expect(f.lengthMm).toBeGreaterThan(0);
     }
     expect(fittings.filter((f) => f.kind === 'channel' || f.kind === 'clamps')).toEqual([
-      spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm } : { kind: 'clamps' },
+      spec.mounting === 'channel' ? { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts } : { kind: 'clamps' },
     ]);
     expect(fittings.some((f) => f.kind === 'support-bar')).toBe(spec.support.supportBarRequired);
     expect(fittings.some((f) => f.kind === 'support-panel')).toBe(spec.support.supportPanelRequired);

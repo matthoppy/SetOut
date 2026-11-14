@@ -44,7 +44,8 @@ export function calculateVerticalDeductions(
   isFloorToCeiling: boolean,
   hasTopChannel: boolean,
   hasBottomChannel: boolean,
-  supportPanelRequired: boolean = false
+  supportPanelRequired: boolean = false,
+  isDoor = false
 ): VerticalDeductions {
   const d = rules.making.deductions;
   const breakdown: string[] = [];
@@ -62,14 +63,21 @@ export function calculateVerticalDeductions(
         bottom = d.channel.floorToCeilingMm;
         breakdown.push(`Bottom channel (F2C): -${bottom}mm`);
       }
+    } else if (isDoor) {
+      // A door is not in the channel: it has its own gaps above and below.
+      top = d.door.topMm;
+      bottom = d.door.bottomMm;
+      if (top) breakdown.push(`Door, top: -${top}mm`);
+      if (bottom) breakdown.push(`Door, bottom: -${bottom}mm`);
     } else {
-      // Standard installation
-      if (hasTopChannel) {
-        top = d.channel.verticalMm;
-        breakdown.push(`Top channel: -${top}mm`);
+      // Fixed glass short of the ceiling: its top is free, and it stands a
+      // little way up in the bottom channel.
+      if (hasTopChannel && d.channel.topMm) {
+        top = d.channel.topMm;
+        breakdown.push(`Top: -${top}mm`);
       }
-      if (hasBottomChannel) {
-        bottom = d.channel.verticalMm;
+      if (hasBottomChannel && d.channel.bottomMm) {
+        bottom = d.channel.bottomMm;
         breakdown.push(`Bottom channel: -${bottom}mm`);
       }
     }
@@ -220,7 +228,8 @@ export function calculatePanelDeductions(
     isFloorToCeiling,
     true, // hasTopChannel - typically always true
     true, // hasBottomChannel - typically always true
-    panel.panel_type === 'door_hinged' && supportPanelRequired
+    panel.panel_type === 'door_hinged' && supportPanelRequired,
+    panel.panel_type === 'door_hinged'
   );
 
   const horizontal = calculateHorizontalDeductions(

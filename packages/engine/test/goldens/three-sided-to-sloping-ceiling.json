@@ -160,8 +160,8 @@
               "bottom": 10,
               "total": 20,
               "breakdown": [
-                "Top channel: -10mm",
-                "Bottom channel: -10mm"
+                "Door, top: -10mm",
+                "Door, bottom: -10mm"
               ]
             },
             "horizontal": {
@@ -292,7 +292,33 @@
           "widthMm": 600
         }
       ],
-      "totalChannelLengthMm": 1900,
+      "channelCuts": [
+        {
+          "runs": "floor",
+          "paneId": "p1",
+          "label": "Floor, under P1",
+          "lengthMm": 600
+        },
+        {
+          "runs": "wall",
+          "paneId": "p1",
+          "label": "Left wall, beside P1",
+          "lengthMm": 2352
+        },
+        {
+          "runs": "floor",
+          "paneId": "p3",
+          "label": "Floor, under P3",
+          "lengthMm": 600
+        },
+        {
+          "runs": "wall",
+          "paneId": "p3",
+          "label": "Right wall, beside P3",
+          "lengthMm": 2333
+        }
+      ],
+      "totalChannelLengthMm": 5885,
       "heightMm": 2390,
       "isFloorToCeiling": true,
       "mounting": "channel",

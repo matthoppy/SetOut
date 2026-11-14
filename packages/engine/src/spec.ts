@@ -13,6 +13,7 @@
  */
 
 import type { PanelModel } from './panelModel';
+import { shapesOf, type PaneShape } from './shapes';
 import {
   calculateDoorDeductions,
   calculateHandlePlacement,
@@ -100,11 +101,29 @@ export interface PanelSpec {
   sliding?: PanelSliding;
 }
 
+/** One length of U-channel, as the cut list gives it. */
+export interface ChannelCut {
+  /** Along the floor under a pane, up a wall beside one, or up the side of a notch. */
+  runs: 'floor' | 'wall' | 'notch';
+  /** The pane it holds. */
+  paneId: string;
+  /** As the cut list names it: "Floor, under P1", "Left wall, beside P1". */
+  label: string;
+  lengthMm: number;
+}
+
 export interface ConfiguratorSpec {
   panels: PanelSpec[];
   cornerCount: number;
   totalRunWidthMm: number;
   wallRuns: { wall: string; widthMm: number }[];
+  /**
+   * Every length of U-channel to cut, on a job in channel. See channelCutsOf.
+   * Absent from a spec worked out before engine 0.3.0, which gave the channel
+   * as one length along the floor.
+   */
+  channelCuts?: ChannelCut[];
+  /** The channel's cuts added up: what is ordered and priced. */
   totalChannelLengthMm: number;
   heightMm: number;
   isFloorToCeiling: boolean;
@@ -123,6 +142,55 @@ export interface ConfiguratorSpec {
   blockingIssues: string[];
   /** Only on a sliding shower: its kit, header and what is not yet confirmed. See sliding.ts. */
   sliding?: SlidingSpec;
+}
+
+/**
+ * The U-channel to cut, on a job in channel (Matt, 14 November 2026: a screen
+ * 1200 wide and 2200 high at one wall has its channel cut 1200 and 2181, "the
+ * vertical channel sitting ontop of the bottom channel").
+ *
+ * Only fixed glass sits in channel: a door hangs on its hinges. Each fixed
+ * pane has a length along the floor as wide as it was measured, which is
+ * from the wall to the glass's far edge, and one up each wall it meets. That
+ * runs from the floor to the top of the glass at that wall, or to the
+ * ceiling where the glass goes to it, which is the pane's edge there as it
+ * is cut, to the shape of the opening, with its gaps above and below. It
+ * stands on the bottom channel, so it is that less the channel's depth, and
+ * to the ceiling it stops under the top channel as well. Where a pane is
+ * notched, the channel goes up the notch. At a corner each run's channel is
+ * given at its pane's full measured width; how the two lengths meet in the
+ * corner is left to the workshop.
+ */
+function channelCutsOf(state: ConfiguratorState, rules: EngineContext['rules'], models: PanelModel[], spec: ConfiguratorSpec): ChannelCut[] {
+  if (state.mounting !== 'channel') return [];
+  const depth = rules.making.deductions.channel.depthMm;
+  const stops = state.isFloorToCeiling ? 2 : 1;
+  // A design still being measured may not have a shape yet; its channel is
+  // then worked out from the measured height, as a square pane would have it.
+  let shapes: PaneShape[] | null = null;
+  try {
+    shapes = shapesOf(state, spec, rules.fixed);
+  } catch {
+    shapes = null;
+  }
+  const upTheWall = (i: number, side: 'left' | 'right'): number => {
+    const pane = spec.panels[i];
+    const corners = shapes?.[i]?.corners;
+    const edge = corners ? (side === 'left' ? corners.topLeft.y - corners.bottomLeft.y : corners.topRight.y - corners.bottomRight.y) : pane.cutHeightMm;
+    return edge + pane.deductions.vertical.top + pane.deductions.vertical.bottom - depth * stops;
+  };
+  const cuts: ChannelCut[] = [];
+  state.panels.forEach((p, i) => {
+    if (p.kind !== 'fixed') return;
+    const pane = `P${i + 1}`;
+    cuts.push({ runs: 'floor', paneId: p.id, label: `Floor, under ${pane}`, lengthMm: p.width_mm });
+    if (models[i].wall_fix.left) cuts.push({ runs: 'wall', paneId: p.id, label: `Left wall, beside ${pane}`, lengthMm: upTheWall(i, 'left') });
+    if (models[i].wall_fix.right) cuts.push({ runs: 'wall', paneId: p.id, label: `Right wall, beside ${pane}`, lengthMm: upTheWall(i, 'right') });
+    const notchHeight = p.notches?.height_mm ?? 0;
+    if (p.notches?.bottom_left && notchHeight) cuts.push({ runs: 'notch', paneId: p.id, label: `Up the bottom left notch of ${pane}`, lengthMm: notchHeight });
+    if (p.notches?.bottom_right && notchHeight) cuts.push({ runs: 'notch', paneId: p.id, label: `Up the bottom right notch of ${pane}`, lengthMm: notchHeight });
+  });
+  return cuts;
 }
 
 /** Bridge the configurator's panel shape into the fabrication library's. */
@@ -375,12 +443,6 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     }
   });
 
-  // The channel runs along the bottom of every panel, and up the height of
-  // each notch where one is cut.
-  const notchAllowance = panels.reduce(
-    (sum, p) => sum + p.notches.reduce((n, notch) => n + notch.heightMm, 0),
-    0
-  );
 
   // Site conditions, as the customer measured them. Carried through verbatim:
   // these are what the glass is cut to follow, and the workshop should see
@@ -500,12 +562,13 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     }
   }
 
-  return {
+  const spec: ConfiguratorSpec = {
     panels,
     cornerCount,
     totalRunWidthMm: totalRunWidthMm(state.panels),
     wallRuns,
-    totalChannelLengthMm: totalRunWidthMm(state.panels) + notchAllowance,
+    channelCuts: [],
+    totalChannelLengthMm: 0,
     heightMm: state.heightMm,
     // A single door stops short of the ceiling by its air gap, so the glass
     // itself is not floor to ceiling. The note in the opening says why.
@@ -518,4 +581,7 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     warnings,
     blockingIssues,
   };
+  // The channel follows the glass as it is cut, so it is worked out last.
+  const channelCuts = channelCutsOf(state, context.rules, panelModels, spec);
+  return { ...spec, channelCuts, totalChannelLengthMm: channelCuts.reduce((sum, cut) => sum + cut.lengthMm, 0) };
 }

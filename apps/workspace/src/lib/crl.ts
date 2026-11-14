@@ -76,7 +76,10 @@ export function piecesOf(fitting: Fitting, spec: ConfiguratorSpec): number[] | n
     case 'bottom-seal':
       return [fitting.lengthMm];
     case 'channel': {
-      // A length of channel for each run, and what is left (up the notches) as one more piece.
+      // Each length the cut list gives: along the floor, up each wall, up each notch.
+      if (fitting.cuts.length) return fitting.cuts.map((cut) => cut.lengthMm);
+      // A spec from before engine 0.3.0 gave one length along the floor: a
+      // length of channel for each run, and what is left (up the notches) as one more piece.
       const runs = spec.wallRuns.map((r) => r.widthMm).filter((w) => w > 0);
       const rest = fitting.lengthMm - runs.reduce((sum, w) => sum + w, 0);
       return runs.length ? [...runs, ...(rest > 0 ? [rest] : [])] : [fitting.lengthMm];

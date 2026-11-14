@@ -15,15 +15,22 @@ import { CRL_CODE } from '@setout/engine';
 import { normaliseEmail } from '../db/auth';
 import type { DesignerSettings } from '../db/platform';
 import {
+  ADJUSTABLE,
   BELLAGIO_FITS,
+  DEFAULT_MAKING_RULES,
   GLASS_COATINGS,
   GLASS_TYPES,
   IN_LINE_HINGES,
   MOUNTINGS,
+  resolveRuleset,
+  RULE_TEXT,
+  ruleValue,
   VIENNA_CUTOUTS,
   WALL_HINGES,
+  type AdjustableRule,
   type BellagioFit,
   type Offer,
+  type RulesetOverrides,
   type ViennaCutout,
 } from '@setout/engine';
 import {
@@ -595,7 +602,8 @@ export type SettingsChange =
   | { field: 'slidingDoors'; from: boolean; to: boolean }
   | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
-  | { field: 'notifyEmails'; added: string[]; removed: string[] };
+  | { field: 'notifyEmails'; added: string[]; removed: string[] }
+  | { field: 'rule'; rule: string; from: number; to: number };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
 
@@ -736,4 +744,46 @@ export function storedConfig(
   if (changes.hinges) stored.hinges = changes.hinges;
   if (changes.sliding !== undefined) stored.slidingDoors = changes.sliding;
   return JSON.stringify(stored);
+}
+
+// ---------------------------------------------------------------------------
+// Measurements: the company's rules
+// ---------------------------------------------------------------------------
+
+/** A rule a company changes in its settings: every one SetOut names, which is all but the glass thickness. */
+const isNamedRule = (rule: string): rule is keyof typeof RULE_TEXT => Object.hasOwn(RULE_TEXT, rule);
+
+/**
+ * The measurements an owner sent: every rule they differ from SetOut's
+ * standard in, each a whole number inside its bounds. A rule sent at SetOut's
+ * standard is not kept, so a company that has changed nothing has nothing
+ * stored, and takes SetOut's standard if it changes.
+ */
+export function readRuleOverrides(input: unknown): RulesetOverrides {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new RequestError(400, 'invalid_rules', 'Send the measurements by name, each with its number.');
+  }
+  const overrides: RulesetOverrides = {};
+  for (const [rule, value] of Object.entries(input)) {
+    if (!isNamedRule(rule)) throw new RequestError(400, 'invalid_rules', `"${rule}" is not a measurement a company can change.`);
+    const text = RULE_TEXT[rule];
+    const bounds = ADJUSTABLE[rule];
+    const range = 'min' in bounds ? ` between ${bounds.min} and ${bounds.max}${text.unit}` : '';
+    if (typeof value !== 'number' || !Number.isInteger(value) || ('min' in bounds && (value < bounds.min || value > bounds.max))) {
+      throw new RequestError(400, 'invalid_rules', `${text.group}, ${text.label.charAt(0).toLowerCase()}${text.label.slice(1)}: a whole number${range}.`);
+    }
+    if (value !== ruleValue(DEFAULT_MAKING_RULES, rule)) overrides[rule] = value;
+  }
+  // The engine is the last word on what a company may change.
+  resolveRuleset(overrides);
+  return overrides;
+}
+
+/** Each measurement that moved, with what it was and what it is now. */
+export function ruleChanges(before: RulesetOverrides, after: RulesetOverrides): SettingsChange[] {
+  const was = resolveRuleset(before).making;
+  const now = resolveRuleset(after).making;
+  return (Object.keys(ADJUSTABLE) as AdjustableRule[])
+    .filter((rule) => ruleValue(was, rule) !== ruleValue(now, rule))
+    .map((rule) => ({ field: 'rule', rule, from: ruleValue(was, rule), to: ruleValue(now, rule) }));
 }

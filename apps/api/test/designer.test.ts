@@ -242,7 +242,7 @@ describe('a customer sends a design', () => {
     const [revision] = await ours.db.find('design_revisions');
     // Custom Showers set a 7mm door clearance above, so the door is 688, not 690.
     expect(revision.computed.panels.map((p) => [p.cutWidthMm, p.cutHeightMm])).toEqual([
-      [390, 1980],
+      [390, 1995],
       [688, 1980],
     ]);
   });

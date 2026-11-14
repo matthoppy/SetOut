@@ -18,6 +18,7 @@
  * reads it, and each change is in the audit log like any other.
  */
 
+import type { RulesetOverrides } from '@setout/engine';
 import { newId } from '../lib/ids';
 import { DataError } from './company-db';
 
@@ -161,4 +162,47 @@ export async function optionsInUse(
     if (typeof row.handle === 'string') handles.set(row.handle, (handles.get(row.handle) ?? 0) + row.n);
   }
   return { finishes: Object.fromEntries(finishes), handles: Object.fromEntries(handles) };
+}
+
+// ---------------------------------------------------------------------------
+// Measurements: the company's rules
+// ---------------------------------------------------------------------------
+
+/** The company's changes to SetOut's making rules, as they stand. Version 0 is none. */
+export async function readRules(env: Env_, companyId: string): Promise<{ version: number; overrides: RulesetOverrides }> {
+  const row = await env.DB.prepare('SELECT version, overrides FROM rulesets WHERE company_id = ? ORDER BY version DESC LIMIT 1')
+    .bind(companyId)
+    .first<{ version: number; overrides: string }>();
+  if (!row) return { version: 0, overrides: {} };
+  return { version: row.version, overrides: JSON.parse(row.overrides) as RulesetOverrides };
+}
+
+/**
+ * Save the company's changes to the making rules as the version after the
+ * one they were made from, with the audit entry beside it. Nothing is saved
+ * if another version was saved meanwhile: false if so. Designs already sent
+ * keep the version they were made with.
+ */
+export async function saveRules(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  basedOn: number,
+  overrides: RulesetOverrides,
+  data: object,
+  now = new Date()
+): Promise<boolean> {
+  const at = now.toISOString();
+  const [inserted] = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO rulesets (company_id, version, overrides, note, created_at)
+       SELECT ?1, ?2 + 1, ?3, 'Measurements in Settings', ?4
+        WHERE COALESCE((SELECT MAX(version) FROM rulesets WHERE company_id = ?1), 0) = ?2`
+    ).bind(companyId, basedOn, JSON.stringify(overrides), at),
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
+    ).bind(companyId, newId('audit'), actorId, companyId, JSON.stringify(data), at),
+  ]);
+  return inserted.meta.changes === 1;
 }
