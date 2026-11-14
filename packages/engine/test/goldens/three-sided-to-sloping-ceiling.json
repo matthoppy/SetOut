@@ -117,16 +117,16 @@
           "tightWidthMm": 600,
           "tightHeightMm": 2390,
           "cutWidthMm": 578,
-          "cutHeightMm": 2366,
-          "weightKg": 34.19,
+          "cutHeightMm": 2375,
+          "weightKg": 34.32,
           "deductions": {
             "vertical": {
-              "top": 12,
-              "bottom": 12,
-              "total": 24,
+              "top": 10,
+              "bottom": 5,
+              "total": 15,
               "breakdown": [
-                "Top channel (F2C): -12mm",
-                "Bottom channel (F2C): -12mm"
+                "Top channel, to the ceiling: -10mm",
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -139,7 +139,7 @@
               ]
             },
             "cutWidth": 578,
-            "cutHeight": 2366
+            "cutHeight": 2375
           },
           "notches": [],
           "cutouts": []
@@ -237,16 +237,16 @@
           "tightWidthMm": 600,
           "tightHeightMm": 2390,
           "cutWidthMm": 578,
-          "cutHeightMm": 2366,
-          "weightKg": 34.19,
+          "cutHeightMm": 2375,
+          "weightKg": 34.32,
           "deductions": {
             "vertical": {
-              "top": 12,
-              "bottom": 12,
-              "total": 24,
+              "top": 10,
+              "bottom": 5,
+              "total": 15,
               "breakdown": [
-                "Top channel (F2C): -12mm",
-                "Bottom channel (F2C): -12mm"
+                "Top channel, to the ceiling: -10mm",
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -259,18 +259,18 @@
               ]
             },
             "cutWidth": 578,
-            "cutHeight": 2366
+            "cutHeight": 2375
           },
           "notches": [],
           "cutouts": [
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 254,
+              "heightMm": 261,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 1734,
+              "heightMm": 1741,
               "edge": "hinge side"
             }
           ]
@@ -323,7 +323,7 @@
       "isFloorToCeiling": true,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 102.8,
+      "totalGlassWeightKg": 103,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

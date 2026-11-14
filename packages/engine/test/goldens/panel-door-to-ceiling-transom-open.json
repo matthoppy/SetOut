@@ -83,16 +83,16 @@
           "tightWidthMm": 400,
           "tightHeightMm": 2400,
           "cutWidthMm": 390,
-          "cutHeightMm": 2376,
-          "weightKg": 23.17,
+          "cutHeightMm": 2385,
+          "weightKg": 23.25,
           "deductions": {
             "vertical": {
-              "top": 12,
-              "bottom": 12,
-              "total": 24,
+              "top": 10,
+              "bottom": 5,
+              "total": 15,
               "breakdown": [
-                "Top channel (F2C): -12mm",
-                "Bottom channel (F2C): -12mm"
+                "Top channel, to the ceiling: -10mm",
+                "Bottom channel: -5mm"
               ]
             },
             "horizontal": {
@@ -104,7 +104,7 @@
               ]
             },
             "cutWidth": 390,
-            "cutHeight": 2376
+            "cutHeight": 2385
           },
           "notches": [],
           "cutouts": []
@@ -215,7 +215,7 @@
       "isFloorToCeiling": true,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 57.4,
+      "totalGlassWeightKg": 57.5,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

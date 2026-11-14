@@ -62,8 +62,14 @@ export interface MakingRules {
        * glass sits about half way in the channel"). CRL's own default is 5.
        */
       horizontalMm: number;
-      /** Top and bottom, each, when the glass is fitted floor to ceiling. */
-      floorToCeilingMm: number;
+      /**
+       * [OURS] Off the top of fixed glass that goes up to the ceiling, into a
+       * top channel. Its bottom loses the same as any other (Matt, 14
+       * November 2026: "For a floor to ceiling, still 5mm off the bottom and
+       * 10mm deduction would be good off the top"). CRL's 12mm came off the
+       * top and the bottom until then.
+       */
+      ceilingMm: number;
       /**
        * [OURS] How deep the channel is. The wall channel stands on the bottom
        * channel, so it is cut this much shorter than the glass is high
@@ -372,7 +378,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
     siliconeJointMm: 2,
   },
   deductions: {
-    channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, floorToCeilingMm: 12, depthMm: 19 },
+    channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
     clampMm: 3,
     door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 16 },
   },
@@ -603,7 +609,7 @@ export const ADJUSTABLE = {
   'deductions.channel.topMm': { min: 0, max: 15 },
   'deductions.channel.bottomMm': { min: 0, max: 15 },
   'deductions.channel.horizontalMm': { min: 2, max: 15 },
-  'deductions.channel.floorToCeilingMm': { min: 8, max: 20 },
+  'deductions.channel.ceilingMm': { min: 5, max: 20 },
   'deductions.channel.depthMm': { min: 10, max: 30 },
   'deductions.clampMm': { min: 2, max: 6 },
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
@@ -708,7 +714,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.channel.horizontalMm': { group: 'Glass in U-channel', label: 'Off at each wall', about: 'So the glass sits about half way into the channel.', unit: 'mm' },
   'deductions.channel.bottomMm': { group: 'Glass in U-channel', label: 'Off the bottom', about: 'It stands this far up in the bottom channel.', unit: 'mm' },
   'deductions.channel.topMm': { group: 'Glass in U-channel', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
-  'deductions.channel.floorToCeilingMm': { group: 'Glass in U-channel', label: 'Off the top and the bottom, each, floor to ceiling', unit: 'mm' },
+  'deductions.channel.ceilingMm': { group: 'Glass in U-channel', label: 'Off the top, to the ceiling', about: 'Glass that goes up to the ceiling, into a top channel.', unit: 'mm' },
   'deductions.channel.depthMm': {
     group: 'Glass in U-channel',
     label: 'Depth of the channel',

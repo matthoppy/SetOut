@@ -64,14 +64,15 @@ export function calculateVerticalDeductions(
     if (bottom) breakdown.push(`Door, bottom: -${bottom}mm`);
   } else if (mountingStyle === 'channel') {
     if (isFloorToCeiling) {
-      // Floor-to-ceiling requires larger deduction for installation
-      if (hasTopChannel) {
-        top = d.channel.floorToCeilingMm;
-        breakdown.push(`Top channel (F2C): -${top}mm`);
+      // Glass to the ceiling sits in a top channel as well, and stands in the
+      // bottom channel as any other does.
+      if (hasTopChannel && d.channel.ceilingMm) {
+        top = d.channel.ceilingMm;
+        breakdown.push(`Top channel, to the ceiling: -${top}mm`);
       }
-      if (hasBottomChannel) {
-        bottom = d.channel.floorToCeilingMm;
-        breakdown.push(`Bottom channel (F2C): -${bottom}mm`);
+      if (hasBottomChannel && d.channel.bottomMm) {
+        bottom = d.channel.bottomMm;
+        breakdown.push(`Bottom channel: -${bottom}mm`);
       }
     } else {
       // Fixed glass short of the ceiling: its top is free, and it stands a

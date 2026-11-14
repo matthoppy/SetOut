@@ -100,6 +100,14 @@ describe('two companies, one design', () => {
     expect(open.panels[1].cutHeightMm).toBe(1984);
   });
 
+  test('glass to the ceiling loses 10mm off the top, into its top channel, and 5mm off the bottom', () => {
+    const spec = buildSpec({ ...designFromTemplate('walk-in'), isFloorToCeiling: true, heightMm: 2400 }, company('Custom Showers'));
+    expect(spec.panels[0].deductions.vertical.breakdown).toEqual(['Top channel, to the ceiling: -10mm', 'Bottom channel: -5mm']);
+    expect(spec.panels[0].cutHeightMm).toBe(2385);
+    // The wall channel runs between the bottom channel and the top one.
+    expect(spec.channelCuts?.find((c) => c.runs === 'wall')?.lengthMm).toBe(2400 - 38);
+  });
+
   test('a different allowance in the bottom channel changes the fixed glass, not the door', () => {
     const theirs = buildSpec(corner, company('Brennan Glass', { 'deductions.channel.bottomMm': 8, 'deductions.channel.topMm': 2 }));
     expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1990, 1984]);

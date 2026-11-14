@@ -142,15 +142,15 @@ describe('a known design with a sloping ceiling', () => {
     if (!golden) throw new Error('missing golden');
     const spec = buildSpec(structuredClone(golden.document.design), context);
     const [left, door, right] = shapesOf(golden.document.design, spec, DEFAULT_RULESET.fixed);
-    // Left return: ceiling 2390 falling to 2382, less 12 at the top and 12 at the bottom.
-    expect(left.heightMm).toBe(2390 - 24);
+    // Left return: ceiling 2390 falling to 2382, less 10 at the top and 5 at the bottom.
+    expect(left.heightMm).toBe(2390 - 15);
     expect(Math.abs(left.corners.topLeft.y - left.corners.topRight.y)).toBe(8);
     // Front: level at 2382. The door is square.
     expect(door.shaped).toBe(false);
     // Right return: ceiling 2382 falling to 2371. The spec's rectangle, cut
     // to the shower's highest ceiling, is 8mm taller than this pane can be.
-    expect(right.heightMm).toBe(2382 - 24);
-    expect(spec.panels[2].cutHeightMm).toBe(2390 - 24);
+    expect(right.heightMm).toBe(2382 - 15);
+    expect(spec.panels[2].cutHeightMm).toBe(2390 - 15);
     expect(Math.abs(right.corners.topLeft.y - right.corners.topRight.y)).toBe(11);
   });
 });
