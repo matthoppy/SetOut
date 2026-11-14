@@ -87,14 +87,16 @@ export function calculateVerticalDeductions(
       }
     }
   } else {
-    // Clamps
-    if (hasTopChannel) {
-      top = d.clampMm;
-      breakdown.push(`Top clamps: -${top}mm`);
+    // Clamps: silicone along the bottom, and nothing off the top unless the
+    // glass goes up to the ceiling.
+    const clampTop = isFloorToCeiling ? d.clamps.ceilingMm : d.clamps.topMm;
+    if (hasTopChannel && clampTop) {
+      top = clampTop;
+      breakdown.push(isFloorToCeiling ? `Top, to the ceiling: -${top}mm` : `Top: -${top}mm`);
     }
-    if (hasBottomChannel) {
-      bottom = d.clampMm;
-      breakdown.push(`Bottom clamps: -${bottom}mm`);
+    if (hasBottomChannel && d.clamps.bottomMm) {
+      bottom = d.clamps.bottomMm;
+      breakdown.push(`Bottom, silicone: -${bottom}mm`);
     }
   }
 
@@ -149,12 +151,12 @@ export function calculateHorizontalDeductions(
   } else {
     // Clamps
     if (hasLeftWallChannel) {
-      left += d.clampMm;
-      breakdown.push(`Left clamps: -${d.clampMm}mm`);
+      left += d.clamps.wallMm;
+      breakdown.push(`Left clamps: -${d.clamps.wallMm}mm`);
     }
     if (hasRightWallChannel) {
-      right += d.clampMm;
-      breakdown.push(`Right clamps: -${d.clampMm}mm`);
+      right += d.clamps.wallMm;
+      breakdown.push(`Right clamps: -${d.clamps.wallMm}mm`);
     }
   }
 

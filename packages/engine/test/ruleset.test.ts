@@ -100,6 +100,16 @@ describe('two companies, one design', () => {
     expect(open.panels[1].cutHeightMm).toBe(1984);
   });
 
+  test('glass on clamps loses 3mm off the bottom for silicone, nothing off the top, and 5mm off the top to the ceiling', () => {
+    const clamped = { ...designFromTemplate('walk-in'), mounting: 'clamps' as const };
+    const short = buildSpec(clamped, company('Custom Showers')).panels[0];
+    expect(short.deductions.vertical.breakdown).toEqual(['Bottom, silicone: -3mm']);
+    expect(short.cutHeightMm).toBe(1997);
+    const tall = buildSpec({ ...clamped, isFloorToCeiling: true, heightMm: 2400 }, company('Custom Showers')).panels[0];
+    expect(tall.deductions.vertical.breakdown).toEqual(['Top, to the ceiling: -5mm', 'Bottom, silicone: -3mm']);
+    expect(tall.cutHeightMm).toBe(2392);
+  });
+
   test('glass to the ceiling loses 10mm off the top, into its top channel, and 5mm off the bottom', () => {
     const spec = buildSpec({ ...designFromTemplate('walk-in'), isFloorToCeiling: true, heightMm: 2400 }, company('Custom Showers'));
     expect(spec.panels[0].deductions.vertical.breakdown).toEqual(['Top channel, to the ceiling: -10mm', 'Bottom channel: -5mm']);
@@ -248,16 +258,16 @@ describe('what a company may not do', () => {
   });
 
   test('send something that is not a whole number', () => {
-    refused({ 'deductions.clampMm': 3.5 });
-    refused({ 'deductions.clampMm': '3' });
-    refused({ 'deductions.clampMm': null });
-    refused({ 'deductions.clampMm': Number.NaN });
+    refused({ 'deductions.clamps.wallMm': 3.5 });
+    refused({ 'deductions.clamps.wallMm': '3' });
+    refused({ 'deductions.clamps.wallMm': null });
+    refused({ 'deductions.clamps.wallMm': Number.NaN });
   });
 
   test('send something that is not a set of rules', () => {
     refused(null);
     refused([]);
-    refused('deductions.clampMm=3');
+    refused('deductions.clamps.wallMm=3');
     refused({ __proto__: null, constructor: 1 });
     refused({ toString: 3 });
   });

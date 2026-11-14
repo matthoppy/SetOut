@@ -81,16 +81,15 @@
           "tightWidthMm": 400,
           "tightHeightMm": 2000,
           "cutWidthMm": 397,
-          "cutHeightMm": 1994,
-          "weightKg": 19.79,
+          "cutHeightMm": 1997,
+          "weightKg": 19.82,
           "deductions": {
             "vertical": {
-              "top": 3,
+              "top": 0,
               "bottom": 3,
-              "total": 6,
+              "total": 3,
               "breakdown": [
-                "Top clamps: -3mm",
-                "Bottom clamps: -3mm"
+                "Bottom, silicone: -3mm"
               ]
             },
             "horizontal": {
@@ -102,7 +101,7 @@
               ]
             },
             "cutWidth": 397,
-            "cutHeight": 1994
+            "cutHeight": 1997
           },
           "notches": [],
           "cutouts": []

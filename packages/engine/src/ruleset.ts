@@ -78,8 +78,23 @@ export interface MakingRules {
        */
       depthMm: number;
     };
-    /** Every edge held by clamps. */
-    clampMm: number;
+    /**
+     * [OURS] Fixed glass held by clamps (Matt, 13 and 14 November 2026: "for
+     * a clamp system we deduct off 3mm for silicone down the wall", "there
+     * will be 3mm off the bottom for silicone and 5mm if it's floor to
+     * ceiling but nothing if it doesn't go to ceiling"). Until then CRL's
+     * 3mm came off every edge.
+     */
+    clamps: {
+      /** At each wall the glass is clamped to, for the silicone down it. */
+      wallMm: number;
+      /** Off the bottom, for the silicone along it. */
+      bottomMm: number;
+      /** Off the top of glass that stops short of the ceiling: nothing. */
+      topMm: number;
+      /** Off the top of glass that goes up to the ceiling. */
+      ceilingMm: number;
+    };
     door: {
       /**
        * [OURS] For the seal, on a door that opens one way, out, as a door does
@@ -379,7 +394,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   },
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
-    clampMm: 3,
+    clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 5 },
     door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 16 },
   },
   heights: {
@@ -611,7 +626,10 @@ export const ADJUSTABLE = {
   'deductions.channel.horizontalMm': { min: 2, max: 15 },
   'deductions.channel.ceilingMm': { min: 5, max: 20 },
   'deductions.channel.depthMm': { min: 10, max: 30 },
-  'deductions.clampMm': { min: 2, max: 6 },
+  'deductions.clamps.wallMm': { min: 0, max: 8 },
+  'deductions.clamps.bottomMm': { min: 0, max: 8 },
+  'deductions.clamps.topMm': { min: 0, max: 8 },
+  'deductions.clamps.ceilingMm': { min: 0, max: 15 },
   'deductions.door.outOnlyMm': { min: 3, max: 8 },
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
   'deductions.door.wallMm': { min: 2, max: 10 },
@@ -721,7 +739,10 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
     about: 'The wall channel stands on the bottom channel, so it is cut this much shorter than the glass is high.',
     unit: 'mm',
   },
-  'deductions.clampMm': { group: 'Glass on clamps', label: 'Off each clamped edge', about: 'For the silicone down the wall.', unit: 'mm' },
+  'deductions.clamps.wallMm': { group: 'Glass on clamps', label: 'Off at each wall', about: 'For the silicone down the wall.', unit: 'mm' },
+  'deductions.clamps.bottomMm': { group: 'Glass on clamps', label: 'Off the bottom', about: 'For the silicone along the bottom.', unit: 'mm' },
+  'deductions.clamps.topMm': { group: 'Glass on clamps', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
+  'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
   'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
   'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail.', unit: 'mm' },

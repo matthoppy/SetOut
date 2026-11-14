@@ -68,16 +68,15 @@
           "tightWidthMm": 850,
           "tightHeightMm": 1500,
           "cutWidthMm": 847,
-          "cutHeightMm": 1494,
-          "weightKg": 31.64,
+          "cutHeightMm": 1497,
+          "weightKg": 31.7,
           "deductions": {
             "vertical": {
-              "top": 3,
+              "top": 0,
               "bottom": 3,
-              "total": 6,
+              "total": 3,
               "breakdown": [
-                "Top clamps: -3mm",
-                "Bottom clamps: -3mm"
+                "Bottom, silicone: -3mm"
               ]
             },
             "horizontal": {
@@ -89,7 +88,7 @@
               ]
             },
             "cutWidth": 847,
-            "cutHeight": 1494
+            "cutHeight": 1497
           },
           "notches": [],
           "cutouts": []
@@ -104,7 +103,7 @@
       "isFloorToCeiling": false,
       "mounting": "clamps",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 31.6,
+      "totalGlassWeightKg": 31.7,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
