@@ -13,7 +13,7 @@ test('the health check reports the engine, its known answer and the database', a
     commit: 'local',
     engine: ENGINE_VERSION,
     documentFormat: DOCUMENT_FORMAT,
-    selfCheck: { ok: true, cutSizes: '390 x 1995, 690 x 1990', expected: '390 x 1995, 690 x 1990' },
+    selfCheck: { ok: true, cutSizes: '390 x 1995, 690 x 1984', expected: '390 x 1995, 690 x 1984' },
     // Every migration in the folder has been applied, however many there are by now.
     database: { ok: true, migrations: env.TEST_MIGRATIONS.length },
   });

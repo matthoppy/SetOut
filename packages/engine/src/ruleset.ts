@@ -103,7 +103,11 @@ export interface MakingRules {
        * that will be 4mm").
        */
       glassAboveMm: number;
-      /** [OURS] Off the bottom of a door: its gap above the tray, 10mm as before, whatever the fixing. */
+      /**
+       * [OURS] Off the bottom of a door, whatever the fixing: room for the clear
+       * threshold and the bottom drip rail (Matt, 14 November 2026: "A clear
+       * threshold and a bottom drip rail is 16mm deduction off the glass").
+       */
       bottomMm: number;
     };
   };
@@ -370,7 +374,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, floorToCeilingMm: 12, depthMm: 19 },
     clampMm: 3,
-    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 10 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 16 },
   },
   heights: {
     singleDoorTopGapMm: 30,
@@ -606,7 +610,7 @@ export const ADJUSTABLE = {
   'deductions.door.bothWaysMm': { min: 6, max: 12 },
   'deductions.door.wallMm': { min: 2, max: 10 },
   'deductions.door.glassAboveMm': { min: 0, max: 8 },
-  'deductions.door.bottomMm': { min: 3, max: 20 },
+  'deductions.door.bottomMm': { min: 3, max: 25 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },
   'review.standardHeightMaxMm': { min: 1800, max: 2400 },
@@ -714,7 +718,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clampMm': { group: 'Glass on clamps', label: 'Off each clamped edge', about: 'For the silicone down the wall.', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
   'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
-  'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'Its gap above the tray.', unit: 'mm' },
+  'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail.', unit: 'mm' },
   'deductions.door.glassAboveMm': {
     group: 'Doors',
     label: 'Off the top, under a glass brace or a transom',

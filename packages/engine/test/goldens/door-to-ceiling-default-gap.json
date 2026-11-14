@@ -83,15 +83,15 @@
           "tightWidthMm": 810,
           "tightHeightMm": 2372,
           "cutWidthMm": 795,
-          "cutHeightMm": 2362,
-          "weightKg": 46.94,
+          "cutHeightMm": 2356,
+          "weightKg": 46.83,
           "deductions": {
             "vertical": {
               "top": 0,
-              "bottom": 10,
-              "total": 10,
+              "bottom": 16,
+              "total": 16,
               "breakdown": [
-                "Door, bottom: -10mm"
+                "Door, bottom: -16mm"
               ]
             },
             "horizontal": {
@@ -104,7 +104,7 @@
               ]
             },
             "cutWidth": 800,
-            "cutHeight": 2362
+            "cutHeight": 2356
           },
           "notches": [],
           "cutouts": [
@@ -115,17 +115,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 2112,
+              "heightMm": 2106,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1079.5,
+              "heightMm": 1076.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1282.5,
+              "heightMm": 1279.5,
               "edge": "handle side"
             }
           ],
@@ -136,26 +136,26 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Bellagio",
             "hingeCount": 2,
-            "hingeReason": "2 × Bellagio carries 795mm / 46.94kg (rated 1000mm / 50kg).",
+            "hingeReason": "2 × Bellagio carries 795mm / 46.83kg (rated 1000mm / 50kg).",
             "hingeHeightsMm": [
               250,
-              2112
+              2106
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1815,
+              "clearGap": 1809,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 1181,
+              "handleHeight": 1178,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 1079.5,
-              "upperMm": 1282.5
+              "lowerMm": 1076.5,
+              "upperMm": 1279.5
             }
           }
         }
@@ -169,7 +169,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 46.9,
+      "totalGlassWeightKg": 46.8,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
@@ -185,7 +185,7 @@
       ],
       "warnings": [
         "Review: the glass is 2372mm tall, over 2000mm. Custom Showers will check the opening and ceiling by hand before the glass is ordered.",
-        "P1 — Door (Front): Review: the door is 2362mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 46.94kg weight and the maker's current limits."
+        "P1 — Door (Front): Review: the door is 2356mm tall, over 2200mm. Custom Showers will check the hinge by hand against the door's 46.83kg weight and the maker's current limits."
       ],
       "blockingIssues": []
     }

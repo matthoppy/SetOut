@@ -15,7 +15,7 @@ test('the document format is a whole number', () => {
 test('the self check gives the known answer', () => {
   expect(selfCheck()).toEqual({
     ok: true,
-    cutSizes: '390 x 1995, 690 x 1990',
-    expected: '390 x 1995, 690 x 1990',
+    cutSizes: '390 x 1995, 690 x 1984',
+    expected: '390 x 1995, 690 x 1984',
   });
 });

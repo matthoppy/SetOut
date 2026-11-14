@@ -152,16 +152,16 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
           "cutWidthMm": 695,
-          "cutHeightMm": 1986,
-          "weightKg": 34.51,
+          "cutHeightMm": 1980,
+          "weightKg": 34.4,
           "deductions": {
             "vertical": {
               "top": 4,
-              "bottom": 10,
-              "total": 14,
+              "bottom": 16,
+              "total": 20,
               "breakdown": [
                 "Glass over the door: -4mm",
-                "Door, bottom: -10mm"
+                "Door, bottom: -16mm"
               ]
             },
             "horizontal": {
@@ -174,7 +174,7 @@
               ]
             },
             "cutWidth": 700,
-            "cutHeight": 1986
+            "cutHeight": 1980
           },
           "notches": [],
           "cutouts": [
@@ -185,17 +185,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1736,
+              "heightMm": 1730,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 891.5,
+              "heightMm": 888.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1094.5,
+              "heightMm": 1091.5,
               "edge": "handle side"
             }
           ],
@@ -206,26 +206,26 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 695mm / 34.51kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 695mm / 34.4kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1736
+              1730
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1439,
+              "clearGap": 1433,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 993,
+              "handleHeight": 990,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 891.5,
-              "upperMm": 1094.5
+              "lowerMm": 888.5,
+              "upperMm": 1091.5
             }
           }
         },
@@ -265,7 +265,7 @@
           "cutouts": [
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 248,
+              "heightMm": 254,
               "edge": "hinge side"
             },
             {
@@ -323,7 +323,7 @@
       "isFloorToCeiling": true,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 102.9,
+      "totalGlassWeightKg": 102.8,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,

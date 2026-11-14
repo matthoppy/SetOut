@@ -114,15 +114,15 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2100,
           "cutWidthMm": 690,
-          "cutHeightMm": 2090,
-          "weightKg": 36.05,
+          "cutHeightMm": 2084,
+          "weightKg": 35.95,
           "deductions": {
             "vertical": {
               "top": 0,
-              "bottom": 10,
-              "total": 10,
+              "bottom": 16,
+              "total": 16,
               "breakdown": [
-                "Door, bottom: -10mm"
+                "Door, bottom: -16mm"
               ]
             },
             "horizontal": {
@@ -134,7 +134,7 @@
               ]
             },
             "cutWidth": 695,
-            "cutHeight": 2090
+            "cutHeight": 2084
           },
           "notches": [],
           "cutouts": [
@@ -145,17 +145,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1840,
+              "heightMm": 1834,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 943.5,
+              "heightMm": 940.5,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1146.5,
+              "heightMm": 1143.5,
               "edge": "handle side"
             }
           ],
@@ -164,28 +164,28 @@
             "swing": "out",
             "sealType": "90° stopper seal",
             "swingDeductionMm": 5,
-            "hingeBrand": "Vienna",
+            "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Vienna carries 690mm / 36.05kg (rated 864mm / 45kg).",
+            "hingeReason": "2 × Geneva carries 690mm / 35.95kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1840
+              1834
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1543,
+              "clearGap": 1537,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 1045,
+              "handleHeight": 1042,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 943.5,
-              "upperMm": 1146.5
+              "lowerMm": 940.5,
+              "upperMm": 1143.5
             }
           }
         }
@@ -212,7 +212,7 @@
       "isFloorToCeiling": false,
       "mounting": "channel",
       "glassThicknessMm": 10,
-      "totalGlassWeightKg": 56.5,
+      "totalGlassWeightKg": 56.4,
       "support": {
         "supportPanelRequired": false,
         "supportPanelReason": null,
