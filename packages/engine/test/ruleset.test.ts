@@ -89,12 +89,15 @@ describe('two companies, one design', () => {
     expect(ours.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
   });
 
-  test('a door with glass over its head, a transom, loses 4mm off its top', () => {
-    const spec = buildSpec({ ...designFromTemplate('alcove-panel-door'), isFloorToCeiling: true, heightMm: 2400 }, company('Custom Showers'));
+  test('a door with glass over its head, a glass transom, loses 4mm off its top; under an open one, nothing', () => {
+    const spec = buildSpec({ ...designFromTemplate('alcove-panel-door'), isFloorToCeiling: true, heightMm: 2400, aboveDoor: 'glass' }, company('Custom Showers'));
     const door = spec.panels[1];
     expect(door.tightHeightMm).toBe(2000);
     expect(door.deductions.vertical.breakdown).toEqual(['Glass over the door: -4mm', 'Door, bottom: -16mm']);
     expect(door.cutHeightMm).toBe(1980);
+    const open = buildSpec({ ...designFromTemplate('alcove-panel-door'), isFloorToCeiling: true, heightMm: 2400, aboveDoor: 'open' }, company('Custom Showers'));
+    expect(open.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
+    expect(open.panels[1].cutHeightMm).toBe(1984);
   });
 
   test('a different allowance in the bottom channel changes the fixed glass, not the door', () => {
