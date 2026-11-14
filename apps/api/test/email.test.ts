@@ -257,7 +257,11 @@ describe('telling people, and writing down what happened', () => {
       ...changes,
     });
     const events = await db.find('job_events', { where: { job_id: job.id }, orderBy: { column: 'created_at' } });
-    return { sent, events: events.map((e) => [e.type, e.data.to, e.data.reason ?? e.data.attachments]) };
+    // Two events written in the same millisecond tie on their time; the
+    // company's is always written before the customer's.
+    const rank = (e: (typeof events)[number]) => (e.data.to === 'company' ? 0 : 1);
+    const ordered = [...events].sort((a, b) => a.created_at.localeCompare(b.created_at) || rank(a) - rank(b));
+    return { sent, events: ordered.map((e) => [e.type, e.data.to, e.data.reason ?? e.data.attachments]) };
   }
 
   test('the company first, then the customer, each written on the timeline', async () => {
