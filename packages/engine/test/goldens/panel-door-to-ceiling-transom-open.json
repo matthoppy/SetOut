@@ -165,7 +165,7 @@
           "door": {
             "hingeSide": "right",
             "swing": "out",
-            "sealType": "H seal",
+            "sealType": "h seal",
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,

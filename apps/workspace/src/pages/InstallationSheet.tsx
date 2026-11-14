@@ -370,10 +370,11 @@ function wordsFor(
           ? `Siliconed to the wall where the ${door(f.pane)} closes`
           : f.meets === 'corner' && f.seal === '90° stopper seal'
             ? `On the panel at the corner, where the ${door(f.pane)} closes`
-            : f.meets === 'glass' && f.seal === 'H seal'
-              ? `Between the ${door(f.pane)} and the glass it closes against`
+            : f.meets === 'glass' && f.seal === 'h seal'
+              ? `Where the ${door(f.pane)} closes against the fixed panel`
               : `${door(f.pane)}, latch edge`;
-      return { qty: '1', item: capitalised(f.seal), where: `${where}, ${f.lengthMm}mm`, finish: '' };
+      // The h seal keeps its lower case: a capital H is another seal.
+      return { qty: '1', item: f.seal === 'h seal' ? f.seal : capitalised(f.seal), where: `${where}, ${f.lengthMm}mm`, finish: '' };
     }
     case 'bottom-seal':
       return { qty: '1', item: 'Bottom wipe', where: `${door(f.pane)}, bottom edge, ${f.lengthMm}mm`, finish: '' };

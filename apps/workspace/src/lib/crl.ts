@@ -50,7 +50,8 @@ export function showerParts(design: ConfiguratorState, spec: ConfiguratorSpec, l
       case 'handle':
         return { fitting, part, what: named(labels.handles, fitting.handleId), finish };
       case 'seal':
-        return { fitting, part, what: fitting.seal.charAt(0).toUpperCase() + fitting.seal.slice(1), finish: null };
+        // The h seal keeps its lower case: a capital H is another seal.
+        return { fitting, part, what: fitting.seal === 'h seal' ? fitting.seal : fitting.seal.charAt(0).toUpperCase() + fitting.seal.slice(1), finish: null };
       case 'bottom-seal':
         return { fitting, part, what: 'Bottom wipe with drip rail', finish: null };
       case 'threshold':

@@ -162,8 +162,8 @@ describe('seals, channel and handles', () => {
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PC1090' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toBeNull();
-    expect(crlPartOf(seal('H seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCC8' });
-    expect(crlPartOf(seal('H seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PCC12' });
+    expect(crlPartOf(seal('h seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCC8' });
+    expect(crlPartOf(seal('h seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PCC12' });
     expect(crlPartOf(seal('clear 90° angle'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P12LJ' });
   });
 
@@ -253,8 +253,8 @@ describe('a door’s seal, by what it closes against', () => {
     return { seal: spec.panels[i].door!.sealType, allowance: spec.panels[i].door!.swingDeductionMm, code: part?.status === 'found' ? part.code : null, warnings: spec.warnings };
   };
 
-  test('against glass in line, an H seal, opening out', () => {
-    expect(sealOf('alcove-panel-door')).toMatchObject({ seal: 'H seal', allowance: 5, code: 'PCC10' });
+  test('against glass in line, an h seal, opening out', () => {
+    expect(sealOf('alcove-panel-door')).toMatchObject({ seal: 'h seal', allowance: 5, code: 'PCC10' });
   });
 
   test('against a panel at a corner, a 90° stop seal on that panel, opening out', () => {

@@ -96,7 +96,7 @@ const SEALS: Record<string, Partial<Record<number, string>>> = {
   // 3/8" and 1/2" glass, from Matt's catalogue (Matt, 14 November 2026: "The
   // pcc10 is more commonly used as its got a soft fin"), rather than the
   // hard-legged H-jamb (P10MMHJ).
-  'H seal': { 8: 'PCC8', 10: 'PCC10', 12: 'PCC12' },
+  'h seal': { 8: 'PCC8', 10: 'PCC10', 12: 'PCC12' },
   // CRL's multi-purpose clear 'L' angle jamb for 1/4" to 1/2" glass, without
   // tape, as it is siliconed to the wall. Matt to confirm it is the one he
   // uses: the catalogue also has it taped (P12LJT2) and an L-angle (L1212).

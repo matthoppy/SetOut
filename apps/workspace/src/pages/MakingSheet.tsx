@@ -297,9 +297,9 @@ function Sheet({
   );
 }
 
-/** A seal as the workshop calls it: "90° stopper seal", "H seal", "clear 90° angle on the wall", never "seal seal". */
+/** A seal as the workshop calls it: "90° stopper seal", "h seal" in lower case, "clear 90° angle on the wall", never "seal seal". */
 function sealName(seal: string): string {
-  if (seal === 'H seal') return seal;
+  if (seal === 'h seal') return seal;
   if (seal === 'clear 90° angle') return 'clear 90° angle on the wall';
   const name = humanise(seal).toLowerCase();
   return /\bseals?$/.test(name) ? name : `${name} seal`;

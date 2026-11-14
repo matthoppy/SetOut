@@ -192,11 +192,18 @@ export function calculateHorizontalDeductions(
  * 90degree for a stop at a corner that goes on the fixed panel, but against a
  * wall it's a bubble that open both ways or you can silicone a 90degree clear
  * angle against the wall and that will be 5mm"). A door that swings both ways
- * closes on a bubble seal. One that opens out closes against a stop: an H seal
+ * closes on a bubble seal. One that opens out closes against a stop: an h seal
  * against glass in line, a 90° stop seal on the panel at a corner, or a clear
  * 90° angle siliconed to the wall.
  */
-export type SealType = 'bubble seal' | 'H seal' | '90° stopper seal' | 'clear 90° angle';
+/**
+ * The h seal is written in lower case, as it is shaped: one h seal where the
+ * door closes against the fixed panel, glass to glass, and not the H-shaped
+ * seal (Matt, 14 November 2026: "It's just 1 h seal and it's lower case as
+ * there is another seal that looks like H, against fixed panel for glass to
+ * glass").
+ */
+export type SealType = 'bubble seal' | 'h seal' | '90° stopper seal' | 'clear 90° angle';
 
 export function calculateDoorDeductions(
   rules: Ruleset,
@@ -205,7 +212,7 @@ export function calculateDoorDeductions(
 ): { deduction: number; sealType: SealType } {
   const door = rules.making.deductions.door;
   if (swingType === 'bi-swing') return { deduction: door.bothWaysMm, sealType: 'bubble seal' };
-  const sealType: SealType = meets === 'glass' ? 'H seal' : meets === 'wall' ? 'clear 90° angle' : '90° stopper seal';
+  const sealType: SealType = meets === 'glass' ? 'h seal' : meets === 'wall' ? 'clear 90° angle' : '90° stopper seal';
   return { deduction: door.outOnlyMm, sealType };
 }
 

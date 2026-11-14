@@ -99,7 +99,7 @@ export interface MakingRules {
     door: {
       /**
        * [OURS] For the seal, on a door that opens one way, out, as a door does
-       * unless the customer chooses otherwise: a door stop seal or an H seal
+       * unless the customer chooses otherwise: a door stop seal or an h seal
        * (Matt, 14 November 2026: "5 mm if it's door stop seal or h seal and
        * that can only open 1 way out by default").
        */
@@ -759,7 +759,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.door.outOnlyMm': {
     group: 'Doors',
     label: 'For the seal, opening out',
-    about: 'An H seal against glass, a 90° stop seal on the panel at a corner, or a clear 90° angle siliconed to the wall. The door opens one way, out.',
+    about: 'An h seal against the fixed panel, glass to glass, a 90° stop seal on the panel at a corner, or a clear 90° angle siliconed to the wall. The door opens one way, out.',
     unit: 'mm',
   },
   'deductions.door.bothWaysMm': { group: 'Doors', label: 'For the seal, swinging both ways', about: 'A bubble seal on the handle side, closing against the wall.', unit: 'mm' },
