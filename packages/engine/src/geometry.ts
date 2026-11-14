@@ -212,6 +212,27 @@ export function isSingleDoor(state: {
 }
 
 /** A door with other glass, going to the ceiling: it gets a transom above it. */
+/** What a door's latch edge closes against: a wall, glass in line, a panel at a corner, or nothing. */
+export type LatchMeets = 'wall' | 'glass' | 'corner' | 'open';
+
+/**
+ * What the door at this index closes against, on the side away from its
+ * hinges: the pane beside it, in line or round a corner, or the wall at the
+ * end of the run, or nothing. Its seal follows from it (sealFor).
+ */
+export function latchMeetsOf(
+  state: { panels: ConfiguratorPanel[]; junctions: ConfiguratorJunction[]; leftWall: boolean; rightWall: boolean },
+  index: number
+): LatchMeets {
+  const door = state.panels[index]?.door;
+  if (!door) return 'open';
+  const latchRight = door.hinge_side === 'left';
+  const n = latchRight ? index + 1 : index - 1;
+  // junctions[i] joins panel i to panel i + 1.
+  if (state.panels[n]) return state.junctions[Math.min(index, n)]?.angle_deg === 90 ? 'corner' : 'glass';
+  return (latchRight ? state.rightWall : state.leftWall) ? 'wall' : 'open';
+}
+
 export function hasTransom(state: {
   panels: ConfiguratorPanel[];
   leftWall: boolean;

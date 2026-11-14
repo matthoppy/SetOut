@@ -24,7 +24,7 @@ describe('the door hardware', () => {
     expect(fittingsOf(state, spec, DEFAULT_RULESET.fixed)).toEqual([
       { kind: 'hinges', pane: 1, count: door.door!.hingeCount, brand: door.door!.hingeBrand, mount: 'wall-to-glass' },
       { kind: 'handle', pane: 1, handleId: 'pull' },
-      { kind: 'seal', pane: 1, seal: '90° stopper seal', lengthMm: door.cutHeightMm },
+      { kind: 'seal', pane: 1, seal: 'H seal', lengthMm: door.cutHeightMm, meets: 'glass' },
       { kind: 'bottom-seal', pane: 1, lengthMm: door.cutWidthMm },
       { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts },
     ]);

@@ -80,6 +80,13 @@ export function inCrlCatalogue(code: string): boolean {
 const SEALS: Record<string, Partial<Record<number, string>>> = {
   'bubble seal': { 8: 'PCR8', 10: 'PCR10', 12: 'PCR12' },
   '90° stopper seal': { 8: 'PC0890', 10: 'PC1090' },
+  // [MANUFACTURER] CRL's polycarbonate H-jamb, 180°, from Matt's catalogue:
+  // 5/16", 10mm and 1/2" glass.
+  'H seal': { 8: 'P516HJ', 10: 'P10MMHJ', 12: 'P120HJ' },
+  // CRL's multi-purpose clear 'L' angle jamb for 1/4" to 1/2" glass, without
+  // tape, as it is siliconed to the wall. Matt to confirm it is the one he
+  // uses: the catalogue also has it taped (P12LJT2) and an L-angle (L1212).
+  'clear 90° angle': { 8: 'P12LJ', 10: 'P12LJ', 12: 'P12LJ' },
 };
 
 /** CRL's stock length for seals, wipes and channel: 95 inches. */

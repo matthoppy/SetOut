@@ -242,7 +242,8 @@
         "Customer reports the opening as square and level."
       ],
       "warnings": [
-        "Glass: 12mm glass is a special — our standard is 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it."
+        "Glass: 12mm glass is a special — our standard is 10mm. Seals, gaskets and channel are all thickness-specific, so the whole hardware list changes with it.",
+        "P2 — Door (Front): Review: the door closes against the panel at the corner, so it can only open out, onto a 90° stop seal on that panel. Custom Showers will check it with you."
       ],
       "blockingIssues": []
     }

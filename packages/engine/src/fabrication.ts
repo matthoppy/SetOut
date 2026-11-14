@@ -6,6 +6,7 @@
  * Every number comes from the Ruleset passed in. See ruleset.ts.
  */
 
+import type { LatchMeets } from './geometry';
 import type { MountingStyle, PanelModel } from './panelModel';
 import { cornerButtDeductionMm, selectHinge } from './rules';
 import type { Ruleset } from './ruleset';
@@ -186,24 +187,26 @@ export function calculateHorizontalDeductions(
 }
 
 /**
- * Calculate door-specific deductions
+ * The seal on a door's latch side, and what it takes off the door (Matt, 14
+ * November 2026: "an h stop is only against a glass to glass, you can have a
+ * 90degree for a stop at a corner that goes on the fixed panel, but against a
+ * wall it's a bubble that open both ways or you can silicone a 90degree clear
+ * angle against the wall and that will be 5mm"). A door that swings both ways
+ * closes on a bubble seal. One that opens out closes against a stop: an H seal
+ * against glass in line, a 90° stop seal on the panel at a corner, or a clear
+ * 90° angle siliconed to the wall.
  */
+export type SealType = 'bubble seal' | 'H seal' | '90° stopper seal' | 'clear 90° angle';
+
 export function calculateDoorDeductions(
   rules: Ruleset,
-  swingType: 'bi-swing' | 'out-only'
-): { deduction: number; sealType: string } {
+  swingType: 'bi-swing' | 'out-only',
+  meets: LatchMeets = 'open'
+): { deduction: number; sealType: SealType } {
   const door = rules.making.deductions.door;
-  if (swingType === 'bi-swing') {
-    return {
-      deduction: door.bothWaysMm,
-      sealType: 'bubble seal',
-    };
-  } else {
-    return {
-      deduction: door.outOnlyMm,
-      sealType: '90° stopper seal',
-    };
-  }
+  if (swingType === 'bi-swing') return { deduction: door.bothWaysMm, sealType: 'bubble seal' };
+  const sealType: SealType = meets === 'glass' ? 'H seal' : meets === 'wall' ? 'clear 90° angle' : '90° stopper seal';
+  return { deduction: door.outOnlyMm, sealType };
 }
 
 /**

@@ -156,11 +156,14 @@ describe('hinges', () => {
 
 describe('seals, channel and handles', () => {
   test('a seal is clear, so it has one number for the glass it is on', () => {
-    const seal = (s: string): Fitting => ({ kind: 'seal', pane: 0, seal: s, lengthMm: 1900 });
+    const seal = (s: string): Fitting => ({ kind: 'seal', pane: 0, seal: s, lengthMm: 1900, meets: 'wall' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PCR10' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PC1090' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toBeNull();
+    expect(crlPartOf(seal('H seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'P516HJ' });
+    expect(crlPartOf(seal('H seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P120HJ' });
+    expect(crlPartOf(seal('clear 90° angle'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P12LJ' });
   });
 
   test('the wipe under a door is clear, by the glass it snaps onto', () => {
@@ -230,7 +233,47 @@ describe('every known design', () => {
       return part?.status === 'found' ? part.code : null;
     });
     const brand = spec.panels[1].door!.hingeBrand;
-    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PC1090', 'P990WS', 'SDCD38MBL']);
+    // The door closes against the panel in line, on CRL's 10mm H-jamb.
+    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'P10MMHJ', 'P990WS', 'SDCD38MBL']);
+  });
+});
+
+describe('a door’s seal, by what it closes against', () => {
+  const context = { rules: DEFAULT_RULESET, companyName: GOLDEN_COMPANY };
+  const sealOf = (id: string, change: (s: ReturnType<typeof createInitialState>) => void = () => {}) => {
+    const template = TEMPLATES.find((t) => t.id === id);
+    if (!template) throw new Error(`no template ${id}`);
+    const state = applyTemplate(createInitialState(10), template);
+    change(state);
+    const spec = buildSpec(state, context);
+    const i = spec.panels.findIndex((p) => p.door);
+    const seal = fittingsOf(state, spec, DEFAULT_RULESET.fixed).find((f) => f.kind === 'seal');
+    const part = seal ? crlPartOf(seal, choices('CH')) : null;
+    return { seal: spec.panels[i].door!.sealType, allowance: spec.panels[i].door!.swingDeductionMm, code: part?.status === 'found' ? part.code : null, warnings: spec.warnings };
+  };
+
+  test('against glass in line, an H seal, opening out', () => {
+    expect(sealOf('alcove-panel-door')).toMatchObject({ seal: 'H seal', allowance: 5, code: 'P10MMHJ' });
+  });
+
+  test('against a panel at a corner, a 90° stop seal on that panel, opening out', () => {
+    expect(sealOf('corner-door-return')).toMatchObject({ seal: '90° stopper seal', allowance: 5, code: 'PC1090' });
+  });
+
+  test('against a wall, a clear 90° angle siliconed to it, opening out, or a bubble seal, swinging both ways', () => {
+    expect(sealOf('alcove-door')).toMatchObject({ seal: 'clear 90° angle', allowance: 5, code: 'P12LJ' });
+    const both = sealOf('alcove-door', (s) => {
+      for (const p of s.panels) if (p.door) p.door.swing = 'both';
+    });
+    expect(both).toMatchObject({ seal: 'bubble seal', allowance: 9, code: 'PCR10' });
+  });
+
+  test('a door at a corner set to swing both ways is cut as chosen, and said to open out only', () => {
+    const both = sealOf('corner-door-return', (s) => {
+      for (const p of s.panels) if (p.door) p.door.swing = 'both';
+    });
+    expect(both.seal).toBe('bubble seal');
+    expect(both.warnings.some((w) => w.includes('can only open out'))).toBe(true);
   });
 });
 

@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CornerUpRight, Plus, Trash2 } from 'lucide-react';
-import { derivePlanes, runPanelIndices } from '@setout/engine';
+import { derivePlanes, latchMeetsOf, runPanelIndices } from '@setout/engine';
 import { runNames } from '@setout/engine';
 import { rebalanceRun, scaleRunPanels } from '@setout/engine';
 import { createPanel, type ConfiguratorPanel, type PanelKind } from '@setout/engine';
@@ -58,6 +58,7 @@ function HingedSizes({ state, update }: StepProps) {
   );
   const doorIndex = state.panels.findIndex((p) => p.kind === 'door');
   const doorPanel = doorIndex >= 0 ? state.panels[doorIndex] : null;
+  const atCorner = doorIndex >= 0 && latchMeetsOf(state, doorIndex) === 'corner';
   const runs = useMemo(() => runPanelIndices(state.panels, state.junctions), [state.panels, state.junctions]);
   const names = useMemo(() => runNames(state), [state]);
   const measuredFor = (runIndex: number) => state.opening.runs[runIndex]?.widthAtFloorMm ?? 0;
@@ -215,9 +216,12 @@ function HingedSizes({ state, update }: StepProps) {
                 <Button
                   key={side}
                   variant={doorPanel.door!.hinge_side === side ? 'default' : 'outline'}
-                  onClick={() =>
-                    patchPanel(doorPanel.id, { door: { ...doorPanel.door!, hinge_side: side } })
-                  }
+                  onClick={() => {
+                    // A door that would close against the panel at a corner can only open out.
+                    const turned = { ...state, panels: state.panels.map((p, i) => (i === doorIndex ? { ...p, door: { ...doorPanel.door!, hinge_side: side } } : p)) };
+                    const swing = latchMeetsOf(turned, doorIndex) === 'corner' ? 'out' : doorPanel.door!.swing;
+                    patchPanel(doorPanel.id, { door: { ...doorPanel.door!, hinge_side: side, swing } });
+                  }}
                   className="capitalize"
                 >
                   {side}
@@ -237,11 +241,13 @@ function HingedSizes({ state, update }: StepProps) {
               </Button>
               <Button
                 variant={doorPanel.door.swing === 'both' ? 'default' : 'outline'}
+                disabled={atCorner}
                 onClick={() => patchPanel(doorPanel.id, { door: { ...doorPanel.door!, swing: 'both' } })}
               >
                 Both ways
               </Button>
             </div>
+            {atCorner && <p className="text-xs text-muted-foreground">It closes against the panel at the corner, so it opens outwards.</p>}
           </div>
         </div>
       )}

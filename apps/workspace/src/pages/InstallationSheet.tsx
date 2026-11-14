@@ -363,8 +363,18 @@ function wordsFor(
       return { qty: String(f.count), item: `${f.brand} hinge`, where: `${door(f.pane)}, ${MOUNTS[f.mount]}${style ? `, ${style}` : ''}`, finish };
     case 'handle':
       return { qty: '1', item: named(labels.handles, f.handleId), where: door(f.pane), finish };
-    case 'seal':
-      return { qty: '1', item: capitalised(f.seal), where: `${door(f.pane)}, latch edge, ${f.lengthMm}mm`, finish: '' };
+    case 'seal': {
+      // Where it goes follows from what the door closes against.
+      const where =
+        f.meets === 'wall' && f.seal === 'clear 90° angle'
+          ? `Siliconed to the wall where the ${door(f.pane)} closes`
+          : f.meets === 'corner' && f.seal === '90° stopper seal'
+            ? `On the panel at the corner, where the ${door(f.pane)} closes`
+            : f.meets === 'glass' && f.seal === 'H seal'
+              ? `Between the ${door(f.pane)} and the glass it closes against`
+              : `${door(f.pane)}, latch edge`;
+      return { qty: '1', item: capitalised(f.seal), where: `${where}, ${f.lengthMm}mm`, finish: '' };
+    }
     case 'bottom-seal':
       return { qty: '1', item: 'Bottom wipe', where: `${door(f.pane)}, bottom edge, ${f.lengthMm}mm`, finish: '' };
     case 'channel':

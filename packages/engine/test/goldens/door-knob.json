@@ -111,7 +111,7 @@
           "door": {
             "hingeSide": "right",
             "swing": "out",
-            "sealType": "90° stopper seal",
+            "sealType": "clear 90° angle",
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,

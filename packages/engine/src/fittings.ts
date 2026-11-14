@@ -8,6 +8,7 @@
  * they are given by id and the caller names them.
  */
 
+import { latchMeetsOf, type LatchMeets } from './geometry';
 import { shapesOf, type ShapeRules } from './shapes';
 import type { ChannelCut, ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
@@ -19,8 +20,11 @@ export type Fitting =
   /** `pane` is the door's index in the spec's panels. */
   | { kind: 'hinges'; pane: number; count: number; brand: string; mount: HingeMount }
   | { kind: 'handle'; pane: number; handleId: string }
-  /** Along the door's latch edge, as long as that edge. */
-  | { kind: 'seal'; pane: number; seal: string; lengthMm: number }
+  /**
+   * Where the door closes, as long as its latch edge: on the door, on the
+   * panel beside it, or siliconed to the wall, by what it closes against.
+   */
+  | { kind: 'seal'; pane: number; seal: string; lengthMm: number; meets: LatchMeets }
   /** A wipe with a drip rail along the door's bottom edge, as long as that edge. */
   | { kind: 'bottom-seal'; pane: number; lengthMm: number }
   /** `cuts` is each length to cut, where the spec gives them. */
@@ -60,7 +64,7 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     fittings.push({ kind: 'handle', pane: i, handleId: state.handleId });
     const { bottomLeft, bottomRight, topLeft, topRight } = shapes[i].corners;
     const latch = door.hingeSide === 'left' ? topRight.y - bottomRight.y : topLeft.y - bottomLeft.y;
-    fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch });
+    fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch, meets: latchMeetsOf(state, i) });
     // Every door has a wipe under it, as Custom Showers always fit.
     fittings.push({ kind: 'bottom-seal', pane: i, lengthMm: Math.round(Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) });
   });

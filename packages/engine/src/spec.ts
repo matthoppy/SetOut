@@ -16,6 +16,7 @@ import type { PanelModel } from './panelModel';
 import { shapesOf, type PaneShape } from './shapes';
 import {
   calculateDoorDeductions,
+  type SealType,
   calculateHandlePlacement,
   calculateHingePlacement,
   calculatePanelDeductions,
@@ -29,6 +30,7 @@ import {
   derivePlanes,
   hasTransom,
   isSingleDoor,
+  latchMeetsOf,
   openingContext,
   type Plane,
   totalRunWidthMm,
@@ -83,7 +85,7 @@ export interface PanelSpec {
   door?: {
     hingeSide: 'left' | 'right';
     swing: 'out' | 'both';
-    sealType: string;
+    sealType: SealType;
     swingDeductionMm: number;
     hingeBrand: string;
     hingeCount: number;
@@ -333,10 +335,13 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     };
 
     if (p.kind === 'door' && p.door) {
-      const doorDeduction = calculateDoorDeductions(
-        rules,
-        p.door.swing === 'both' ? 'bi-swing' : 'out-only'
-      );
+      const meets = latchMeetsOf(state, i);
+      const doorDeduction = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', meets);
+      if (p.door.swing === 'both' && meets === 'corner') {
+        warnings.push(
+          `${spec.label}: Review: the door closes against the panel at the corner, so it can only open out, onto a 90° stop seal on that panel. ${companyName} will check it with you.`
+        );
+      }
 
       // The swing deduction comes off the door leaf on top of the mounting
       // deductions already applied above. Everything that follows is sized
