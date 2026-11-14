@@ -139,10 +139,10 @@ describe('the floor', () => {
     const { runs, panes } = setOutOf(state, spec, DEFAULT_RULESET.fixed);
     expect(runs[0].floor).toEqual({ startMm: 0, endMm: -6 });
     const [fixed, door] = panes;
-    // The fixed pane stands 5mm up in the bottom channel; the door is 16mm clear of the floor, for its threshold and drip rail.
+    // The fixed pane stands 5mm up in the bottom channel; the door is 17mm clear of the floor, for its threshold and drip rail.
     expect(fixed.floorGap).toEqual({ left: 5, right: 5 });
     // The floor falls 6mm over 1100; the door spans 405 to 1095 of it.
-    expect(door.floorGap).toEqual({ left: Math.round(16 + (6 * 405) / 1100), right: Math.round(16 + (6 * 1095) / 1100) });
+    expect(door.floorGap).toEqual({ left: Math.round(17 + (6 * 405) / 1100), right: Math.round(17 + (6 * 1095) / 1100) });
   });
 });
 

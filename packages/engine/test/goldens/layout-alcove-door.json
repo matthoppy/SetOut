@@ -72,15 +72,15 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
           "cutWidthMm": 685,
-          "cutHeightMm": 1984,
-          "weightKg": 33.98,
+          "cutHeightMm": 1983,
+          "weightKg": 33.96,
           "deductions": {
             "vertical": {
               "top": 0,
-              "bottom": 16,
-              "total": 16,
+              "bottom": 17,
+              "total": 17,
               "breakdown": [
-                "Door, bottom: -16mm"
+                "Door, bottom: -17mm"
               ]
             },
             "horizontal": {
@@ -93,7 +93,7 @@
               ]
             },
             "cutWidth": 690,
-            "cutHeight": 1984
+            "cutHeight": 1983
           },
           "notches": [],
           "cutouts": [
@@ -104,17 +104,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1734,
+              "heightMm": 1733,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 890.5,
+              "heightMm": 890,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1093.5,
+              "heightMm": 1093,
               "edge": "handle side"
             }
           ],
@@ -125,26 +125,26 @@
             "swingDeductionMm": 5,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 685mm / 33.98kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 685mm / 33.96kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1734
+              1733
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1437,
+              "clearGap": 1436,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 992,
+              "handleHeight": 991.5,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 890.5,
-              "upperMm": 1093.5
+              "lowerMm": 890,
+              "upperMm": 1093
             }
           }
         }

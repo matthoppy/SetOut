@@ -27,6 +27,8 @@ export type Fitting =
   | { kind: 'seal'; pane: number; seal: string; lengthMm: number; meets: LatchMeets }
   /** A wipe with a drip rail along the door's bottom edge, as long as that edge. */
   | { kind: 'bottom-seal'; pane: number; lengthMm: number }
+  /** A clear threshold on the tray under the door, as wide as the door was measured. */
+  | { kind: 'threshold'; pane: number; lengthMm: number }
   /** `cuts` is each length to cut, where the spec gives them. */
   | { kind: 'channel'; lengthMm: number; cuts: ChannelCut[] }
   | { kind: 'clamps' }
@@ -65,8 +67,10 @@ export function fittingsOf(state: ConfiguratorState, spec: ConfiguratorSpec, fix
     const { bottomLeft, bottomRight, topLeft, topRight } = shapes[i].corners;
     const latch = door.hingeSide === 'left' ? topRight.y - bottomRight.y : topLeft.y - bottomLeft.y;
     fittings.push({ kind: 'seal', pane: i, seal: door.sealType, lengthMm: latch, meets: latchMeetsOf(state, i) });
-    // Every door has a wipe under it, as Custom Showers always fit.
+    // Every door has a wipe under it, as Custom Showers always fit, closing
+    // on a clear threshold on the tray (Matt, 14 November 2026).
     fittings.push({ kind: 'bottom-seal', pane: i, lengthMm: Math.round(Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) });
+    fittings.push({ kind: 'threshold', pane: i, lengthMm: spec.panels[i].tightWidthMm });
   });
   if (spec.sliding) {
     const { kit, returnKit, header } = spec.sliding;

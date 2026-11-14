@@ -73,8 +73,20 @@ let catalogue: Set<string> | null = null;
 /** Whether a catalogue number is in Matt's copy of CRL's catalogue. */
 export function inCrlCatalogue(code: string): boolean {
   catalogue ??= new Set(CRL_CATALOGUE.split(/\s+/).filter(Boolean));
-  return catalogue.has(code);
+  return catalogue.has(code) || CRL_FROM_MATT.has(code);
 }
+
+/**
+ * [MANUFACTURER] Numbers Matt gave from CRL's own site that his copy of the
+ * catalogue does not hold under the same number. SDT980CLR10 is CRL's 10mm
+ * clear acrylic shower door threshold on crl.eu (Matt, 14 November 2026, a
+ * screenshot); his catalogue lists the clear half-round threshold as
+ * SDT980CLR.
+ */
+export const CRL_FROM_MATT: ReadonlySet<string> = new Set(['SDT980CLR10']);
+
+/** The clear threshold under every door. */
+const THRESHOLD = 'SDT980CLR10';
 
 /** By the seal SetOut gives a door and the glass it is on. */
 const SEALS: Record<string, Partial<Record<number, string>>> = {
@@ -186,6 +198,8 @@ export function crlPartOf(fitting: Fitting, choices: CrlChoices): CrlPart | null
       const code = BOTTOM_WIPES[choices.glassMm];
       return code ? { status: 'found', code } : null;
     }
+    case 'threshold':
+      return { status: 'found', code: THRESHOLD };
     case 'channel': {
       const series = CHANNEL[choices.glassMm];
       return series ? inFinish(series, choices.finishCode, ALUMINIUM) : null;

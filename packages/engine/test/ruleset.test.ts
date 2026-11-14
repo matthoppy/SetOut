@@ -79,25 +79,25 @@ describe('two companies, one design', () => {
     expect(theirs.panels[0].cutHeightMm).toBe(ours.panels[0].cutHeightMm);
   });
 
-  test('fixed glass in channel loses 5mm off the bottom and nothing off the top; a door 16mm off the bottom and nothing off the top', () => {
+  test('fixed glass in channel loses 5mm off the bottom and nothing off the top; a door 17mm off the bottom and nothing off the top', () => {
     const ours = buildSpec(corner, company('Custom Showers'));
     expect(ours.panels.map((p) => [p.kind, p.cutHeightMm])).toEqual([
       ['fixed', 1995],
-      ['door', 1984],
+      ['door', 1983],
     ]);
     expect(ours.panels[0].deductions.vertical.breakdown).toEqual(['Bottom channel: -5mm']);
-    expect(ours.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
+    expect(ours.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -17mm']);
   });
 
   test('a door with glass over its head, a glass transom, loses 4mm off its top; under an open one, nothing', () => {
     const spec = buildSpec({ ...designFromTemplate('alcove-panel-door'), isFloorToCeiling: true, heightMm: 2400, aboveDoor: 'glass' }, company('Custom Showers'));
     const door = spec.panels[1];
     expect(door.tightHeightMm).toBe(2000);
-    expect(door.deductions.vertical.breakdown).toEqual(['Glass over the door: -4mm', 'Door, bottom: -16mm']);
-    expect(door.cutHeightMm).toBe(1980);
+    expect(door.deductions.vertical.breakdown).toEqual(['Glass over the door: -4mm', 'Door, bottom: -17mm']);
+    expect(door.cutHeightMm).toBe(1979);
     const open = buildSpec({ ...designFromTemplate('alcove-panel-door'), isFloorToCeiling: true, heightMm: 2400, aboveDoor: 'open' }, company('Custom Showers'));
-    expect(open.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
-    expect(open.panels[1].cutHeightMm).toBe(1984);
+    expect(open.panels[1].deductions.vertical.breakdown).toEqual(['Door, bottom: -17mm']);
+    expect(open.panels[1].cutHeightMm).toBe(1983);
   });
 
   test('glass on clamps loses 3mm off the bottom for silicone, nothing off the top, and 3mm of silicone at the ceiling', () => {
@@ -120,7 +120,7 @@ describe('two companies, one design', () => {
 
   test('a different allowance in the bottom channel changes the fixed glass, not the door', () => {
     const theirs = buildSpec(corner, company('Brennan Glass', { 'deductions.channel.bottomMm': 8, 'deductions.channel.topMm': 2 }));
-    expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1990, 1984]);
+    expect(theirs.panels.map((p) => p.cutHeightMm)).toEqual([1990, 1983]);
   });
 
   test('a door’s own gap below changes the door, not the fixed glass', () => {
@@ -183,8 +183,8 @@ describe('two companies, one design', () => {
     expect(spec.panels[0].cutWidthMm).toBe(397);
     const door = spec.panels[1];
     expect(door.deductions.horizontal.breakdown).toEqual(['Right wall, door gap: -5mm']);
-    expect(door.deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
-    expect([door.cutWidthMm, door.cutHeightMm]).toEqual([690, 1984]);
+    expect(door.deductions.vertical.breakdown).toEqual(['Door, bottom: -17mm']);
+    expect([door.cutWidthMm, door.cutHeightMm]).toEqual([690, 1983]);
   });
 
   test('a company that makes in 8mm is not warned about 8mm', () => {

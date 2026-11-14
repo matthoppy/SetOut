@@ -26,6 +26,7 @@ describe('the door hardware', () => {
       { kind: 'handle', pane: 1, handleId: 'pull' },
       { kind: 'seal', pane: 1, seal: 'H seal', lengthMm: door.cutHeightMm, meets: 'glass' },
       { kind: 'bottom-seal', pane: 1, lengthMm: door.cutWidthMm },
+      { kind: 'threshold', pane: 1, lengthMm: door.tightWidthMm },
       { kind: 'channel', lengthMm: spec.totalChannelLengthMm, cuts: spec.channelCuts },
     ]);
   });

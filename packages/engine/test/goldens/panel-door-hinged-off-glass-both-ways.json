@@ -107,7 +107,7 @@
           "cutouts": [
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 261,
+              "heightMm": 262,
               "edge": "handle side"
             },
             {
@@ -125,15 +125,15 @@
           "tightWidthMm": 700,
           "tightHeightMm": 2000,
           "cutWidthMm": 686,
-          "cutHeightMm": 1984,
-          "weightKg": 34.03,
+          "cutHeightMm": 1983,
+          "weightKg": 34.01,
           "deductions": {
             "vertical": {
               "top": 0,
-              "bottom": 16,
-              "total": 16,
+              "bottom": 17,
+              "total": 17,
               "breakdown": [
-                "Door, bottom: -16mm"
+                "Door, bottom: -17mm"
               ]
             },
             "horizontal": {
@@ -145,7 +145,7 @@
               ]
             },
             "cutWidth": 695,
-            "cutHeight": 1984
+            "cutHeight": 1983
           },
           "notches": [],
           "cutouts": [
@@ -156,17 +156,17 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1734,
+              "heightMm": 1733,
               "edge": "hinge side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 890.5,
+              "heightMm": 890,
               "edge": "handle side"
             },
             {
               "description": "Handle hole Ø12, 76mm in from the edge",
-              "heightMm": 1093.5,
+              "heightMm": 1093,
               "edge": "handle side"
             }
           ],
@@ -177,26 +177,26 @@
             "swingDeductionMm": 9,
             "hingeBrand": "Geneva",
             "hingeCount": 2,
-            "hingeReason": "2 × Geneva carries 686mm / 34.03kg (rated 711mm / 36kg).",
+            "hingeReason": "2 × Geneva carries 686mm / 34.01kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
               250,
-              1734
+              1733
             ],
             "hingePlacement": {
               "topHingeOffset": 250,
               "bottomHingeOffset": 250,
-              "clearGap": 1437,
+              "clearGap": 1436,
               "warning": null
             },
             "handlePlacement": {
-              "handleHeight": 992,
+              "handleHeight": 991.5,
               "edgeClearance": 76,
               "isValid": true,
               "warning": null
             },
             "handleHoleHeightsMm": {
-              "lowerMm": 890.5,
-              "upperMm": 1093.5
+              "lowerMm": 890,
+              "upperMm": 1093
             }
           }
         }

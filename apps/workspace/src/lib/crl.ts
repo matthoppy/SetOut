@@ -53,6 +53,8 @@ export function showerParts(design: ConfiguratorState, spec: ConfiguratorSpec, l
         return { fitting, part, what: fitting.seal.charAt(0).toUpperCase() + fitting.seal.slice(1), finish: null };
       case 'bottom-seal':
         return { fitting, part, what: 'Bottom wipe with drip rail', finish: null };
+      case 'threshold':
+        return { fitting, part, what: 'Clear threshold', finish: null };
       case 'channel':
         return { fitting, part, what: 'Deep U-channel', finish };
       case 'clamps':
@@ -74,6 +76,7 @@ export function piecesOf(fitting: Fitting, spec: ConfiguratorSpec): number[] | n
   switch (fitting.kind) {
     case 'seal':
     case 'bottom-seal':
+    case 'threshold':
       return [fitting.lengthMm];
     case 'channel': {
       // Each length the cut list gives: along the floor, up each wall, up each notch.

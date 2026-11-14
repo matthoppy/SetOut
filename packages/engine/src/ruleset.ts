@@ -126,9 +126,12 @@ export interface MakingRules {
        */
       glassAboveMm: number;
       /**
-       * [OURS] Off the bottom of a door, whatever the fixing: room for the clear
-       * threshold and the bottom drip rail (Matt, 14 November 2026: "A clear
-       * threshold and a bottom drip rail is 16mm deduction off the glass").
+       * [MANUFACTURER] Off the bottom of a door, whatever the fixing: room for
+       * the clear threshold and the bottom wipe with its drip rail. CRL's table
+       * for its co-extruded clear bottom wipe with drip rail gives 11/16"
+       * (17mm) on 10 and 12mm glass with the SDT980 threshold (Matt, 14
+       * November 2026, sending it: "This threshold and a drip rail are 17mm
+       * deduction if the bottom of a door"). CRL gives 16mm on 8mm glass.
        */
       bottomMm: number;
     };
@@ -396,7 +399,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
     clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 3 },
-    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 16 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 17 },
   },
   heights: {
     singleDoorTopGapMm: 30,

@@ -28,6 +28,7 @@ import {
   type WallHinge,
 } from '../src';
 import { CRL_CATALOGUE } from '../src/crl-catalogue';
+import { CRL_FROM_MATT } from '../src/crl';
 import { GOLDEN_COMPANY, GOLDENS } from './goldens';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -218,7 +219,7 @@ describe('every known design', () => {
     const spec = buildSpec(state, context);
     for (const fitting of fittingsOf(state, spec, DEFAULT_RULESET.fixed)) {
       const part = crlPartOf(fitting, choices('CH', spec.glassThicknessMm, 'BM8X8'));
-      if (part?.status === 'found') expect(inCrlCatalogue(part.code) && skus.has(part.code), part.code).toBe(true);
+      if (part?.status === 'found') expect(inCrlCatalogue(part.code) && (skus.has(part.code) || CRL_FROM_MATT.has(part.code)), part.code).toBe(true);
       if (fitting.kind === 'hinges' || fitting.kind === 'handle') expect(part?.status, fitting.kind).toBe('found');
     }
   });
@@ -234,7 +235,7 @@ describe('every known design', () => {
     });
     const brand = spec.panels[1].door!.hingeBrand;
     // The door closes against the panel in line, on CRL's soft-finned Y-jamb.
-    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PCC10', 'P990WS', 'SDCD38MBL']);
+    expect(codes).toEqual([brand === 'Geneva' ? 'GEN044MBL' : brand === 'Vienna' ? 'V1E044MBL' : 'BEL344MBL', 'BM8X8MBL', 'PCC10', 'P990WS', 'SDT980CLR10', 'SDCD38MBL']);
   });
 });
 
@@ -290,7 +291,7 @@ describe('every standard layout in each thickness SetOut makes', () => {
     }
     for (const fitting of fittingsOf(state, spec, DEFAULT_RULESET.fixed)) {
       const part = crlPartOf(fitting, choices('CH', mm));
-      if (part?.status === 'found') expect(skus.has(part.code), part.code).toBe(true);
+      if (part?.status === 'found') expect(skus.has(part.code) || CRL_FROM_MATT.has(part.code), part.code).toBe(true);
       if (fitting.kind === 'hinges') expect(part?.status).toBe('found');
     }
   });
