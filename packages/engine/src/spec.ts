@@ -156,7 +156,8 @@ export interface ConfiguratorSpec {
  * ceiling where the glass goes to it, which is the pane's edge there as it
  * is cut, to the shape of the opening, with its gaps above and below. It
  * stands on the bottom channel, so it is that less the channel's depth, and
- * to the ceiling it stops under the top channel as well. Where a pane is
+ * to the ceiling it stops under the top channel as well (Matt, 14 November
+ * 2026: "Yeah that's right about glass to ceiling with the channel"). Where a pane is
  * notched, the channel goes up the notch. At a corner each run's channel is
  * given at its pane's full measured width; how the two lengths meet in the
  * corner is left to the workshop.
