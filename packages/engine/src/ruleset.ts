@@ -82,8 +82,9 @@ export interface MakingRules {
      * [OURS] Fixed glass held by clamps (Matt, 13 and 14 November 2026: "for
      * a clamp system we deduct off 3mm for silicone down the wall", "there
      * will be 3mm off the bottom for silicone and 5mm if it's floor to
-     * ceiling but nothing if it doesn't go to ceiling"). Until then CRL's
-     * 3mm came off every edge.
+     * ceiling but nothing if it doesn't go to ceiling", and "If it's clamps
+     * it no channel, so 3mm silicone to hold the structure"). Until then
+     * CRL's 3mm came off every edge.
      */
     clamps: {
       /** At each wall the glass is clamped to, for the silicone down it. */
@@ -92,7 +93,7 @@ export interface MakingRules {
       bottomMm: number;
       /** Off the top of glass that stops short of the ceiling: nothing. */
       topMm: number;
-      /** Off the top of glass that goes up to the ceiling. */
+      /** Off the top of glass that goes up to the ceiling, for the silicone that holds it there. */
       ceilingMm: number;
     };
     door: {
@@ -394,7 +395,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   },
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
-    clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 5 },
+    clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 3 },
     door: { outOnlyMm: 5, bothWaysMm: 9, wallMm: 5, glassAboveMm: 4, bottomMm: 16 },
   },
   heights: {
@@ -742,7 +743,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clamps.wallMm': { group: 'Glass on clamps', label: 'Off at each wall', about: 'For the silicone down the wall.', unit: 'mm' },
   'deductions.clamps.bottomMm': { group: 'Glass on clamps', label: 'Off the bottom', about: 'For the silicone along the bottom.', unit: 'mm' },
   'deductions.clamps.topMm': { group: 'Glass on clamps', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
-  'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', unit: 'mm' },
+  'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', about: 'For the silicone that holds it there: there is no channel.', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes that meet at a corner.', unit: 'mm' },
   'deductions.door.wallMm': { group: 'Doors', label: 'Gap at a wall', about: 'Where it hangs on wall hinges or closes against the wall.', unit: 'mm' },
   'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail.', unit: 'mm' },

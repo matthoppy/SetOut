@@ -100,14 +100,14 @@ describe('two companies, one design', () => {
     expect(open.panels[1].cutHeightMm).toBe(1984);
   });
 
-  test('glass on clamps loses 3mm off the bottom for silicone, nothing off the top, and 5mm off the top to the ceiling', () => {
+  test('glass on clamps loses 3mm off the bottom for silicone, nothing off the top, and 3mm of silicone at the ceiling', () => {
     const clamped = { ...designFromTemplate('walk-in'), mounting: 'clamps' as const };
     const short = buildSpec(clamped, company('Custom Showers')).panels[0];
     expect(short.deductions.vertical.breakdown).toEqual(['Bottom, silicone: -3mm']);
     expect(short.cutHeightMm).toBe(1997);
     const tall = buildSpec({ ...clamped, isFloorToCeiling: true, heightMm: 2400 }, company('Custom Showers')).panels[0];
-    expect(tall.deductions.vertical.breakdown).toEqual(['Top, to the ceiling: -5mm', 'Bottom, silicone: -3mm']);
-    expect(tall.cutHeightMm).toBe(2392);
+    expect(tall.deductions.vertical.breakdown).toEqual(['Top, to the ceiling: -3mm', 'Bottom, silicone: -3mm']);
+    expect(tall.cutHeightMm).toBe(2394);
   });
 
   test('glass to the ceiling loses 10mm off the top, into its top channel, and 5mm off the bottom', () => {
