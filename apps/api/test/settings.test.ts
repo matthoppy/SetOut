@@ -936,6 +936,9 @@ describe('the company’s measurements', () => {
   test.each([
     ['outside its bounds', { 'deductions.channel.bottomMm': 99 }],
     ['not a whole number', { 'deductions.channel.bottomMm': 5.5 }],
+    ['a word for a number', { 'deductions.channel.bottomMm': 'five' }],
+    ['not one of a choice’s choices', { 'glass.cornerRunsThrough': 'sideways' }],
+    ['a number for a choice', { 'glass.cornerRunsThrough': 1 }],
     ['one a company cannot change', { 'hinges.geneva.maxDoorWidthMm': 1200 }],
     ['the glass thickness, which each designer sets', { 'glass.standardThicknessMm': 8 }],
     ['not a list of measurements at all', 'ten'],
@@ -968,5 +971,11 @@ describe('the company’s measurements', () => {
       { field: 'rule', rule: 'deductions.door.outOnlyMm', from: 7, to: 5 },
     ]);
     expect(await json(await rules({}, 2))).toEqual({ ok: true, changed: false, rules: { version: 2, overrides: {} } });
+  });
+
+  test('a choice, which pane runs through at a corner, is kept as the word chosen', async () => {
+    const response = await rules({ 'glass.cornerRunsThrough': 'return' }, 2);
+    expect(await json(response)).toEqual({ ok: true, changed: true, rules: { version: 3, overrides: { 'glass.cornerRunsThrough': 'return' } } });
+    expect((await read()).changes?.[0].data.changes).toEqual([{ field: 'rule', rule: 'glass.cornerRunsThrough', from: 'front', to: 'return' }]);
   });
 });

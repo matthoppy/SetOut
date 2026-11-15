@@ -371,7 +371,7 @@ function wordsFor(
           ? `${door(f.pane)}, hinge edge, against the wall`
           : f.meets === 'wall' && f.seal === 'clear 90° angle'
             ? `Siliconed to the wall where the ${door(f.pane)} closes`
-            : f.meets === 'corner' && f.seal === '90° stopper seal'
+            : f.meets === 'corner' && (f.seal === '90° stopper seal' || f.seal === '90° strike seal')
               ? `On the panel at the corner, where the ${door(f.pane)} closes`
               : f.meets === 'glass' && f.seal === 'h seal'
                 ? `Where the ${door(f.pane)} closes against the fixed panel`

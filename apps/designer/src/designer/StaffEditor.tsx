@@ -20,6 +20,7 @@ import {
   syncRuns,
   type BellagioFit,
   type ConfiguratorState,
+  type CornerRunsThrough,
   type ViennaCutout,
 } from '@setout/engine';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
@@ -204,7 +205,24 @@ export function StaffEditor({ config, initial, templateId, revision, title, back
                 )}
               </>
             ))}
-          {part === 'sizes' && <SizesStep {...stepProps} />}
+          {part === 'sizes' && (
+            <>
+              <SizesStep {...stepProps} />
+              {/* Which pane runs through at the corners: the company's standard, or this shower's own. */}
+              {state.junctions.some((j) => j.angle_deg === 90) && (
+                <Choice<CornerRunsThrough>
+                  title="At the corners"
+                  options={[
+                    ['front', 'The front runs through', 'To the outside corner. The return stops behind it, short by the glass and the silicone joint.'],
+                    ['return', 'The return runs through', 'The front stops at it. A door there closes beside the return, onto a 90° strike seal.'],
+                  ]}
+                  chosen={state.cornerRunsThrough ?? engine.rules.making.glass.cornerRunsThrough}
+                  standard={engine.rules.making.glass.cornerRunsThrough}
+                  onChoose={(cornerRunsThrough) => update({ cornerRunsThrough })}
+                />
+              )}
+            </>
+          )}
           {part === 'hardware' && (
             <>
               <HardwareStep {...stepProps} />

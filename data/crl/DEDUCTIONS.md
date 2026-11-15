@@ -53,7 +53,7 @@ glass too (PC1200, 22mm), which SetOut now orders on 12mm; the clear angle
 go on the door at its hinge side; and on 8mm glass the wipe (P956WS) leaves
 10mm, 16mm over the threshold, where SetOut keeps Matt's 17 for every glass.
 
-**Asked of Matt, 14 November 2026: which runs through at a door corner?**
+**Which runs through at a door corner: answered by Matt, 15 November 2026,** "It's usually the front side that runs through but they will be able to change that if they want". The front stays SetOut's standard; a company can choose the return in Settings, and its team can choose either for a shower (engine 0.14.0). Where the return runs through, a door closes beside it onto P090SJ (PCJ8 on 8mm glass). The question, as it was put:
 Every one of CRL's 90° door parts is drawn with the panel at the corner
 running through to the outside corner and the door beside it: the 90°
 glass-to-glass hinges (the door 6mm off the panel's inside face; Bellagio 8

@@ -92,6 +92,14 @@ export type ViennaCutout = (typeof VIENNA_CUTOUTS)[number];
  */
 export const BELLAGIO_FITS = ['with-seals', 'without-seals'] as const;
 export type BellagioFit = (typeof BELLAGIO_FITS)[number];
+/**
+ * At a corner, which pane runs through to the outside corner: the one in the
+ * front (or back) of the shower, or the return. The other stops behind it.
+ * Usually the front (Matt, 15 November 2026: "It's usually the front side
+ * that runs through but they will be able to change that if they want").
+ */
+export const CORNER_RUNS_THROUGH = ['front', 'return'] as const;
+export type CornerRunsThrough = (typeof CORNER_RUNS_THROUGH)[number];
 
 /**
  * The sliding door systems SetOut designs: CRL's Serenity, the only one
@@ -132,6 +140,8 @@ export interface ConfiguratorState {
   viennaCutout?: ViennaCutout;
   /** How a Bellagio hinge is fitted, where staff chose it for this shower. */
   bellagioFit?: BellagioFit;
+  /** Which pane runs through at this shower's corners, where staff chose it. Otherwise the company's standard. */
+  cornerRunsThrough?: CornerRunsThrough;
   /**
    * Set when the shower's door slides: the run with the door in it is one
    * fixed panel and one sliding door on this system, cut to its maker's

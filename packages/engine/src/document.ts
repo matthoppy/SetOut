@@ -33,6 +33,7 @@ import { getTemplate, type ShowerTemplate } from './templates';
 import {
   createInitialState,
   BELLAGIO_FITS,
+  CORNER_RUNS_THROUGH,
   IN_LINE_HINGES,
   SLIDING_SYSTEMS,
   VIENNA_CUTOUTS,
@@ -393,6 +394,7 @@ function readDesign(v: unknown): ConfiguratorState {
   if (d.inLineHinge !== undefined) design.inLineHinge = oneOf(d.inLineHinge, IN_LINE_HINGES, 'inLineHinge');
   if (d.viennaCutout !== undefined) design.viennaCutout = oneOf(d.viennaCutout, VIENNA_CUTOUTS, 'viennaCutout');
   if (d.bellagioFit !== undefined) design.bellagioFit = oneOf(d.bellagioFit, BELLAGIO_FITS, 'bellagioFit');
+  if (d.cornerRunsThrough !== undefined) design.cornerRunsThrough = oneOf(d.cornerRunsThrough, CORNER_RUNS_THROUGH, 'cornerRunsThrough');
   if (d.sliding !== undefined && d.sliding !== null) {
     design.sliding = { system: oneOf(object(d.sliding, 'sliding').system, SLIDING_SYSTEMS, 'sliding.system') };
   }

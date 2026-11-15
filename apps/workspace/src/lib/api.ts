@@ -443,7 +443,7 @@ export type SettingsChangeItem =
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'websites'; added: string[]; removed: string[] }
-  | { field: 'rule'; rule: string; from: number; to: number };
+  | { field: 'rule'; rule: string; from: number | string; to: number | string };
 
 export interface SettingsChange {
   id: string;

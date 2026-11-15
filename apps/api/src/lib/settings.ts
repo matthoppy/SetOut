@@ -603,7 +603,7 @@ export type SettingsChange =
   | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
-  | { field: 'rule'; rule: string; from: number; to: number };
+  | { field: 'rule'; rule: string; from: number | string; to: number | string };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
 
@@ -755,9 +755,10 @@ const isNamedRule = (rule: string): rule is keyof typeof RULE_TEXT => Object.has
 
 /**
  * The measurements an owner sent: every rule they differ from SetOut's
- * standard in, each a whole number inside its bounds. A rule sent at SetOut's
- * standard is not kept, so a company that has changed nothing has nothing
- * stored, and takes SetOut's standard if it changes.
+ * standard in, each a whole number inside its bounds, or one of a choice's
+ * choices. A rule sent at SetOut's standard is not kept, so a company that
+ * has changed nothing has nothing stored, and takes SetOut's standard if it
+ * changes.
  */
 export function readRuleOverrides(input: unknown): RulesetOverrides {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -768,9 +769,17 @@ export function readRuleOverrides(input: unknown): RulesetOverrides {
     if (!isNamedRule(rule)) throw new RequestError(400, 'invalid_rules', `"${rule}" is not a measurement a company can change.`);
     const text = RULE_TEXT[rule];
     const bounds = ADJUSTABLE[rule];
-    const range = 'min' in bounds ? ` between ${bounds.min} and ${bounds.max}${text.unit}` : '';
+    const what = `${text.group}, ${text.label.charAt(0).toLowerCase()}${text.label.slice(1)}`;
+    if ('choice' in bounds) {
+      if (typeof value !== 'string' || !(bounds.choice as readonly string[]).includes(value)) {
+        throw new RequestError(400, 'invalid_rules', `${what}: one of ${Object.values(text.choices ?? {}).map((c) => c.toLowerCase()).join(' or ')}.`);
+      }
+      if (value !== ruleValue(DEFAULT_MAKING_RULES, rule)) overrides[rule] = value;
+      continue;
+    }
+    const range = 'min' in bounds ? ` between ${bounds.min} and ${bounds.max}${text.unit ?? ''}` : '';
     if (typeof value !== 'number' || !Number.isInteger(value) || ('min' in bounds && (value < bounds.min || value > bounds.max))) {
-      throw new RequestError(400, 'invalid_rules', `${text.group}, ${text.label.charAt(0).toLowerCase()}${text.label.slice(1)}: a whole number${range}.`);
+      throw new RequestError(400, 'invalid_rules', `${what}: a whole number${range}.`);
     }
     if (value !== ruleValue(DEFAULT_MAKING_RULES, rule)) overrides[rule] = value;
   }

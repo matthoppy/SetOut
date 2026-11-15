@@ -185,21 +185,20 @@ export function calculateHorizontalDeductions(
     breakdown.push(`Right, silicone joint in line: -${inLineJointMm.right}mm`);
   }
 
-  // Corner deductions. The run carrying the door passes through to the
-  // outside corner and loses nothing; the return butts in behind it and
-  // loses the glass thickness plus the silicone joint.
-  const cornerDeduction = isLongPanel ? 0 : cornerButtDeductionMm(rules, glassThicknessMm);
+  // Corner deductions. The pane that runs through to the outside corner
+  // loses nothing there (the front, unless the company or the shower says the
+  // return: glass.cornerRunsThrough). Fixed glass that stops behind it loses
+  // the glass thickness plus the silicone joint; a door loses the glass
+  // thickness, and leaves its own seal's or hinge's gap as at any edge.
+  const cornerDeduction = isLongPanel ? 0 : isDoor ? glassThicknessMm : cornerButtDeductionMm(rules, glassThicknessMm);
+  const how = isLongPanel ? 'runs through' : isDoor ? 'stops at the panel' : 'butts behind';
   if (hasLeftCorner) {
     left += cornerDeduction;
-    breakdown.push(
-      `Left corner (${isLongPanel ? 'runs through' : 'butts behind'}): -${cornerDeduction}mm`
-    );
+    breakdown.push(`Left corner (${how}): -${cornerDeduction}mm`);
   }
   if (hasRightCorner) {
     right += cornerDeduction;
-    breakdown.push(
-      `Right corner (${isLongPanel ? 'runs through' : 'butts behind'}): -${cornerDeduction}mm`
-    );
+    breakdown.push(`Right corner (${how}): -${cornerDeduction}mm`);
   }
 
   return {
@@ -227,16 +226,23 @@ export function calculateHorizontalDeductions(
  * there is another seal that looks like H, against fixed panel for glass to
  * glass").
  */
-export type SealType = 'bubble seal' | 'h seal' | '90° stopper seal' | 'clear 90° angle';
+export type SealType = 'bubble seal' | 'h seal' | '90° stopper seal' | '90° strike seal' | 'clear 90° angle';
 
 export function calculateDoorDeductions(
   rules: Ruleset,
   swingType: 'bi-swing' | 'out-only',
-  meets: LatchMeets = 'open'
+  meets: LatchMeets = 'open',
+  /**
+   * At a corner, the door stops at the panel, beside its inside face, rather
+   * than running through in front of its edge. It then closes onto CRL's 90°
+   * strike seal, which snaps onto that panel (AVDB3078: P090SJ, a 4.7mm gap).
+   */
+  stopsAtCorner = false
 ): { deduction: number; sealType: SealType } {
   const door = rules.making.deductions.door;
   if (swingType === 'bi-swing') return { deduction: door.bothWaysMm, sealType: 'bubble seal' };
-  const sealType: SealType = meets === 'glass' ? 'h seal' : meets === 'wall' ? 'clear 90° angle' : '90° stopper seal';
+  const sealType: SealType =
+    meets === 'glass' ? 'h seal' : meets === 'wall' ? 'clear 90° angle' : stopsAtCorner ? '90° strike seal' : '90° stopper seal';
   return { deduction: door.outOnlyMm, sealType };
 }
 

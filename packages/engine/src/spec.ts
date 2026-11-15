@@ -285,12 +285,17 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     );
   }
 
+  // At a corner the pane in the front (or back) runs through to the outside
+  // corner and the return stops behind it, unless the company, or this
+  // shower, has the return run through.
+  const frontRunsThrough = (state.cornerRunsThrough ?? making.glass.cornerRunsThrough) === 'front';
   const panels: PanelSpec[] = state.panels.map((p, i) => {
     const plane = planes[i];
     const model = panelModels[i];
 
     const hasLeftCorner = state.junctions[i - 1]?.angle_deg === 90;
     const hasRightCorner = state.junctions[i]?.angle_deg === 90;
+    const runsThrough = (plane === 'front' || plane === 'back') === frontRunsThrough;
     // Two fixed panes in line are siliconed together: the left one takes the
     // smaller half of the joint where it is odd, so the two add up to it.
     const joint = making.glass.siliconeJointMm;
@@ -321,9 +326,9 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
         // off its top. An open transom leaves nothing over it.
         support.supportPanelRequired || (underTransom && state.aboveDoor !== 'open'),
         {
-          // At a corner the panel in the front plane runs long and the return
-          // tucks behind it, so only one of the pair takes the glass thickness.
-          isLongPanel: plane === 'front' || plane === 'back',
+          // At a corner only one of the pair takes the glass thickness: the
+          // one that stops behind the other.
+          isLongPanel: runsThrough,
           hasLeftCorner,
           hasRightCorner,
           glassThicknessMm: state.glassThicknessMm,
@@ -339,7 +344,7 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
     const hingeAtWall = p.door ? (p.door.hinge_side === 'left' ? model.wall_fix.left : model.wall_fix.right) : false;
     let hingeSealType: 'bubble seal' | null = hingeAtWall ? 'bubble seal' : null;
     if (p.door && hingeAtWall && hingeStylesOf(state, context.hinges).bellagioFit === 'without-seals') {
-      const seal = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', latchMeetsOf(state, i));
+      const seal = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', latchMeetsOf(state, i), !runsThrough);
       const without = deductionsFor(true);
       if (selectHingeForDoor(rules, without.cutWidth - seal.deduction, without.cutHeight, state.glassThicknessMm).brand === 'Bellagio') {
         deductions = without;
@@ -372,10 +377,10 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
 
     if (p.kind === 'door' && p.door) {
       const meets = latchMeetsOf(state, i);
-      const doorDeduction = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', meets);
+      const doorDeduction = calculateDoorDeductions(rules, p.door.swing === 'both' ? 'bi-swing' : 'out-only', meets, !runsThrough);
       if (p.door.swing === 'both' && meets === 'corner') {
         warnings.push(
-          `${spec.label}: Review: the door closes against the panel at the corner, so it can only open out, onto a 90° stop seal on that panel. ${companyName} will check it with you.`
+          `${spec.label}: Review: the door closes against the panel at the corner, so it can only open out, onto a ${runsThrough ? '90° stop seal' : '90° strike seal'} on that panel. ${companyName} will check it with you.`
         );
       }
 

@@ -29,12 +29,12 @@ const company = (name: string, overrides = {}): EngineContext => ({
 const at = (root: unknown, path: string): unknown =>
   path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], root);
 
-/** Every number in the making rules, by its dotted name. */
-function numberPaths(node: unknown, prefix = ''): string[] {
-  if (typeof node === 'number') return [prefix];
+/** Every rule in the making rules, a number or a choice, by its dotted name. */
+function rulePaths(node: unknown, prefix = ''): string[] {
+  if (typeof node === 'number' || typeof node === 'string') return [prefix];
   if (node === null || typeof node !== 'object') return [];
   return Object.entries(node).flatMap(([key, child]) =>
-    numberPaths(child, prefix ? `${prefix}.${key}` : key)
+    rulePaths(child, prefix ? `${prefix}.${key}` : key)
   );
 }
 
@@ -53,13 +53,14 @@ describe('the default ruleset', () => {
   });
 
   test('every making rule can be adjusted, and every adjustable rule exists', () => {
-    expect(numberPaths(DEFAULT_MAKING_RULES).sort()).toEqual(Object.keys(ADJUSTABLE).sort());
+    expect(rulePaths(DEFAULT_MAKING_RULES).sort()).toEqual(Object.keys(ADJUSTABLE).sort());
   });
 
   test('every default is inside its own bounds', () => {
     for (const [rule, bounds] of Object.entries(ADJUSTABLE)) {
       const value = at(DEFAULT_MAKING_RULES, rule) as number;
-      if ('oneOf' in bounds) expect(bounds.oneOf, rule).toContain(value);
+      if ('choice' in bounds) expect(bounds.choice, rule).toContain(value);
+      else if ('oneOf' in bounds) expect(bounds.oneOf, rule).toContain(value);
       else {
         expect(value, rule).toBeGreaterThanOrEqual(bounds.min);
         expect(value, rule).toBeLessThanOrEqual(bounds.max);
@@ -194,6 +195,43 @@ describe('two companies, one design', () => {
     expect(buildSpec(designFromTemplate('alcove-panel-door'), company('Custom Showers')).panels[0].deductions.horizontal.breakdown).toEqual(['Left wall channel: -10mm']);
   });
 
+  test('at a corner the front runs through, unless the company or the shower says the return', () => {
+    // A 700 door hung on the wall, closing on an 800 return.
+    const front = buildSpec(corner, company('Custom Showers'));
+    const [ret, door] = front.panels;
+    expect([door.cutWidthMm, ret.cutWidthMm]).toEqual([687, 778]);
+    expect(door.door?.sealType).toBe('90° stopper seal');
+    // The return runs through: the door stops at it, short by its glass and its seal's gap.
+    const theirs = buildSpec(corner, company('Brennan Glass', { 'glass.cornerRunsThrough': 'return' }));
+    expect(theirs.panels.map((p) => p.cutWidthMm)).toEqual([790, 677]);
+    expect(theirs.panels[1].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm', 'Left corner (stops at the panel): -10mm']);
+    expect(theirs.panels[0].deductions.horizontal.breakdown).toEqual(['Left wall channel: -10mm', 'Right corner (runs through): -0mm']);
+    // It closes beside the return, onto CRL's 90° strike seal.
+    expect(theirs.panels[1].door?.sealType).toBe('90° strike seal');
+    expect(theirs.panels[1].door?.swingDeductionMm).toBe(5);
+    // A shower can choose for itself, either way.
+    expect(buildSpec({ ...corner, cornerRunsThrough: 'return' as const }, company('Custom Showers')).panels.map((p) => p.cutWidthMm)).toEqual([790, 677]);
+    expect(buildSpec({ ...corner, cornerRunsThrough: 'front' as const }, company('Brennan Glass', { 'glass.cornerRunsThrough': 'return' })).panels.map((p) => p.cutWidthMm)).toEqual([778, 687]);
+  });
+
+  test('fixed glass that stops behind a return that runs through loses the glass and the joint', () => {
+    const fixed = designFromTemplate('walk-in-return');
+    const ours = buildSpec(fixed, company('Custom Showers'));
+    const theirs = buildSpec(fixed, company('Brennan Glass', { 'glass.cornerRunsThrough': 'return' }));
+    const frontOf = (s: typeof ours) => s.panels.find((p) => p.plane === 'front')!;
+    const returnOf = (s: typeof ours) => s.panels.find((p) => p.plane !== 'front')!;
+    expect(frontOf(theirs).cutWidthMm).toBe(frontOf(ours).cutWidthMm - 12);
+    expect(returnOf(theirs).cutWidthMm).toBe(returnOf(ours).cutWidthMm + 12);
+  });
+
+  test('a door hung off a return that runs through stops at it, short by its glass and the hinge gap', () => {
+    const shower = designFromTemplate('three-sided');
+    const theirs = buildSpec(shower, company('Brennan Glass', { 'glass.cornerRunsThrough': 'return' }));
+    // 700 less 10 and 3 at its hinges, and 10 and 5 at its latch; each 600 return less 10 at its wall.
+    expect(theirs.panels.map((p) => p.cutWidthMm)).toEqual([590, 672, 590]);
+    expect(theirs.panels[1].door?.sealType).toBe('90° strike seal');
+  });
+
   test('Matt’s screen: 1200 wide and 2200 high at one wall is glass 1190 x 2195, channel cut 1200 and 2181', () => {
     const screen = designFromTemplate('walk-in');
     const design = { ...screen, heightMm: 2200, panels: [{ ...screen.panels[0], width_mm: 1200 }] };
@@ -305,6 +343,13 @@ describe('what a company may not do', () => {
     refused({ 'deductions.clamps.wallMm': Number.NaN });
   });
 
+  test('choose something a choice does not offer', () => {
+    refused({ 'glass.cornerRunsThrough': 'sideways' });
+    refused({ 'glass.cornerRunsThrough': 1 });
+    refused({ 'deductions.clamps.wallMm': 'front' });
+    expect(resolveRuleset({ 'glass.cornerRunsThrough': 'return' }).making.glass.cornerRunsThrough).toBe('return');
+  });
+
   test('send something that is not a set of rules', () => {
     refused(null);
     refused([]);
@@ -315,7 +360,7 @@ describe('what a company may not do', () => {
 
   test('every bound accepts its own edges', () => {
     for (const [rule, bounds] of Object.entries(ADJUSTABLE) as [AdjustableRule, (typeof ADJUSTABLE)[AdjustableRule]][]) {
-      const edges = 'oneOf' in bounds ? bounds.oneOf : [bounds.min, bounds.max];
+      const edges: readonly (number | string)[] = 'choice' in bounds ? bounds.choice : 'oneOf' in bounds ? bounds.oneOf : [bounds.min, bounds.max];
       for (const value of edges) {
         expect(at(resolveRuleset({ [rule]: value }).making, rule), rule).toBe(value);
       }
@@ -328,6 +373,19 @@ describe('the rules in words', () => {
     const named = Object.keys(RULE_TEXT).sort();
     expect(named).toEqual(Object.keys(ADJUSTABLE).filter((rule) => rule !== 'glass.standardThicknessMm').sort());
     for (const text of Object.values(RULE_TEXT)) expect(RULE_GROUPS).toContain(text.group);
+  });
+
+  test('a measurement has its unit, and a choice names each of its choices', () => {
+    for (const [rule, text] of Object.entries(RULE_TEXT)) {
+      const bounds = ADJUSTABLE[rule as AdjustableRule];
+      if ('choice' in bounds) {
+        expect(text.unit, rule).toBeUndefined();
+        expect(Object.keys(text.choices ?? {}), rule).toEqual([...bounds.choice]);
+      } else {
+        expect(text.unit, rule).toBeDefined();
+        expect(text.choices, rule).toBeUndefined();
+      }
+    }
   });
 
   test('a rule’s value is read from the rules it is in', () => {

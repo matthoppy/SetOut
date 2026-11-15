@@ -163,6 +163,10 @@ describe('seals, channel and handles', () => {
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PC1200' });
     expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PC0890' });
+    // A door that stops beside the panel at a corner closes onto CRL's 90° strike seal.
+    expect(crlPartOf(seal('90° strike seal'), choices('MBL'))).toEqual({ status: 'found', code: 'P090SJ' });
+    expect(crlPartOf(seal('90° strike seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCJ8' });
+    expect(crlPartOf(seal('90° strike seal'), choices('MBL', 12))).toBeNull();
     expect(crlPartOf(seal('h seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCC8' });
     expect(crlPartOf(seal('h seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PCC12' });
     expect(crlPartOf(seal('clear 90° angle'), choices('MBL', 12))).toEqual({ status: 'found', code: 'P12LJ' });

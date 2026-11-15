@@ -94,6 +94,11 @@ const SEALS: Record<string, Partial<Record<number, string>>> = {
   // CRL's polycarbonate U with a 90° vinyl fin, by glass (AVDB3078, its
   // suggested gaps sheet, docs/seals/): PC1200 is the 12mm one.
   '90° stopper seal': { 8: 'PC0890', 10: 'PC1090', 12: 'PC1200' },
+  // A door that stops beside the panel at a corner, rather than running
+  // through in front of its edge, closes onto CRL's 90° strike seal, snapped
+  // onto that panel: P090SJ (AVDB3078, a 4.7mm gap), and on 8mm glass CRL UK's
+  // 90° strike side seal, PCJ8. CRL makes neither for 12mm glass.
+  '90° strike seal': { 8: 'PCJ8', 10: 'P090SJ' },
   // Glass to glass in line: CRL's 'Y' jamb seal with a soft leg, for 5/16",
   // 3/8" and 1/2" glass, from Matt's catalogue (Matt, 14 November 2026: "The
   // pcc10 is more commonly used as its got a soft fin"), rather than the

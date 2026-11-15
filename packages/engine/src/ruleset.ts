@@ -29,6 +29,7 @@
  */
 
 import type { HingeStyles } from './hinges';
+import { CORNER_RUNS_THROUGH, type CornerRunsThrough } from './types';
 
 // ---------------------------------------------------------------------------
 // Shape
@@ -40,6 +41,15 @@ export interface MakingRules {
     standardThicknessMm: number;
     /** [OURS] Glass-to-glass silicone at a butt joint. Smart Glazier uses 1. */
     siliconeJointMm: number;
+    /**
+     * [OURS] At a corner, which pane runs through to the outside corner (Matt,
+     * 15 November 2026: "It's usually the front side that runs through but
+     * they will be able to change that if they want"). The other stops behind
+     * it: fixed glass short by the glass and the silicone joint, a door by the
+     * glass, with its own seal's or hinge's gap as at any edge. A shower can
+     * choose for itself (cornerRunsThrough on the design).
+     */
+    cornerRunsThrough: CornerRunsThrough;
   };
   /** What comes off a measured size to give the cut size. */
   deductions: {
@@ -415,6 +425,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   glass: {
     standardThicknessMm: 10,
     siliconeJointMm: 2,
+    cornerRunsThrough: 'front',
   },
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
@@ -633,7 +644,7 @@ export const DEFAULT_RULESET: Ruleset = {
 // ---------------------------------------------------------------------------
 
 /** A whole number of millimetres or kilograms between two bounds, or one of a list. */
-export type Adjustable = { min: number; max: number } | { oneOf: number[] };
+export type Adjustable = { min: number; max: number } | { oneOf: number[] } | { choice: readonly string[] };
 
 /**
  * Every rule a company may change, and how far.
@@ -646,6 +657,7 @@ export type Adjustable = { min: number; max: number } | { oneOf: number[] };
 export const ADJUSTABLE = {
   'glass.standardThicknessMm': { oneOf: [8, 10, 12] },
   'glass.siliconeJointMm': { min: 1, max: 3 },
+  'glass.cornerRunsThrough': { choice: CORNER_RUNS_THROUGH },
   'deductions.channel.topMm': { min: 0, max: 15 },
   'deductions.channel.bottomMm': { min: 0, max: 15 },
   'deductions.channel.horizontalMm': { min: 2, max: 15 },
@@ -675,8 +687,8 @@ export const ADJUSTABLE = {
 
 export type AdjustableRule = keyof typeof ADJUSTABLE;
 
-/** A company's changes to the making rules, by rule name. */
-export type RulesetOverrides = Partial<Record<AdjustableRule, number>>;
+/** A company's changes to the making rules, by rule name: a number, or one of a rule's choices. */
+export type RulesetOverrides = Partial<Record<AdjustableRule, number | string>>;
 
 export class RulesetError extends Error {
   constructor(
@@ -688,7 +700,7 @@ export class RulesetError extends Error {
   }
 }
 
-function setByPath(target: Record<string, unknown>, path: string, value: number): void {
+function setByPath(target: Record<string, unknown>, path: string, value: number | string): void {
   const keys = path.split('.');
   let node = target;
   for (const key of keys.slice(0, -1)) node = node[key] as Record<string, unknown>;
@@ -714,6 +726,13 @@ export function resolveRuleset(overrides: unknown = {}): Ruleset {
       throw new RulesetError(rule, `"${rule}" is not a rule a company can change.`);
     }
     const bounds: Adjustable = ADJUSTABLE[rule as AdjustableRule];
+    if ('choice' in bounds) {
+      if (typeof value !== 'string' || !bounds.choice.includes(value)) {
+        throw new RulesetError(rule, `"${rule}" must be one of ${bounds.choice.join(', ')}.`);
+      }
+      setByPath(making as unknown as Record<string, unknown>, rule, value);
+      continue;
+    }
     if (typeof value !== 'number' || !Number.isInteger(value)) {
       throw new RulesetError(rule, `"${rule}" must be a whole number.`);
     }
@@ -745,7 +764,10 @@ export interface RuleText {
   label: string;
   /** More about it, where the few words are not enough. */
   about?: string;
-  unit: 'mm' | 'kg';
+  /** A measurement's unit. A rule that is a choice has none. */
+  unit?: 'mm' | 'kg';
+  /** A rule that is a choice: each choice, in words, in order. */
+  choices?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -769,6 +791,12 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.clamps.topMm': { group: 'Glass on clamps', label: 'Off the top', about: 'Of glass that stops short of the ceiling.', unit: 'mm' },
   'deductions.clamps.ceilingMm': { group: 'Glass on clamps', label: 'Off the top, to the ceiling', about: 'For the silicone that holds it there: there is no channel.', unit: 'mm' },
   'glass.siliconeJointMm': { group: 'Glass to glass', label: 'Silicone joint', about: 'Between two panes siliconed together, at a corner or in line. In line, each pane gives up half of it.', unit: 'mm' },
+  'glass.cornerRunsThrough': {
+    group: 'Glass to glass',
+    label: 'At a corner, which runs through',
+    about: 'To the outside corner. The other stops behind it: fixed glass short by the glass and the silicone joint, a door by the glass and its own seal or hinge gap. Your team can choose the other for a shower.',
+    choices: { front: 'The front', return: 'The return' },
+  },
   'deductions.door.hingeWallMm': {
     group: 'Doors',
     label: 'Hinge side, hung on the wall',
@@ -802,7 +830,7 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'limits.maxPanelWeightKg': { group: 'Your size limits', label: 'Heaviest panel', unit: 'kg' },
 };
 
-/** A rule's value in a set of making rules. */
-export function ruleValue(making: MakingRules, rule: AdjustableRule): number {
-  return rule.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], making) as number;
+/** A rule's value in a set of making rules: a number, or one of the rule's choices. */
+export function ruleValue(making: MakingRules, rule: AdjustableRule): number | string {
+  return rule.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], making) as number | string;
 }

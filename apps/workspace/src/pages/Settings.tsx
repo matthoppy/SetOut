@@ -1529,9 +1529,18 @@ const NAMED_RULES = Object.keys(RULE_TEXT) as NamedRule[];
 const boundsOf = (rule: NamedRule) => ADJUSTABLE[rule] as { min: number; max: number };
 const standardOf = (rule: NamedRule) => ruleValue(DEFAULT_MAKING_RULES, rule);
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+/** A rule that is one of a few choices, rather than a measurement. */
+const choicesOf = (rule: NamedRule): Readonly<Record<string, string>> | undefined => (RULE_TEXT[rule] as { choices?: Readonly<Record<string, string>> }).choices;
+/** A rule's value as an owner reads it: "10mm", or the choice in words. */
+const inWords = (rule: string, value: number | string): string => {
+  const text = (RULE_TEXT as Record<string, { unit?: string; choices?: Readonly<Record<string, string>> } | undefined>)[rule];
+  return text?.choices ? lowerFirst(text.choices[String(value)] ?? String(value)) : `${value}${text?.unit ?? ''}`;
+};
 
-/** The number typed for a rule, or NaN if it is not a whole number inside the rule's bounds. */
-function ruleNumber(rule: NamedRule, typed: string): number {
+/** The value set for a rule: a whole number inside its bounds, one of its choices, or NaN. */
+function ruleNumber(rule: NamedRule, typed: string): number | string {
+  const choices = choicesOf(rule);
+  if (choices) return Object.hasOwn(choices, typed) ? typed : NaN;
   if (!/^\d+$/.test(typed.trim())) return NaN;
   const value = Number(typed.trim());
   const { min, max } = boundsOf(rule);
@@ -1548,7 +1557,7 @@ function MeasurementsPart({ rules, owner, justSaved, onSaved, onReload }: PartPr
   const original = Object.fromEntries(NAMED_RULES.map((rule) => [rule, String(ruleValue(making, rule))])) as Record<NamedRule, string>;
   const [form, setForm] = useState(original);
   const saving = useSave(onSaved);
-  const numbers = Object.fromEntries(NAMED_RULES.map((rule) => [rule, ruleNumber(rule, form[rule])])) as Record<NamedRule, number>;
+  const numbers = Object.fromEntries(NAMED_RULES.map((rule) => [rule, ruleNumber(rule, form[rule])])) as Record<NamedRule, number | string>;
   const valid = NAMED_RULES.every((rule) => !Number.isNaN(numbers[rule]));
   const dirty = NAMED_RULES.some((rule) => form[rule].trim() !== original[rule]);
   const grouped = RULE_GROUPS.map((group) => ({ group, rules: NAMED_RULES.filter((rule) => RULE_TEXT[rule].group === group) }));
@@ -1572,10 +1581,7 @@ function MeasurementsPart({ rules, owner, justSaved, onSaved, onReload }: PartPr
                 {inGroup.map((rule) => (
                   <div key={rule} className="flex items-baseline justify-between gap-4 py-1.5">
                     <dt>{RULE_TEXT[rule].label}</dt>
-                    <dd className="whitespace-nowrap tabular-nums">
-                      {ruleValue(making, rule)}
-                      {RULE_TEXT[rule].unit}
-                    </dd>
+                    <dd className="whitespace-nowrap tabular-nums">{choicesOf(rule) ? choicesOf(rule)![String(ruleValue(making, rule))] : inWords(rule, ruleValue(making, rule))}</dd>
                   </div>
                 ))}
               </dl>
@@ -1599,6 +1605,28 @@ function MeasurementsPart({ rules, owner, justSaved, onSaved, onReload }: PartPr
             <div className="clear-both grid gap-x-6 gap-y-4 pt-3 sm:grid-cols-2">
               {inGroup.map((rule) => {
                 const text = RULE_TEXT[rule];
+                const choices = choicesOf(rule);
+                if (choices) {
+                  const standard = String(standardOf(rule));
+                  return (
+                    <fieldset key={rule} className="text-sm sm:col-span-2">
+                      <legend className="block font-medium">{text.label}</legend>
+                      {text.about && <span className="block text-xs text-quiet">{text.about}</span>}
+                      <span className="mt-2 flex flex-wrap gap-2">
+                        {Object.entries(choices).map(([value, words]) => (
+                          <label
+                            key={value}
+                            className={`flex h-10 cursor-pointer items-center gap-2 rounded-md border px-3 ${form[rule] === value ? 'border-ink bg-ground font-medium' : 'border-rule'}`}
+                          >
+                            <input type="radio" name={rule} value={value} checked={form[rule] === value} onChange={() => setForm({ ...form, [rule]: value })} />
+                            {words}
+                            {value === standard && <span className="text-xs font-normal text-quiet">SetOut’s standard</span>}
+                          </label>
+                        ))}
+                      </span>
+                    </fieldset>
+                  );
+                }
                 const { min, max } = boundsOf(rule);
                 const ok = !Number.isNaN(numbers[rule]);
                 const standard = standardOf(rule);
@@ -2020,9 +2048,8 @@ function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
     case 'rule': {
       const text = (RULE_TEXT as Record<string, (typeof RULE_TEXT)[NamedRule] | undefined>)[item.rule];
-      const unit = text?.unit ?? '';
       const what = text ? `${lowerFirst(text.group)}, ${lowerFirst(text.label)}` : item.rule;
-      return `${by} set ${what} to ${item.to}${unit}, from ${item.from}${unit}.`;
+      return `${by} set ${what} to ${inWords(item.rule, item.to)}, from ${inWords(item.rule, item.from)}.`;
     }
     case 'name':
       return `${by} renamed the company from “${item.from}” to “${item.to}”.`;
