@@ -23,6 +23,8 @@ import {
   CONFIRMATION_BRAND,
   confirmationCsp,
   confirmedEmail,
+  extrasOf,
+  extrasPence,
   formPage,
   notFoundPage,
   readAnswers,
@@ -30,11 +32,13 @@ import {
   thankYouPage,
   type OrderSummary,
   type PayAmount,
+  type ExtraLine,
   type PayView,
   type Posted,
 } from '../lib/order-confirmation';
 import { createJobCheckout, jobPrice, mayStartPayment, paymentSettings, standingOf } from '../lib/job-payments';
 import { StripeError } from '../lib/stripe';
+import { termsFor, type TermsOfSale } from '../lib/terms-of-sale';
 
 export const confirmation = new Hono<{ Bindings: Env }>();
 
@@ -65,6 +69,8 @@ interface Opened {
   summary: OrderSummary;
   revisionId: string;
   designerId: string | null;
+  /** The terms of sale shown in section 6: the company's own, or the default. */
+  terms: TermsOfSale;
 }
 
 /**
@@ -102,7 +108,19 @@ async function open(env: Env, token: string): Promise<Opened | null> {
     finishes: settings.finishes,
     handles: settings.handles,
   });
-  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null };
+  const terms = await termsFor((await db.company())?.settings ?? {});
+  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null, terms };
+}
+
+/**
+ * The extras the customer chose when they confirmed through this link, from
+ * the answers saved on the job's timeline. None before they confirm.
+ */
+async function confirmedExtras(found: Opened): Promise<ExtraLine[]> {
+  if (!found.link.confirmed_at) return [];
+  const events = await found.db.find('job_events', { where: { job_id: found.job.id, type: 'order_confirmed' } });
+  const mine = events.filter((e) => (e.data as Record<string, unknown>).confirmationId === found.link.id).pop();
+  return extrasOf(mine ? (mine.data as Record<string, unknown>) : null);
 }
 
 /**
@@ -128,7 +146,9 @@ async function payView(env: Env, found: Opened, confirmPath: string, options: { 
 
   const price = jobPrice(quotes, taxMode);
   if ('missing' in price) return { kind: 'no_price' };
-  const amount: PayAmount = { pence: price.amountPence, vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
+  // Once confirmed, the extras chosen are part of what is paid.
+  const extras = await confirmedExtras(found);
+  const amount: PayAmount = { pence: price.amountPence + extrasPence(extras), vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
   if (!link.confirmed_at) return { kind: 'confirm_first', amount };
   const action = `${confirmPath}/pay`;
   if (standing.state === 'payment_failed' && !options.error) return { kind: 'failed', action, amount };
@@ -141,7 +161,7 @@ confirmation.get('/:token', async (c) => {
   if (!found) return page(c, notFoundPage, 404);
   const pay = await payView(c.env, found, c.req.path, { returned: c.req.query('paid') === '1' });
   if (found.link.confirmed_at) return page(c, (n) => thankYouPage(found.summary, n, pay));
-  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n, pay));
+  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n, pay, found.terms));
 });
 
 /**
@@ -176,6 +196,10 @@ confirmation.post('/:token/pay', async (c) => {
   if (standing.openCheckout?.stripe_checkout_url) return c.redirect(standing.openCheckout.stripe_checkout_url, 303);
   const price = jobPrice(quotes, taxMode);
   if ('missing' in price) return back();
+  // The quote, plus the extras the customer chose when confirming, at the
+  // page's prices. Nothing the browser sends now changes what is charged.
+  const extras = await confirmedExtras(found);
+  const amountPence = price.amountPence + extrasPence(extras);
 
   // A session that ran out with no message from Stripe yet is closed here.
   const stale = payments.filter((p) => p.method === 'checkout' && p.status === 'pending');
@@ -191,7 +215,7 @@ confirmation.post('/:token/pay', async (c) => {
       status: 'pending',
       quote_id: price.quote.id,
       tax_behavior: taxMode,
-      amount_pence: price.amountPence,
+      amount_pence: amountPence,
       currency: 'GBP',
     });
   } catch {
@@ -205,6 +229,8 @@ confirmation.post('/:token/pay', async (c) => {
       job,
       customer,
       payment,
+      packagePence: price.amountPence,
+      extras,
       returnUrl: `${new URL(c.req.url).origin}${confirmPath}`,
     });
     await db.batch((batch) => {
@@ -213,7 +239,15 @@ confirmation.post('/:token/pay', async (c) => {
         job_id: job.id,
         type: 'checkout_started',
         actor_kind: 'customer',
-        data: { paymentId: payment.id, kind: 'full', amountPence: price.amountPence, taxMode, quoteNumber: price.quote.number },
+        data: {
+          paymentId: payment.id,
+          kind: 'full',
+          amountPence,
+          quotePence: price.amountPence,
+          extras: extras.map((e) => ({ key: e.key, quantity: e.quantity, unitPence: e.unitPence })),
+          taxMode,
+          quoteNumber: price.quote.number,
+        },
       });
     });
     return c.redirect(session.url, 303);
@@ -249,10 +283,10 @@ confirmation.post('/:token', async (c) => {
   const values: Posted = {};
   for (const [key, value] of Object.entries(raw)) if (typeof value === 'string') values[key] = value;
 
-  const read = readAnswers(job.reference, values);
+  const read = readAnswers(job.reference, values, found.terms);
   if ('error' in read) {
     const pay = await payView(c.env, found, c.req.path);
-    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n, pay), 400);
+    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n, pay, found.terms), 400);
   }
   const { answers } = read;
   try {
@@ -262,7 +296,7 @@ confirmation.post('/:token', async (c) => {
         job_id: job.id,
         type: 'order_confirmed',
         actor_kind: 'customer',
-        data: { ...answers, confirmationId: link.id, revisionId: found.revisionId, shown: Object.fromEntries(summary.rows) },
+        data: { ...answers, terms_source: found.terms.source, confirmationId: link.id, revisionId: found.revisionId, shown: Object.fromEntries(summary.rows) },
       });
     });
   } catch {

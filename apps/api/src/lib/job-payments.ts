@@ -246,6 +246,13 @@ export interface CheckoutInput {
   job: JobRow;
   customer: CustomerRow | null;
   payment: JobPaymentRow;
+  /**
+   * The quote's part of the payment, in pence, and the extras chosen on the
+   * confirmation page, each its own line. Without them, the payment's whole
+   * amount is one line.
+   */
+  packagePence?: number;
+  extras?: { key: string; description: string; quantity: number; unitPence: number }[];
   /** Where the customer comes back to: the confirmation page. */
   returnUrl: string;
   now?: Date;
@@ -266,6 +273,19 @@ export async function createJobCheckout(input: CheckoutInput, send: typeof fetch
   const name = `${job.reference}, made-to-measure shower glass`;
   const metadata = metadataFor(settings, job, payment);
   const taxed = settings.taxMode !== 'none';
+  const extras = input.extras ?? [];
+  const extrasTotal = extras.reduce((sum, e) => sum + e.quantity * e.unitPence, 0);
+  const packagePence = input.packagePence ?? payment.amount_pence - extrasTotal;
+  if (packagePence <= 0 || packagePence + extrasTotal !== payment.amount_pence) throw new StripeError('The lines do not add up to the payment.', 500);
+  const line = (unitPence: number, quantity: number, lineName: string, key: string) => ({
+    quantity,
+    price_data: {
+      currency: 'gbp',
+      unit_amount: unitPence,
+      ...lineTax(settings.taxMode),
+      product_data: { name: lineName, ...(taxed ? { tax_code: TAX_CODE } : {}), metadata: { job_ref: job.reference, line: key } },
+    },
+  });
   const session = await stripePost<{ id?: string; url?: string; expires_at?: number }>(
     settings.secretKey,
     '/checkout/sessions',
@@ -273,17 +293,7 @@ export async function createJobCheckout(input: CheckoutInput, send: typeof fetch
       mode: 'payment',
       currency: 'gbp',
       client_reference_id: job.id,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'gbp',
-            unit_amount: payment.amount_pence,
-            ...lineTax(settings.taxMode),
-            product_data: { name, ...(taxed ? { tax_code: TAX_CODE } : {}), metadata: { job_ref: job.reference } },
-          },
-        },
-      ],
+      line_items: [line(packagePence, 1, name, 'order'), ...extras.map((e) => line(e.unitPence, e.quantity, e.description, e.key))],
       ...(taxed ? { automatic_tax: { enabled: true } } : {}),
       // Where the glass goes, for delivery (and, with Stripe Tax on, for VAT).
       shipping_address_collection: { allowed_countries: ['GB'] },

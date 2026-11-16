@@ -40,6 +40,9 @@ export function Job({ id }: { id: string }) {
   }
 
   const received = detail.events.find((e) => e.type === 'received');
+  // The customer's latest confirmation: where to deliver, and the extras they chose.
+  const confirmed = [...detail.events].filter((e) => e.type === 'order_confirmed').sort((a, b) => a.createdAt.localeCompare(b.createdAt)).pop() ?? null;
+  const confirmedAddress = confirmed ? deliveryAddressOf(confirmed.data) : null;
   // Each shower shows the drawings of the revision it stands at. Those of
   // earlier revisions are kept, further down, for reference.
   const drawingsFor = (revision: Revision | null, i: number) =>
@@ -86,6 +89,20 @@ export function Job({ id }: { id: string }) {
           )}
           {(detail.customer?.postcode || detail.job.site_postcode) && <Row label="Postcode">{detail.customer?.postcode ?? detail.job.site_postcode}</Row>}
           {typeof received?.data.notes === 'string' && received.data.notes.trim() && <Row label="Their notes">{received.data.notes}</Row>}
+          {confirmedAddress && (
+            <Row label="Confirmed delivery address">
+              <span className="whitespace-pre-line">{confirmedAddress.join('\n')}</span>
+            </Row>
+          )}
+          {confirmed && <Row label="Silicone tubes">{siliconeWords(confirmed.data)}</Row>}
+          {confirmed && <Row label="Finishing tool">{confirmed.data.silicone_tool === 'yes' ? 'Yes' : 'No'}</Row>}
+          {confirmed && (
+            <Row label="Terms of sale">
+              {confirmed.data.terms_accepted === true
+                ? `Accepted ${typeof confirmed.data.terms_accepted_at === 'string' ? whenExactly(confirmed.data.terms_accepted_at) : ''}, version ${String(confirmed.data.terms_version ?? 'unknown')}`
+                : 'Not recorded (confirmed before terms were added)'}
+            </Row>
+          )}
         </dl>
       </Section>
 
@@ -893,12 +910,14 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} cleared the override on ${String(d.pane ?? 'a pane')}. It is cut to the standard rule again, ${String(d.cut ?? '')}.`;
     case 'confirmation_link_made':
       return `${who ?? 'Someone'} made a link for the customer to confirm their order.`;
-    case 'order_confirmed':
-      return `${String(d.signed_name ?? 'The customer')} confirmed the order. Help unloading: ${d.can_unload === 'yes' ? 'yes' : 'no'}. Silicone: ${
-        d.silicone === 'yes' ? String(d.silicone_colour) : 'no'
-      }. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''}${
-        typeof d.comments === 'string' && d.comments ? ` Comments: ${d.comments}` : ''
-      }`;
+    case 'order_confirmed': {
+      const address = deliveryAddressOf(d);
+      return `${String(d.signed_name ?? 'The customer')} confirmed the order${d.terms_accepted === true ? ' and accepted the terms of sale' : ''}.${address ? ` Deliver to: ${address.join(', ')}.` : ''} Help unloading: ${
+        d.can_unload === 'yes' ? 'yes' : 'no'
+      }. Silicone: ${siliconeWords(d)}. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${
+        typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''
+      }${typeof d.comments === 'string' && d.comments ? ` Comments: ${d.comments}` : ''}`;
+    }
     case 'checkout_started':
       return `The customer opened Stripe Checkout to pay ${money(Number(d.amountPence ?? 0), 'GBP')}.`;
     case 'payment_processing':
@@ -993,4 +1012,22 @@ function NoteForm({ jobId, onAdded }: { jobId: string; onAdded: () => void }) {
       </button>
     </form>
   );
+}
+
+/** A confirmation's delivery address, line by line, or null if it has none. */
+function deliveryAddressOf(d: Record<string, unknown>): string[] | null {
+  const a = d.delivery_address as Record<string, unknown> | undefined;
+  if (!a || typeof a !== 'object') return null;
+  const lines = [a.line1, a.line2, a.town, a.postcode].filter((l): l is string => typeof l === 'string' && l.trim().length > 0);
+  return lines.length ? lines : null;
+}
+
+/** "2 clear, 1 white", "none", or for an older confirmation its one colour. */
+function siliconeWords(d: Record<string, unknown>): string {
+  const tubes = d.silicone_tubes as Record<string, unknown> | undefined;
+  if (tubes && typeof tubes === 'object') {
+    const parts = ['clear', 'translucent', 'white'].filter((c) => Number(tubes[c]) > 0).map((c) => `${Number(tubes[c])} ${c}`);
+    return parts.length ? parts.join(', ') : 'none';
+  }
+  return d.silicone === 'yes' ? String(d.silicone_colour) : 'no';
 }

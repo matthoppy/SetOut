@@ -20,6 +20,7 @@
  * move the brand below into the company's settings.
  */
 
+import { DEFAULT_TERMS, TERMS_CHECKBOX, type TermsOfSale } from './terms-of-sale';
 import { METHOD_LABELS, type ConfiguratorSpec, type ConfiguratorState } from '@setout/engine';
 import { CUSTOM_SHOWERS_LOGO_PNG } from './confirmation-logo';
 import { esc } from './email';
@@ -65,8 +66,6 @@ export interface OrderSummary {
   channelWords: string | null;
   /** Only for one fixed panel at a wall, the layout the drawings know how to draw. Measured sizes only. */
   drawing: OrderDrawing | null;
-  /** A shower with no door has no handle; the page says so. */
-  noHandle: boolean;
   /** One panel or several, for "Your panel weighs" or "Your glass weighs". */
   panelCount: number;
 }
@@ -149,7 +148,9 @@ export function summarise(input: SummaryInput): OrderSummary {
     ['Fixing', fixing]
   );
   rows.push([spec.mounting === 'channel' ? 'Channel finish' : 'Hardware finish', finish]);
-  rows.push(['Handle', doors === 0 ? 'None' : labelOf(input.handles, design.handleId)]);
+  // A shower with no door has no handle, and the page does not mention one
+  // (Matt, 16 November 2026).
+  if (doors > 0) rows.push(['Handle', labelOf(input.handles, design.handleId)]);
   rows.push(['Out-of-square check', design.opening?.method ? METHOD_LABELS[design.opening.method] : 'Not checked, glass cut square']);
   // Worked out by the server from the cut glass, and shown only as a rounded
   // weight, so whoever helps unload knows what to expect.
@@ -175,7 +176,6 @@ export function summarise(input: SummaryInput): OrderSummary {
     glassWords: `${design.glassThicknessMm}mm ${design.glassType === 'clear' ? 'clear' : design.glassType} glass`,
     channelWords: spec.mounting === 'channel' ? `${finish} U-channel (${where})` : null,
     drawing,
-    noHandle: doors === 0,
     panelCount: panels.length,
   };
 }
@@ -184,21 +184,110 @@ export function summarise(input: SummaryInput): OrderSummary {
 // The customer's answers
 // ---------------------------------------------------------------------------
 
+/** Where the glass is delivered, as the customer confirmed it in section 3. */
+export interface DeliveryAddress {
+  line1: string;
+  /** Optional: empty when not given. */
+  line2: string;
+  town: string;
+  /** Upper-cased, with one space before the last three characters: "AL3 5QN". */
+  postcode: string;
+}
+
+/** The silicone colours sold by the tube (Matt, 16 November 2026). */
+export const SILICONE_COLOURS = ['clear', 'translucent', 'white'] as const;
+export type SiliconeColour = (typeof SILICONE_COLOURS)[number];
+export type SiliconeTubes = Record<SiliconeColour, number>;
+
+const COLOUR_WORDS: Record<SiliconeColour, string> = { clear: 'Clear', translucent: 'Translucent', white: 'White' };
+
+/**
+ * The optional extras' prices, in pence (Matt, 16 November 2026). Charged on
+ * top of the quote at Checkout, one line per colour ordered, and never taken
+ * from the browser: the page only says how many.
+ */
+export const EXTRA_PRICES = { siliconeTubePence: 850, toolPence: 495 } as const;
+
 export interface ConfirmationAnswers {
   order_ref: string;
   details_confirmed: true;
   measurements_accepted: true;
+  /** The third box: the terms of sale in section 6, at this version, accepted at this time (the server's). */
+  terms_accepted: true;
+  terms_version: string;
+  terms_accepted_at: string;
+  delivery_address: DeliveryAddress;
   can_unload: 'yes' | 'no';
   unload_note: string;
-  silicone: 'yes' | 'no';
-  silicone_colour: 'clear' | 'black' | 'white' | null;
+  /** How many tubes of each colour, 0 to LIMITS.tubes each. */
+  silicone_tubes: SiliconeTubes;
   silicone_tool: 'yes' | 'no';
   signed_name: string;
   comments: string;
   submitted_at: string;
 }
 
-export const LIMITS = { unloadNote: 1000, signedName: 120, comments: 2000 } as const;
+export const LIMITS = { unloadNote: 1000, signedName: 120, comments: 2000, addressLine: 120, town: 60, tubes: 10 } as const;
+
+/** One extra the customer chose, as a line to charge. */
+export interface ExtraLine {
+  key: string;
+  description: string;
+  quantity: number;
+  unitPence: number;
+}
+
+/**
+ * The extras in a confirmation's answers, one line per silicone colour with
+ * at least one tube, then the tool. Answers saved before tubes were counted
+ * (a yes or no and one colour) are read as one tube of that colour.
+ */
+export function extrasOf(answers: Record<string, unknown> | null | undefined): ExtraLine[] {
+  if (!answers) return [];
+  const lines: ExtraLine[] = [];
+  const tubes = tubesOf(answers);
+  for (const colour of SILICONE_COLOURS) {
+    if (tubes[colour] > 0) {
+      lines.push({ key: `silicone:${colour}`, description: `Silicone sealant, ${colour}`, quantity: tubes[colour], unitPence: EXTRA_PRICES.siliconeTubePence });
+    }
+  }
+  if (answers.silicone_tool === 'yes') lines.push({ key: 'silicone-tool', description: 'Silicone finishing tool', quantity: 1, unitPence: EXTRA_PRICES.toolPence });
+  return lines;
+}
+
+/** The tube counts in saved answers, of either shape. */
+export function tubesOf(answers: Record<string, unknown>): SiliconeTubes {
+  const tubes: SiliconeTubes = { clear: 0, translucent: 0, white: 0 };
+  const saved = answers.silicone_tubes as Record<string, unknown> | undefined;
+  if (saved && typeof saved === 'object') {
+    for (const colour of SILICONE_COLOURS) {
+      const n = Number(saved[colour]);
+      tubes[colour] = Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0;
+    }
+  } else if (answers.silicone === 'yes' && SILICONE_COLOURS.includes(answers.silicone_colour as SiliconeColour)) {
+    tubes[answers.silicone_colour as SiliconeColour] = 1;
+  }
+  return tubes;
+}
+
+export const extrasPence = (lines: ExtraLine[]) => lines.reduce((sum, l) => sum + l.quantity * l.unitPence, 0);
+
+/** "2 clear, 1 white", or "None". */
+export function tubesWords(tubes: SiliconeTubes): string {
+  const parts = SILICONE_COLOURS.filter((c) => tubes[c] > 0).map((c) => `${tubes[c]} ${c}`);
+  return parts.length ? parts.join(', ') : 'None';
+}
+
+/** The address on lines, as it is printed. */
+export const addressLines = (a: DeliveryAddress) => [a.line1, a.line2, a.town, a.postcode].filter((l) => l.length > 0);
+
+/** A UK postcode, loosely: outward code, then digit and two letters. */
+const POSTCODE = /^([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})$/;
+
+export function normalisePostcode(raw: string): string | null {
+  const m = POSTCODE.exec(raw.trim().toUpperCase().replace(/\s+/g, ' '));
+  return m ? `${m[1]} ${m[2]}` : null;
+}
 
 /** The form as posted: every value is text or missing. */
 export type Posted = Record<string, string | undefined>;
@@ -212,16 +301,37 @@ const ticked = (value: string | undefined) => value === 'yes' || value === 'on';
  * Check the answers in the order the page asks them, and say the first thing
  * missing in the page's own words.
  */
-export function readAnswers(reference: string, form: Posted, now = new Date()): { answers: ConfirmationAnswers } | { error: string } {
+export function readAnswers(
+  reference: string,
+  form: Posted,
+  terms: { version: string },
+  now = new Date()
+): { answers: ConfirmationAnswers } | { error: string } {
+  const line1 = text(form.addr_line1).replace(/\s+/g, ' ');
+  const line2 = text(form.addr_line2).replace(/\s+/g, ' ');
+  const town = text(form.addr_town).replace(/\s+/g, ' ');
+  const rawPostcode = text(form.addr_postcode);
+  if (line1.length < 3 || town.length < 2 || !rawPostcode) return { error: 'Please enter the full delivery address (section 3).' };
+  if (line1.length > LIMITS.addressLine || line2.length > LIMITS.addressLine || town.length > LIMITS.town) {
+    return { error: `Please keep each line of the delivery address to ${LIMITS.addressLine} characters (section 3).` };
+  }
+  const postcode = normalisePostcode(rawPostcode);
+  if (!postcode) return { error: 'Please check the postcode of the delivery address (section 3).' };
   const canUnload = oneOf(form.can_unload, ['yes', 'no'] as const);
   if (!canUnload) return { error: 'Please tell us if someone can help take the glass off the van (section 3).' };
-  const silicone = oneOf(form.silicone, ['yes', 'no'] as const);
-  if (!silicone) return { error: 'Please choose whether you need silicone (section 4).' };
-  const colour = oneOf(form.silicone_colour, ['clear', 'black', 'white'] as const);
-  if (silicone === 'yes' && !colour) return { error: 'Please choose a silicone colour (section 4).' };
-  const tool = oneOf(form.silicone_tool, ['yes', 'no'] as const);
-  if (!tool) return { error: 'Please choose whether you need a silicone finishing tool (section 4).' };
-  if (!ticked(form.details_confirmed) || !ticked(form.measurements_accepted)) return { error: 'Please tick both confirmation boxes.' };
+  const tubes: SiliconeTubes = { clear: 0, translucent: 0, white: 0 };
+  for (const colour of SILICONE_COLOURS) {
+    const raw = text(form[`silicone_${colour}`]);
+    const n = raw === '' ? 0 : /^\d{1,2}$/.test(raw) ? Number(raw) : NaN;
+    if (!Number.isInteger(n) || n < 0 || n > LIMITS.tubes) {
+      return { error: `Please choose between 0 and ${LIMITS.tubes} tubes of each silicone colour (section 4).` };
+    }
+    tubes[colour] = n;
+  }
+  const tool = ticked(form.silicone_tool) ? 'yes' : 'no';
+  if (!ticked(form.details_confirmed) || !ticked(form.measurements_accepted) || !ticked(form.terms_accepted)) {
+    return { error: 'Please tick all three confirmation boxes.' };
+  }
   const name = text(form.signed_name).replace(/\s+/g, ' ');
   if (name.length < 2) return { error: 'Please type your full name.' };
   if (name.length > LIMITS.signedName) return { error: `Please keep your name to ${LIMITS.signedName} characters.` };
@@ -234,10 +344,13 @@ export function readAnswers(reference: string, form: Posted, now = new Date()): 
       order_ref: reference,
       details_confirmed: true,
       measurements_accepted: true,
+      terms_accepted: true,
+      terms_version: terms.version,
+      terms_accepted_at: now.toISOString(),
+      delivery_address: { line1, line2, town, postcode },
       can_unload: canUnload,
       unload_note: note,
-      silicone,
-      silicone_colour: silicone === 'yes' ? colour : null,
+      silicone_tubes: tubes,
       silicone_tool: tool,
       signed_name: name,
       comments,
@@ -253,7 +366,7 @@ export function readAnswers(reference: string, form: Posted, now = new Date()): 
 const HATCH = (id: string) =>
   `<defs><pattern id="${id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#b6c2d1" stroke-width="2"/></pattern></defs>`;
 
-/** Front view: the wall, the channel along the floor and up the wall, the glass, and the gap. No handle. */
+/** Front view: the wall, the channel along the floor and up the wall, the glass, and the gap. */
 export function frontView(d: OrderDrawing): string {
   const W = d.panelWidthMm, H = d.heightMm, G = d.gapMm ?? 0;
   const s = 306 / Math.max(H, 1);
@@ -264,7 +377,7 @@ export function frontView(d: OrderDrawing): string {
     d.wallChannel ? 'up the wall' : '',
     d.floorChannel ? 'along the floor' : '',
   ].filter(Boolean).join(' and ');
-  const label = `Front view: ${mm(W)} by ${mm(H)}mm fixed glass panel${channels ? ` with black U-channel ${channels}` : ''}${G ? ` and ${mm(G)}mm walk-in gap` : ''}. No handle.`;
+  const label = `Front view: ${mm(W)} by ${mm(H)}mm fixed glass panel${channels ? ` with black U-channel ${channels}` : ''}${G ? ` and ${mm(G)}mm walk-in gap` : ''}.`;
   const r = (n: number) => Math.round(n * 10) / 10;
   return `<svg viewBox="0 0 ${r(vw)} ${r(vh)}" role="img" aria-label="${esc(label)}">
 ${HATCH('h')}
@@ -355,20 +468,26 @@ dl.spec dd{margin:0;font-weight:600;color:var(--ink);text-align:right}
 .legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
 .legend i.glass{background:#dcebf3;border:1.5px solid #76B0CB}
 .legend i.channel{background:#111}
-.note{background:#f0f7fd;border:1px solid #cfe6f7;color:#12406b;border-radius:10px;padding:12px 14px;font-size:14px;margin:14px 0 0}
 .q{margin:0 0 16px;border:0;padding:0;min-width:0}
 .q:last-child{margin-bottom:0}
 .q.gap{margin-top:14px}
 .q>label.t,.q>.t,.q>legend.t{display:block;font-weight:700;color:var(--ink);margin-bottom:8px;font-size:15px;padding:0}
 .opt{font-weight:400;color:var(--grey)}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.seg.three{grid-template-columns:repeat(3,1fr)}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label{display:flex;align-items:center;justify-content:center;min-height:48px;border:1.5px solid #cbd5e1;border-radius:10px;font-weight:600;cursor:pointer;background:#fff;text-align:center;padding:6px;font-size:15px;transition:.15s}
 .seg input:checked+label{border-color:var(--navy);background:var(--navy);color:#fff}
 .seg input:focus-visible+label{outline:3px solid #93c5fd;outline-offset:2px}
 .swatch{width:14px;height:14px;border-radius:50%;border:1px solid #94a3b8;margin-right:8px;flex:none}
-.swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.black{background:#111}.swatch.white{background:#fff}
+.swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.translucent{background:linear-gradient(135deg,#f8fafc,#cbd5e1);opacity:.7}.swatch.white{background:#fff}
+.terms{margin:0;padding-left:18px;color:var(--ink);font-size:14px;line-height:1.5}
+.terms li{margin:0 0 8px}
+.addr .lbl{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:8px 0 4px}
+.silrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #e2e8f0}
+.silrow .silname{flex:1;font-weight:600}
+.qb{width:40px;height:40px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;font:inherit;font-size:20px;font-weight:700;color:var(--navy);cursor:pointer}
+.qn{width:56px;height:40px;text-align:center;font:inherit;font-size:16px;border:1.5px solid #cbd5e1;border-radius:10px}
+.check.priced{align-items:center}.check.priced .ex{flex:1;display:flex;flex-direction:column}.check.priced .amt{font-weight:700}
 textarea,input[type=text]{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
 textarea{min-height:84px;resize:vertical}
 textarea:focus,input[type=text]:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(29,59,88,.15)}
@@ -376,7 +495,6 @@ textarea:focus,input[type=text]:focus{outline:none;border-color:var(--navy);box-
 .check{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1.5px solid #cbd5e1;border-radius:10px;margin-bottom:10px;cursor:pointer;background:#fff;font-size:15px}
 .check input{width:22px;height:22px;flex:none;margin:1px 0 0;accent-color:var(--navy)}
 .check:has(input:checked){border-color:var(--navy);background:#f5f8fc}
-form:not(:has(#s_yes:checked)) #colourq{display:none}
 button.submit{width:100%;min-height:54px;border:0;border-radius:12px;background:var(--navy);color:#fff;font:inherit;font-size:17px;font-weight:800;cursor:pointer;margin-top:6px}
 button.submit:hover{background:var(--navy-d)}
 button.submit:disabled{opacity:.6;cursor:wait}
@@ -431,13 +549,36 @@ const hero = (s: OrderSummary, line: string, title = 'Please confirm your shower
 const radio = (name: string, id: string, value: string, label: string, chosen: string | undefined, extra = '') =>
   `<input type="radio" name="${name}" id="${id}" value="${value}"${chosen === value ? ' checked' : ''}><label for="${id}">${extra}${esc(label)}</label>`;
 
+/** One silicone colour's counter. A number box that works on its own; the buttons need the page's script. */
+const tubeRow = (colour: SiliconeColour, value: string | undefined) => {
+  const n = /^\d{1,2}$/.test((value ?? '').trim()) ? (value ?? '').trim() : '0';
+  const name = COLOUR_WORDS[colour];
+  return `<div class="silrow"><span class="swatch ${colour}"></span><label class="silname" for="silicone_${colour}">${name}</label><button type="button" class="qb" data-k="${colour}" data-d="-1" aria-label="Remove a ${colour} tube">−</button><input class="qn" type="number" inputmode="numeric" id="silicone_${colour}" name="silicone_${colour}" min="0" max="${LIMITS.tubes}" step="1" value="${esc(n)}"><button type="button" class="qb" data-k="${colour}" data-d="1" aria-label="Add a ${colour} tube">+</button></div>`;
+};
+
+/** "Extras: £17.00", from what the form holds, as the page first shows it. The page's script keeps it up to date. */
+function extrasWords(v: Posted): string {
+  const tubes = SILICONE_COLOURS.reduce((sum, c) => {
+    const n = Number((v[`silicone_${c}`] ?? '0').trim() || '0');
+    return sum + (Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0);
+  }, 0);
+  return `Extras: ${pounds(tubes * EXTRA_PRICES.siliconeTubePence + (ticked(v.silicone_tool) ? EXTRA_PRICES.toolPence : 0))}`;
+}
+
 export interface FormState {
   values: Posted;
   error: string | null;
 }
 
 /** The form, with whatever the customer had answered and the first problem, if any. */
-export function formPage(s: OrderSummary, action: string, state: FormState, nonce: string, pay: PayView = { kind: 'not_open' }): string {
+export function formPage(
+  s: OrderSummary,
+  action: string,
+  state: FormState,
+  nonce: string,
+  pay: PayView = { kind: 'not_open' },
+  terms: Pick<TermsOfSale, 'items'> = { items: [...DEFAULT_TERMS] }
+): string {
   const v = state.values;
   const hello = s.firstName
     ? `Hi ${s.firstName}, check the details below, answer a couple of quick questions and press confirm. It takes about two minutes.`
@@ -452,7 +593,6 @@ export function formPage(s: OrderSummary, action: string, state: FormState, nonc
 <div class="drawing"><p class="lbl">Plan view (from above)</p>${planView(s.drawing)}</div>
 </div>
 <div class="legend"><span><i class="glass"></i>${esc(s.glassWords)}</span>${s.channelWords ? `<span><i class="channel"></i>${esc(s.channelWords)}</span>` : ''}</div>
-${s.noHandle ? `<p class="note"><strong>No handle.</strong> This is a fixed ${s.drawing.gapMm ? 'walk-in ' : ''}panel with no door, so a handle isn't needed and has been removed from your order.</p>` : ''}
 </div>`
     : `<div class="card">
 <h2><span class="n">2</span>Drawing</h2>
@@ -473,6 +613,17 @@ ${drawings}
 <div class="card">
 <h2><span class="n">3</span>Delivery</h2>
 <p class="sub">${esc(weighs)}</p>
+<fieldset class="q addr">
+<legend class="t">Delivery / site address</legend>
+<label class="lbl" for="addr_line1">Address line 1</label>
+<input type="text" id="addr_line1" name="addr_line1" autocomplete="address-line1" maxlength="${LIMITS.addressLine}" placeholder="House number and street" value="${esc(v.addr_line1 ?? '')}">
+<label class="lbl" for="addr_line2">Address line 2 <span class="opt">(optional)</span></label>
+<input type="text" id="addr_line2" name="addr_line2" autocomplete="address-line2" maxlength="${LIMITS.addressLine}" value="${esc(v.addr_line2 ?? '')}">
+<label class="lbl" for="addr_town">Town or city</label>
+<input type="text" id="addr_town" name="addr_town" autocomplete="address-level2" maxlength="${LIMITS.town}" value="${esc(v.addr_town ?? '')}">
+<label class="lbl" for="addr_postcode">Postcode</label>
+<input type="text" id="addr_postcode" name="addr_postcode" autocomplete="postal-code" maxlength="10" value="${esc(v.addr_postcode ?? s.postcode)}">
+</fieldset>
 <fieldset class="q">
 <legend class="t">Will someone be able to help take the glass off the van?</legend>
 <div class="seg">${radio('can_unload', 'u_yes', 'yes', 'Yes', v.can_unload)}${radio('can_unload', 'u_no', 'no', 'No', v.can_unload)}</div>
@@ -485,29 +636,30 @@ ${drawings}
 
 <div class="card">
 <h2><span class="n">4</span>Optional extras</h2>
-<p class="sub">Add these to your order if you need them. Prices will be confirmed on your quote.</p>
+<p class="sub">Add these to your order if you need them. They're added to your total when you pay.</p>
 <fieldset class="q">
-<legend class="t">Do you need silicone sealant?</legend>
-<div class="seg">${radio('silicone', 's_yes', 'yes', 'Yes please', v.silicone)}${radio('silicone', 's_no', 'no', 'No thanks', v.silicone)}</div>
+<legend class="t">Silicone sealant <span class="opt">${esc(pounds(EXTRA_PRICES.siliconeTubePence))} per tube</span></legend>
+<p class="price hint">One tube of clear or translucent is enough to seal the glass into the channel. Add a white tube if you'd also like to seal where the channel meets the tiles.</p>
+${SILICONE_COLOURS.map((c) => tubeRow(c, v[`silicone_${c}`])).join('')}
 </fieldset>
-<fieldset class="q" id="colourq">
-<legend class="t">Silicone colour</legend>
-<div class="seg three">${radio('silicone_colour', 'c_clear', 'clear', 'Clear', v.silicone_colour, '<span class="swatch clear"></span>')}${radio('silicone_colour', 'c_black', 'black', 'Black', v.silicone_colour, '<span class="swatch black"></span>')}${radio('silicone_colour', 'c_white', 'white', 'White', v.silicone_colour, '<span class="swatch white"></span>')}</div>
-</fieldset>
-<fieldset class="q">
-<legend class="t">Do you need a silicone finishing tool?</legend>
-<div class="seg">${radio('silicone_tool', 't_yes', 'yes', 'Yes please', v.silicone_tool)}${radio('silicone_tool', 't_no', 'no', 'No thanks', v.silicone_tool)}</div>
-<p class="price">For a neat, smooth silicone bead.</p>
-</fieldset>
+<label class="check priced"><input type="checkbox" name="silicone_tool" value="yes"${ticked(v.silicone_tool) ? ' checked' : ''}><span class="ex"><strong>Silicone finishing tool</strong><span class="price">For a neat, smooth silicone bead.</span></span><span class="amt">${esc(pounds(EXTRA_PRICES.toolPence))}</span></label>
+<p class="price" id="extras_total" aria-live="polite">${esc(extrasWords(v))}</p>
 </div>
 
 ${paymentCard(pay)}
 
+<div class="card" id="terms">
+<h2><span class="n">6</span>Terms of sale</h2>
+<p class="sub">Please read these before you confirm.</p>
+<ul class="terms">${terms.items.map((t) => `<li>${t.title ? `<strong>${esc(t.title)}</strong> ` : ''}${esc(t.text)}</li>`).join('')}</ul>
+</div>
+
 <div class="card">
-<h2><span class="n">6</span>Confirm</h2>
-<p class="sub">Please read and tick both boxes.</p>
+<h2><span class="n">7</span>Confirm</h2>
+<p class="sub">Please read and tick all three boxes.</p>
 <label class="check"><input type="checkbox" name="details_confirmed" value="yes"${v.details_confirmed ? ' checked' : ''}><span>I've checked the sizes, glass, fixing and drawing above and they're correct.</span></label>
 <label class="check"><input type="checkbox" name="measurements_accepted" value="yes"${v.measurements_accepted ? ' checked' : ''}><span>I measured this myself. I understand the glass is toughened and made to these measurements, so it can't be altered afterwards, and if my measurements turn out to be wrong a replacement panel is a new order at my cost.</span></label>
+<label class="check"><input type="checkbox" name="terms_accepted" value="yes"${v.terms_accepted ? ' checked' : ''}><span>${esc(TERMS_CHECKBOX)}</span></label>
 <div class="q gap">
 <label class="t" for="signed_name">Your full name</label>
 <input type="text" id="signed_name" name="signed_name" autocomplete="name" maxlength="${LIMITS.signedName}" value="${esc(v.signed_name ?? '')}">
@@ -522,7 +674,12 @@ ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` :
 </form>
 </div></main>`;
   // Only to stop a second press while the first is on its way. The page works without it.
-  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent='Sending\\u2026'},0)});`;
+  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent='Sending\\u2026'},0)});
+(function(){var f=document.getElementById('form'),out=document.getElementById('extras_total'),T=${EXTRA_PRICES.siliconeTubePence},K=${EXTRA_PRICES.toolPence},M=${LIMITS.tubes};
+function n(c){var x=parseInt(f.elements['silicone_'+c].value,10);return isNaN(x)?0:Math.max(0,Math.min(M,x))}
+function sum(){var p=(n('clear')+n('translucent')+n('white'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: \\u00a3'+(p/100).toFixed(2)}
+f.addEventListener('click',function(e){var b=e.target.closest('.qb');if(!b)return;var c=b.getAttribute('data-k');f.elements['silicone_'+c].value=Math.max(0,Math.min(M,n(c)+Number(b.getAttribute('data-d'))));sum()});
+f.addEventListener('input',sum);f.addEventListener('change',sum)})();`;
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
 }
 
@@ -578,9 +735,13 @@ export interface PayAmount {
 
 export const pounds = (pence: number) => `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function amountWords(a: PayAmount): { headline: string; detail: string } {
+function amountWords(a: PayAmount, confirmed: boolean): { headline: string; detail: string } {
   const vat = a.vat === 'none' ? 'The full amount for your order' : a.vat === 'included' ? 'Including VAT' : 'Plus VAT, added at checkout';
-  return { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}. Delivered to the address you give at checkout.` };
+  // Before confirming, the form is on the page: the address is its section 3,
+  // and extras chosen in section 4 are added when paying.
+  return confirmed
+    ? { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, with any extras you chose. Delivered kerbside to the address you confirmed.` }
+    : { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, plus any extras you choose in section 4. Delivered kerbside to the address in section 3.` };
 }
 
 const LOCK = '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M3 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z" fill="currentColor"/></svg>';
@@ -602,12 +763,12 @@ ${inner}
     case 'no_price':
       return card('', "Your final price isn't ready yet.", box('Total: not set yet', "We'll email your quote, then you can pay here. Nothing is charged until then.", disabledButton));
     case 'confirm_first': {
-      const words = pay.amount ? amountWords(pay.amount) : { headline: 'Total: shown on your quote', detail: '' };
+      const words = pay.amount ? amountWords(pay.amount, false) : { headline: 'Total: shown on your quote', detail: '' };
       return card('', 'Confirm your order below first, then you can pay securely here.', box(words.headline, words.detail || 'Payment opens once you confirm.', disabledButton));
     }
     case 'ready':
     case 'failed': {
-      const words = amountWords(pay.amount);
+      const words = amountWords(pay.amount, true);
       const error = pay.kind === 'ready' ? pay.error : 'Your last payment didn\'t go through. You can try again.';
       return card(
         '',
@@ -667,9 +828,11 @@ export function confirmedEmail(from: string, to: string[], input: { reference: s
   const rows: [string, string][] = [
     ['Order', input.reference],
     ['Signed', a.signed_name],
+    ['Terms of sale', `Accepted, version ${a.terms_version}, at ${a.terms_accepted_at}`],
+    ['Delivery address', addressLines(a.delivery_address).join('\n')],
     ['Help unloading the van', yesNo(a.can_unload)],
     ['Delivery note', a.unload_note || '—'],
-    ['Silicone', a.silicone === 'yes' ? `Yes, ${a.silicone_colour}` : 'No'],
+    ['Silicone tubes', tubesWords(a.silicone_tubes)],
     ['Silicone tool', yesNo(a.silicone_tool)],
     ['Comments', a.comments || '—'],
     ['Confirmed at', a.submitted_at],
@@ -677,7 +840,7 @@ export function confirmedEmail(from: string, to: string[], input: { reference: s
   const TD = 'style="padding:8px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top;"';
   const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#0f172a;">
 <h2 style="margin:0 0 12px;">${esc(input.reference)} confirmed by the customer</h2>
-<p>They ticked both boxes: the sizes, glass, fixing and drawing are correct, and they measured it themselves.</p>
+<p>They ticked all three boxes: the sizes, glass, fixing and drawing are correct, they measured it themselves, and they agree to the terms of sale.</p>
 <table style="border-collapse:collapse;width:100%;">${rows.map(([k, v]) => `<tr><td ${TD} width="180"><strong>${esc(k)}</strong></td><td ${TD}>${esc(v).replace(/\n/g, '<br>')}</td></tr>`).join('')}</table>
 <p><a href="${esc(input.jobLink)}">Open the job</a></p>
 </div>`;

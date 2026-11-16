@@ -236,7 +236,8 @@ describe('the pay button', () => {
     expect(html).toContain('Confirm your order below first');
     expect(html).toContain('Total: £450.00');
     expect(html).toContain('The full amount for your order');
-    expect(html).not.toMatch(/VAT/);
+    // The payment card adds no VAT. (The terms of sale say none is charged.)
+    expect(html.slice(html.indexOf('id="payment"'), html.indexOf('id="terms"'))).not.toMatch(/VAT/);
     expect(html).toMatch(/<button type="button" class="paybtn" disabled/);
     expect((await pay(made.token)).headers.get('location')).toBe(`/confirm/${made.token}`);
   });
@@ -299,6 +300,40 @@ describe('the pay button', () => {
     expect(keys.filter((k) => /payment_method_types/.test(k))).toEqual([]);
     expect(row).toMatchObject({ status: 'pending', kind: 'full', method: 'checkout', tax_behavior: 'none', amount_pence: 45_000, stripe_checkout_session_id: expect.stringMatching(/^cs_test_\d+$/) });
     expect(await eventsOf(made.job.id, 'checkout_started')).toHaveLength(1);
+  });
+
+  test('adds the extras chosen when confirming, one line per silicone colour and the tool, to the total and to Checkout', async () => {
+    const made = await job();
+    const [link] = await shop.db.find('order_confirmations', { where: { job_id: made.job.id } });
+    await shop.db.insert('job_events', {
+      job_id: made.job.id,
+      type: 'order_confirmed',
+      actor_kind: 'customer',
+      data: { confirmationId: link.id, silicone_tubes: { clear: 1, translucent: 0, white: 2 }, silicone_tool: 'yes' },
+    });
+    // 450.00 + 3 tubes at 8.50 + the tool at 4.95.
+    expect(await (await page(made.token)).text()).toContain('Total: £480.45');
+    const sent = stripe();
+    expect((await pay(made.token)).status).toBe(303);
+    expect(sent[0].form).toMatchObject({
+      'line_items[0][quantity]': '1',
+      'line_items[0][price_data][unit_amount]': '45000',
+      'line_items[1][quantity]': '1',
+      'line_items[1][price_data][unit_amount]': '850',
+      'line_items[1][price_data][product_data][name]': 'Silicone sealant, clear',
+      'line_items[2][quantity]': '2',
+      'line_items[2][price_data][unit_amount]': '850',
+      'line_items[2][price_data][product_data][name]': 'Silicone sealant, white',
+      'line_items[3][quantity]': '1',
+      'line_items[3][price_data][unit_amount]': '495',
+      'line_items[3][price_data][product_data][name]': 'Silicone finishing tool',
+    });
+    expect(Object.keys(sent[0].form).some((k) => k.startsWith('line_items[4]'))).toBe(false);
+    expect(Object.keys(sent[0].form).filter((k) => /tax/.test(k))).toEqual([]);
+    const [row] = await paymentsOf(made.job.id);
+    expect(row.amount_pence).toBe(48_045);
+    const [started] = await eventsOf(made.job.id, 'checkout_started');
+    expect(started.data).toMatchObject({ amountPence: 48_045, quotePence: 45_000, extras: [{ key: 'silicone:clear', quantity: 1, unitPence: 850 }, { key: 'silicone:white', quantity: 2, unitPence: 850 }, { key: 'silicone-tool', quantity: 1, unitPence: 495 }] });
   });
 
   test('a second press uses the open session rather than starting another', async () => {
