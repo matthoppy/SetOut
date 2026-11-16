@@ -46,7 +46,8 @@ export function calculateVerticalDeductions(
   hasTopChannel: boolean,
   hasBottomChannel: boolean,
   glassAboveDoor: boolean = false,
-  isDoor = false
+  isDoor = false,
+  glassThicknessMm = 10
 ): VerticalDeductions {
   const d = rules.making.deductions;
   const breakdown: string[] = [];
@@ -61,7 +62,8 @@ export function calculateVerticalDeductions(
       top = d.door.glassAboveMm;
       breakdown.push(`Glass over the door: -${top}mm`);
     }
-    bottom = d.door.bottomMm;
+    // On 8mm glass CRL's wipe sits a millimetre closer to the threshold.
+    bottom = glassThicknessMm === 8 ? d.door.bottom8mmMm : d.door.bottomMm;
     if (bottom) breakdown.push(`Door, bottom: -${bottom}mm`);
   } else if (mountingStyle === 'channel') {
     if (isFloorToCeiling) {
@@ -274,7 +276,8 @@ export function calculatePanelDeductions(
     true, // hasTopChannel - typically always true
     true, // hasBottomChannel - typically always true
     panel.panel_type === 'door_hinged' && glassAboveDoor,
-    panel.panel_type === 'door_hinged'
+    panel.panel_type === 'door_hinged',
+    cornerConfig.glassThicknessMm
   );
 
   const horizontal = calculateHorizontalDeductions(

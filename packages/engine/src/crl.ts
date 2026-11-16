@@ -91,14 +91,14 @@ const THRESHOLD = 'SDT980CLR10';
 /** By the seal SetOut gives a door and the glass it is on. */
 const SEALS: Record<string, Partial<Record<number, string>>> = {
   'bubble seal': { 8: 'PCR8', 10: 'PCR10', 12: 'PCR12' },
-  // CRL's polycarbonate U with a 90° vinyl fin, by glass (AVDB3078, its
-  // suggested gaps sheet, docs/seals/): PC1200 is the 12mm one.
-  '90° stopper seal': { 8: 'PC0890', 10: 'PC1090', 12: 'PC1200' },
-  // A door that stops beside the panel at a corner, rather than running
-  // through in front of its edge, closes onto CRL's 90° strike seal, snapped
-  // onto that panel: P090SJ (AVDB3078, a 4.7mm gap), and on 8mm glass CRL UK's
-  // 90° strike side seal, PCJ8. CRL makes neither for 12mm glass.
-  '90° strike seal': { 8: 'PCJ8', 10: 'P090SJ' },
+  // The 90° seal on the fixed panel at a corner, the door closing against it:
+  // CRL UK's 90° strike side seal, snapped onto that panel, PCJ10 on 10mm
+  // glass and PCJ8 on 8mm, in 2.5m lengths (Matt, 16 November 2026: "pcj10
+  // i believe"). CRL makes none for 12mm. Until then SetOut ordered CRL's U
+  // with a 90° fin (PC1090), which CRL makes for sliding doors with a 20mm gap.
+  '90° stopper seal': { 8: 'PCJ8', 10: 'PCJ10' },
+  // The same seal where the door closes beside a return that runs through.
+  '90° strike seal': { 8: 'PCJ8', 10: 'PCJ10' },
   // Glass to glass in line: CRL's 'Y' jamb seal with a soft leg, for 5/16",
   // 3/8" and 1/2" glass, from Matt's catalogue (Matt, 14 November 2026: "The
   // pcc10 is more commonly used as its got a soft fin"), rather than the

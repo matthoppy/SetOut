@@ -159,12 +159,13 @@ describe('seals, channel and handles', () => {
   test('a seal is clear, so it has one number for the glass it is on', () => {
     const seal = (s: string): Fitting => ({ kind: 'seal', pane: 0, seal: s, lengthMm: 1900, meets: 'wall', edge: 'latch' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PCR10' });
-    expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PC1090' });
+    expect(crlPartOf(seal('90° stopper seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PCJ10' });
     expect(crlPartOf(seal('bubble seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCR8' });
-    expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toEqual({ status: 'found', code: 'PC1200' });
-    expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PC0890' });
+    // CRL UK's 90° strike side seal, as Custom Showers fits (Matt, 16 November 2026); none for 12mm.
+    expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 12))).toBeNull();
+    expect(crlPartOf(seal('90° stopper seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCJ8' });
     // A door that stops beside the panel at a corner closes onto CRL's 90° strike seal.
-    expect(crlPartOf(seal('90° strike seal'), choices('MBL'))).toEqual({ status: 'found', code: 'P090SJ' });
+    expect(crlPartOf(seal('90° strike seal'), choices('MBL'))).toEqual({ status: 'found', code: 'PCJ10' });
     expect(crlPartOf(seal('90° strike seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCJ8' });
     expect(crlPartOf(seal('90° strike seal'), choices('MBL', 12))).toBeNull();
     expect(crlPartOf(seal('h seal'), choices('MBL', 8))).toEqual({ status: 'found', code: 'PCC8' });
@@ -263,7 +264,7 @@ describe('a door’s seal, by what it closes against', () => {
   });
 
   test('against a panel at a corner, a 90° stop seal on that panel, opening out', () => {
-    expect(sealOf('corner-door-return')).toMatchObject({ seal: '90° stopper seal', allowance: 5, code: 'PC1090' });
+    expect(sealOf('corner-door-return')).toMatchObject({ seal: '90° stopper seal', allowance: 5, code: 'PCJ10' });
   });
 
   test('against a wall, a clear 90° angle siliconed to it, opening out, or a bubble seal, swinging both ways', () => {

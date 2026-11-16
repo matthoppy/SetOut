@@ -144,6 +144,15 @@ describe('two companies, one design', () => {
     expect(spec.panels[0].cutWidthMm).toBe(390);
   });
 
+  test('a door on 8mm glass loses 16mm off the bottom, as CRL’s 8mm drip rail sits closer', () => {
+    const thin = { ...door, glassThicknessMm: 8 as const };
+    const ours = buildSpec(thin, company('Custom Showers'));
+    expect(ours.panels[0].deductions.vertical.breakdown).toEqual(['Door, bottom: -16mm']);
+    expect(ours.panels[0].cutHeightMm).toBe(buildSpec(door, company('Custom Showers')).panels[0].cutHeightMm + 1);
+    const theirs = buildSpec(thin, company('Brennan Glass', { 'deductions.door.bottom8mmMm': 18 }));
+    expect(theirs.panels[0].deductions.vertical.breakdown).toEqual(['Door, bottom: -18mm']);
+  });
+
   test('a door hung on the wall leaves 8mm at its hinges for the bubble seal, and its latch only its seal', () => {
     const ours = buildSpec(door, company('Custom Showers'));
     expect(ours.panels[0].deductions.horizontal.breakdown).toEqual(['Right, hung on the wall, bubble seal: -8mm']);

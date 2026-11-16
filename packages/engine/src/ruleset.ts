@@ -146,9 +146,15 @@ export interface MakingRules {
        * for its co-extruded clear bottom wipe with drip rail gives 11/16"
        * (17mm) on 10 and 12mm glass with the SDT980 threshold (Matt, 14
        * November 2026, sending it: "This threshold and a drip rail are 17mm
-       * deduction if the bottom of a door"). CRL gives 16mm on 8mm glass.
+       * deduction if the bottom of a door").
        */
       bottomMm: number;
+      /**
+       * [MANUFACTURER] The same on 8mm glass: CRL's 8mm wipe with drip rail
+       * (P956WS) leaves 10mm, 16mm over the SDT980 threshold (AVDB3078; Matt,
+       * 16 November 2026: "yeah thats fine for 8mm doors").
+       */
+      bottom8mmMm: number;
     };
   };
   heights: {
@@ -430,7 +436,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   deductions: {
     channel: { topMm: 0, bottomMm: 5, horizontalMm: 10, ceilingMm: 10, depthMm: 19 },
     clamps: { wallMm: 3, bottomMm: 3, topMm: 0, ceilingMm: 3 },
-    door: { outOnlyMm: 5, bothWaysMm: 9, hingeWallMm: 8, glassAboveMm: 4, bottomMm: 17 },
+    door: { outOnlyMm: 5, bothWaysMm: 9, hingeWallMm: 8, glassAboveMm: 4, bottomMm: 17, bottom8mmMm: 16 },
   },
   heights: {
     singleDoorTopGapMm: 30,
@@ -672,6 +678,7 @@ export const ADJUSTABLE = {
   'deductions.door.hingeWallMm': { min: 2, max: 15 },
   'deductions.door.glassAboveMm': { min: 0, max: 8 },
   'deductions.door.bottomMm': { min: 3, max: 25 },
+  'deductions.door.bottom8mmMm': { min: 3, max: 25 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },
   'review.standardHeightMaxMm': { min: 1800, max: 2400 },
@@ -803,7 +810,8 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
     about: 'A bubble seal on the hinge edge. A door fitted without seals takes CRL’s gap for its hinge instead.',
     unit: 'mm',
   },
-  'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail.', unit: 'mm' },
+  'deductions.door.bottomMm': { group: 'Doors', label: 'Off the bottom', about: 'For the clear threshold and the bottom drip rail, on 10 and 12mm glass.', unit: 'mm' },
+  'deductions.door.bottom8mmMm': { group: 'Doors', label: 'Off the bottom, on 8mm glass', about: 'The 8mm drip rail sits a millimetre closer.', unit: 'mm' },
   'deductions.door.glassAboveMm': {
     group: 'Doors',
     label: 'Off the top, under a glass brace or a transom',

@@ -85,7 +85,7 @@ every catalogue number from this folder (`crl-catalogue.ts`, written by
 | Hinges glass to glass, in line | Standard GEN180/V1E180, adjustable GEN380/V1E380, positive close V1E780. Bellagio BEL380 | As above |
 | Hinges glass to glass, at a corner | GEN092, V1E092, BEL392 + finish | One per range |
 | Bubble seal | PCR8, PCR10, PCR12 | By glass thickness; clear, so no finish |
-| 90° stopper seal | PC0890, PC1090, PC1200 | CRL's U with a 90° fin, by glass thickness (AVDB3078). Matt to confirm it is the seal he fits |
+| 90° seal at a corner | PCJ8, PCJ10 | CRL UK's 90° strike side seal, snapped onto the fixed panel (Matt, 16 November 2026: "pcj10 i believe"). None for 12mm |
 | U-channel | SDCD38 (10mm), SDCD12 (12mm) + finish | Deep U-channel in 2.41m lengths, as Custom Showers' own site listed it. Chrome hardware takes brite anodised (BA) channel |
 | Handle | The company's number for it + finish | Set in Settings; nothing until then |
 | Clamps, support bar or panel | — | SetOut does not choose the model |
