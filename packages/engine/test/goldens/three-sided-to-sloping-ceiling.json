@@ -181,12 +181,12 @@
           "cutouts": [
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 250,
+              "heightMm": 281.5,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1729,
+              "heightMm": 1697.5,
               "edge": "hinge side"
             },
             {
@@ -210,13 +210,13 @@
             "hingeCount": 2,
             "hingeReason": "2 × Geneva carries 692mm / 34.24kg (rated 711mm / 36kg).",
             "hingeHeightsMm": [
-              250,
-              1729
+              281.5,
+              1697.5
             ],
             "hingePlacement": {
-              "topHingeOffset": 250,
-              "bottomHingeOffset": 250,
-              "clearGap": 1432,
+              "topHingeOffset": 281.5,
+              "bottomHingeOffset": 281.5,
+              "clearGap": 1353,
               "warning": null
             },
             "handlePlacement": {
@@ -267,12 +267,12 @@
           "cutouts": [
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 262,
+              "heightMm": 294,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 52 × 33, r8 — mates with P2 — Door (Front)",
-              "heightMm": 1741,
+              "heightMm": 1710,
               "edge": "hinge side"
             }
           ]

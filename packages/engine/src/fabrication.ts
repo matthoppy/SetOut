@@ -320,12 +320,20 @@ export interface HingePlacement {
  * a percentage of the height. Confirmed against CRL's own designer: a 1990mm
  * door and a 2290mm door both place their hinges at 250mm.
  */
-export function calculateHingePlacement(rules: Ruleset, glassHeightMm: number): HingePlacement {
+export function calculateHingePlacement(
+  rules: Ruleset,
+  glassHeightMm: number,
+  /** How far along the edge the hinge's cut-out reaches. */
+  cutLengthMm: number = rules.fixed.cutouts.doorHingeNotch.heightMm
+): HingePlacement {
   const hinges = rules.fixed.hinges;
-  const offset = hinges.offsetMm;
+  // Each cut-out starts the same distance in from its end; its centre is half
+  // the cut-out further in.
+  const fromEnd = rules.making.heights.hingeFromEndMm;
+  const offset = Math.round((fromEnd + cutLengthMm / 2) * 10) / 10;
 
-  // Calculate clear gap between hinges
-  const clearGap = glassHeightMm - 2 * offset - 2 * (hinges.cutoutHeightMm / 2);
+  // The clear glass between the two cut-outs.
+  const clearGap = Math.round((glassHeightMm - 2 * (fromEnd + cutLengthMm)) * 10) / 10;
 
   // Warning if gap is too small
   let warning: string | null = null;

@@ -19,6 +19,7 @@
  */
 
 import type { HingeMount } from './fittings';
+import type { CutoutTemplate, FixedRules } from './ruleset';
 import type { BellagioFit, ConfiguratorState, InLineHinge, ViennaCutout, WallHinge } from './types';
 
 export interface HingeStyle {
@@ -141,4 +142,37 @@ export function doorMountsOf(state: Pick<ConfiguratorState, 'panels' | 'junction
     if (!state.panels[n]) return ['wall-to-glass'];
     return [state.junctions[Math.min(i, n)]?.angle_deg === 90 ? 'glass-to-glass-90' : 'glass-to-glass-180'];
   });
+}
+
+/**
+ * The cut-out a door's hinge takes in the door's glass: its kit's own, in the
+ * style chosen for it (Vienna's rectangular cut-out, Bellagio fitted without
+ * seals), or undefined where the kit has none and SetOut's own notch is cut.
+ */
+export function doorHingeCutout(
+  fixed: Pick<FixedRules, 'hinges'>,
+  brand: string,
+  styles: Pick<HingeStyles, 'viennaCutout' | 'bellagioFit'>
+): CutoutTemplate | undefined {
+  const kit = fixed.hinges.kits.find((k) => k.name === brand)?.id;
+  const cutouts = kit ? fixed.hinges.cutouts[kit] : undefined;
+  if (!cutouts) return undefined;
+  const rectangular = cutouts.rectangular && styles.viennaCutout === 'rectangular' ? cutouts.rectangular : undefined;
+  const withoutSeals = styles.bellagioFit === 'without-seals' ? cutouts.withoutSeals : undefined;
+  return rectangular?.door ?? withoutSeals?.door ?? cutouts.door;
+}
+
+/**
+ * How far along the door's edge its hinge cut-out reaches: the notch, or a
+ * stepped notch's step, the first glass the cut takes. A hinge is placed by
+ * its cut-out's near edge, as the glass orders measure it.
+ */
+export function doorHingeCutLengthMm(
+  fixed: Pick<FixedRules, 'hinges' | 'cutouts'>,
+  brand: string,
+  styles: Pick<HingeStyles, 'viennaCutout' | 'bellagioFit'>
+): number {
+  const shape = doorHingeCutout(fixed, brand, styles)?.shape;
+  if (!shape || shape.kind === 'holes') return fixed.cutouts.doorHingeNotch.heightMm;
+  return shape.kind === 'notch-rebated' ? shape.rebateHeightMm : shape.heightMm;
 }

@@ -162,6 +162,18 @@ export interface MakingRules {
     singleDoorTopGapMm: number;
     /** [OURS] Starting door height under a transom. */
     transomDoorHeightMm: number;
+    /**
+     * [OURS] How far in from the top and from the bottom of a door its hinge
+     * cut-outs start: to the near edge of each cut-out (a stepped one's step),
+     * as the glass orders measure them, the same at both ends (Matt, 16
+     * November 2026: "they should be equal im not sure why smart glazier
+     * does that"). A hinge's centre is half its cut-out further in. Until
+     * engine 0.16.0 SetOut took the 250 to the hinge's centre, so its
+     * cut-outs started about 30mm nearer the ends than Custom Showers' own
+     * orders. A fixed panel's matching cut-outs sit at the same height above
+     * the floor, so further from its own bottom where it stands lower.
+     */
+    hingeFromEndMm: number;
   };
   /** When a job stops being routine and is looked at by hand. Never blocks. */
   review: {
@@ -332,8 +344,6 @@ export interface FixedRules {
   };
   hinges: {
     kits: HingeKit[];
-    /** [CONFIRMED] Hinges sit this far from the top and bottom of the door glass. */
-    offsetMm: number;
     /** Height of the hinge notch, used to check the hinges and handle clear each other. */
     cutoutHeightMm: number;
     /** Less clear glass than this between two hinges is flagged. */
@@ -441,6 +451,7 @@ export const DEFAULT_MAKING_RULES: MakingRules = {
   heights: {
     singleDoorTopGapMm: 30,
     transomDoorHeightMm: 2000,
+    hingeFromEndMm: 250,
   },
   review: {
     standardHeightMaxMm: 2000,
@@ -507,7 +518,6 @@ export const FIXED_RULES: FixedRules = {
         maxDoorHeightMm: 2500,
       },
     ],
-    offsetMm: 250,
     cutoutHeightMm: 47,
     minClearGapMm: 400,
     glassToGlassGapMm: 3,
@@ -681,6 +691,7 @@ export const ADJUSTABLE = {
   'deductions.door.bottom8mmMm': { min: 3, max: 25 },
   'heights.singleDoorTopGapMm': { min: 10, max: 100 },
   'heights.transomDoorHeightMm': { min: 1800, max: 2200 },
+  'heights.hingeFromEndMm': { min: 100, max: 400 },
   'review.standardHeightMaxMm': { min: 1800, max: 2400 },
   'review.hingeReviewHeightMm': { min: 2000, max: 2500 },
   'support.narrowFixedPanelMm': { min: 150, max: 300 },
@@ -827,6 +838,12 @@ export const RULE_TEXT: Record<Exclude<AdjustableRule, 'glass.standardThicknessM
   'deductions.door.bothWaysMm': { group: 'Doors', label: 'For the seal, swinging both ways', about: 'A bubble seal on the handle side, closing against the wall.', unit: 'mm' },
   'heights.singleDoorTopGapMm': { group: 'Doors', label: 'Air gap above a door that goes up to the ceiling', unit: 'mm' },
   'heights.transomDoorHeightMm': { group: 'Doors', label: 'Height of a door under a transom, to start with', unit: 'mm' },
+  'heights.hingeFromEndMm': {
+    group: 'Doors',
+    label: 'Hinge cut-outs, in from the top and bottom',
+    about: 'To the near edge of each cut-out, as the glass order measures it, the same at both ends. A third hinge goes half way.',
+    unit: 'mm',
+  },
   'support.narrowFixedPanelMm': { group: 'Support', label: 'A support panel when a fixed panel beside a door is this narrow or less', unit: 'mm' },
   'support.wideReturnPanelMm': { group: 'Support', label: 'A support bar when a return on its own is this wide or more', unit: 'mm' },
   'review.standardHeightMaxMm': { group: 'Checked by hand', label: 'Glass taller than this', unit: 'mm' },

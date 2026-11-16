@@ -36,7 +36,7 @@ CRL Europe's drawings. Every Serenity number (OW/2 + 22, H − 5, H − 8, the
 | Glass on clamps at the wall | 2 to 5 by clamp | 3 |
 | Door hung in line from glass | Geneva 4, Bellagio 8 with seals or 3 without, others 5 | 3 (Matt, 11 November 2026) |
 | Bubble seal, handle side, both ways | 6 (UK brochure 6 to 8) | 9 |
-| Hinge centres from the top and bottom | 203 | 250 |
+| Hinges from the top and bottom | 203 to the centre | 250 to the near edge of the cut-out, the same at both ends (Matt, 16 November 2026) |
 | A pane butting in at a corner | t + 1.5 | t + 2 = 12 |
 
 **Where the file's sources disagree with each other.** Bellagio's wall hinge

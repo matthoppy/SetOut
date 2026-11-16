@@ -109,12 +109,12 @@
           "cutouts": [
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 250,
+              "heightMm": 279,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 2105,
+              "heightMm": 2076,
               "edge": "hinge side"
             },
             {
@@ -138,13 +138,13 @@
             "hingeCount": 2,
             "hingeReason": "2 × Bellagio carries 797mm / 46.92kg (rated 1000mm / 50kg).",
             "hingeHeightsMm": [
-              250,
-              2105
+              279,
+              2076
             ],
             "hingePlacement": {
-              "topHingeOffset": 250,
-              "bottomHingeOffset": 250,
-              "clearGap": 1808,
+              "topHingeOffset": 279,
+              "bottomHingeOffset": 279,
+              "clearGap": 1739,
               "warning": null
             },
             "handlePlacement": {

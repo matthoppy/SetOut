@@ -22,7 +22,7 @@ import type { ConfiguratorSpec } from './spec';
 import type { ConfiguratorState } from './types';
 import type { CutoutTemplate, FixedRules } from './ruleset';
 import { hingeMountOf, type HingeMount } from './fittings';
-import { cutoutDrawn, doorHingeOf, hingeStylesOf, STANDARD_HINGES, type HingeStyles } from './hinges';
+import { cutoutDrawn, doorHingeCutout, doorHingeOf, hingeStylesOf, STANDARD_HINGES, type HingeStyles } from './hinges';
 import { mateNotchHeightMm } from './rules';
 import { shapesOf, type PaneShape } from './shapes';
 import type { SlidingHolePart } from './sliding';
@@ -263,13 +263,12 @@ export function panesOf(
     // marked to check against the template in its box.
     const kitCutouts = kit ? fixed.hinges.cutouts[kit] : undefined;
     const rectangular = kitCutouts?.rectangular && styles.viennaCutout === 'rectangular' ? kitCutouts.rectangular : undefined;
-    const withoutSeals = styles.bellagioFit === 'without-seals' ? kitCutouts?.withoutSeals : undefined;
     const fitted = doorHingeOf(door.hingeBrand, mount, styles);
     const checked = cutoutDrawn(door.hingeBrand, fitted);
     const unchecked = (t: CutoutTemplate | undefined): CutoutTemplate | undefined =>
       t && !checked && fitted.style ? { ...t, name: `${t.name}, ${fitted.style.words}`, source: null } : t;
     const cutouts = kitCutouts && {
-      door: unchecked(rectangular?.door ?? withoutSeals?.door ?? kitCutouts.door),
+      door: unchecked(doorHingeCutout(fixed, door.hingeBrand, styles)),
       panelInLine: unchecked(rectangular?.panelInLine ?? kitCutouts.panelInLine),
       panelAtCorner: kitCutouts.panelAtCorner,
     };

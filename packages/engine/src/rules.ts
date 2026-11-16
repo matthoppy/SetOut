@@ -183,13 +183,16 @@ export function selectHinge(
 /**
  * Hinge centre heights, measured up from the bottom of the door glass.
  *
- * [CONFIRMED] Top and bottom sit a fixed distance from their own end; a third
- * hinge is centred on the leaf rather than spaced evenly between the other two.
+ * The top and bottom cut-outs start the same distance in from their own end,
+ * to the cut-out's near edge (heights.hingeFromEndMm), so each centre is half
+ * the cut-out further in: `cutLengthMm` is how far along the edge the hinge's
+ * cut-out reaches. [CONFIRMED] A third hinge is centred on the leaf rather
+ * than spaced evenly between the other two.
  */
-export function hingeHeightsMm(rules: Ruleset, doorHeightMm: number, count = 2): number[] {
+export function hingeHeightsMm(rules: Ruleset, doorHeightMm: number, count = 2, cutLengthMm = rules.fixed.cutouts.doorHingeNotch.heightMm): number[] {
   if (count < 2) return [doorHeightMm / 2];
-  const offset = rules.fixed.hinges.offsetMm;
-  const heights = [offset, doorHeightMm - offset];
+  const offset = Math.round((rules.making.heights.hingeFromEndMm + cutLengthMm / 2) * 10) / 10;
+  const heights = [offset, Math.round((doorHeightMm - offset) * 10) / 10];
   if (count >= 3) heights.splice(1, 0, Math.round(doorHeightMm / 2));
   return heights.sort((a, b) => a - b);
 }

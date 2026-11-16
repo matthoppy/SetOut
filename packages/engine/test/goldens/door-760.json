@@ -98,12 +98,12 @@
           "cutouts": [
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 250,
+              "heightMm": 288,
               "edge": "hinge side"
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 1733,
+              "heightMm": 1695,
               "edge": "hinge side"
             },
             {
@@ -127,13 +127,13 @@
             "hingeCount": 2,
             "hingeReason": "2 × Vienna carries 747mm / 37.03kg (rated 864mm / 45kg).",
             "hingeHeightsMm": [
-              250,
-              1733
+              288,
+              1695
             ],
             "hingePlacement": {
-              "topHingeOffset": 250,
-              "bottomHingeOffset": 250,
-              "clearGap": 1436,
+              "topHingeOffset": 288,
+              "bottomHingeOffset": 288,
+              "clearGap": 1331,
               "warning": null
             },
             "handlePlacement": {

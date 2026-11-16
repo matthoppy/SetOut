@@ -88,7 +88,7 @@ describe('the email to the company', () => {
       '390 × 1995',
       '687 × 1983',
       '2 × Geneva hinges, offset back plate, right hand',
-      'hinge centres 250 / 1733mm from the bottom',
+      'hinge centres 281.5 / 1701.5mm from the bottom',
       'Hinge notch 58 × 47, r8',
       'Channel required',
       'Polished chrome',

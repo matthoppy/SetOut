@@ -52,7 +52,7 @@ import {
   mateNotchHeightMm,
   type LimitCheck,
 } from './rules';
-import { hingeStylesOf } from './hinges';
+import { doorHingeCutLengthMm, hingeStylesOf } from './hinges';
 import type { EngineContext } from './ruleset';
 import { buildSlidingSpec, type PanelSliding, type SlidingSpec } from './sliding';
 import type { ConfiguratorState } from './types';
@@ -393,14 +393,17 @@ export function buildSpec(state: ConfiguratorState, context: EngineContext): Con
       spec.weightKg = glassWeightKg(rules, spec.cutWidthMm, spec.cutHeightMm, state.glassThicknessMm);
 
       const hinge = selectHingeForDoor(rules, spec.cutWidthMm, spec.cutHeightMm, state.glassThicknessMm);
-      const hingePlacement = calculateHingePlacement(rules, spec.cutHeightMm);
+      // Each hinge is placed by its cut-out's near edge, so how long the
+      // cut-out is decides where its centre falls.
+      const cutLength = doorHingeCutLengthMm(fixed, hinge.brand, hingeStylesOf(state, context.hinges));
+      const hingePlacement = calculateHingePlacement(rules, spec.cutHeightMm, cutLength);
       const handlePlacement = calculateHandlePlacement(
         rules,
         spec.cutHeightMm,
         state.handleId === 'knob' ? 'knob' : 'pull_handle',
         hingePlacement
       );
-      const hingeHeights = hingeHeightsMm(rules, spec.cutHeightMm, hinge.hingeCount);
+      const hingeHeights = hingeHeightsMm(rules, spec.cutHeightMm, hinge.hingeCount, cutLength);
       const handleHoles = handleHoleHeightsMm(rules, spec.cutHeightMm);
 
       spec.door = {

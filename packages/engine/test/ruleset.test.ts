@@ -144,6 +144,22 @@ describe('two companies, one design', () => {
     expect(spec.panels[0].cutWidthMm).toBe(390);
   });
 
+  test('hinge cut-outs start 250 in from the top and the bottom, to their near edge, the same at both ends', () => {
+    // A Geneva cut-out is 63 long, so its centre is 31.5 further in.
+    const ours = buildSpec(door, company('Custom Showers'));
+    const leaf = ours.panels[0];
+    expect(leaf.door?.hingeHeightsMm).toEqual([281.5, leaf.cutHeightMm - 281.5]);
+    expect(leaf.door?.hingePlacement.clearGap).toBe(leaf.cutHeightMm - 2 * (250 + 63));
+    // A company can bring them in or out.
+    const theirs = buildSpec(door, company('Brennan Glass', { 'heights.hingeFromEndMm': 200 }));
+    expect(theirs.panels[0].door?.hingeHeightsMm).toEqual([231.5, theirs.panels[0].cutHeightMm - 231.5]);
+    // A Bellagio fitted without seals is placed by its step, 84 long.
+    const heavy = { ...door, bellagioFit: 'without-seals' as const, panels: door.panels.map((p) => ({ ...p, width_mm: 900 })) };
+    const bellagio = buildSpec(heavy, company('Custom Showers')).panels[0];
+    expect(bellagio.door?.hingeBrand).toBe('Bellagio');
+    expect(bellagio.door?.hingeHeightsMm[0]).toBe(292);
+  });
+
   test('a door on 8mm glass loses 16mm off the bottom, as CRL’s 8mm drip rail sits closer', () => {
     const thin = { ...door, glassThicknessMm: 8 as const };
     const ours = buildSpec(thin, company('Custom Showers'));

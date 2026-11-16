@@ -98,7 +98,7 @@
           "cutouts": [
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 250,
+              "heightMm": 281.5,
               "edge": "hinge side"
             },
             {
@@ -108,7 +108,7 @@
             },
             {
               "description": "Hinge notch 58 × 47, r8",
-              "heightMm": 2033,
+              "heightMm": 2001.5,
               "edge": "hinge side"
             },
             {
@@ -132,14 +132,14 @@
             "hingeCount": 3,
             "hingeReason": "Beyond the range of 3 × Geneva — needs a different design.",
             "hingeHeightsMm": [
-              250,
+              281.5,
               1142,
-              2033
+              2001.5
             ],
             "hingePlacement": {
-              "topHingeOffset": 250,
-              "bottomHingeOffset": 250,
-              "clearGap": 1736,
+              "topHingeOffset": 281.5,
+              "bottomHingeOffset": 281.5,
+              "clearGap": 1657,
               "warning": null
             },
             "handlePlacement": {
