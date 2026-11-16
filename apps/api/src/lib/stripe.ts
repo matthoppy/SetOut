@@ -21,15 +21,19 @@ export class StripeError extends Error {
   }
 }
 
-type Params = { [key: string]: string | number | boolean | null | undefined | Params | Params[] };
+export type Params = { [key: string]: string | number | boolean | null | undefined | Params | Params[] | (string | number)[] };
 
-/** Stripe takes forms, with nested values named in brackets: line_items[0][price]. */
+/** Stripe takes forms, with nested values named in brackets: line_items[0][price], allowed_countries[0]. */
 export function formEncode(params: Params, prefix = '', out = new URLSearchParams()): URLSearchParams {
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null) continue;
     const name = prefix ? `${prefix}[${key}]` : key;
-    if (Array.isArray(value)) value.forEach((item, i) => formEncode(item, `${name}[${i}]`, out));
-    else if (typeof value === 'object') formEncode(value, name, out);
+    if (Array.isArray(value)) {
+      value.forEach((item: Params | string | number, i) => {
+        if (typeof item === 'object') formEncode(item, `${name}[${i}]`, out);
+        else out.set(`${name}[${i}]`, String(item));
+      });
+    } else if (typeof value === 'object') formEncode(value, name, out);
     else out.set(name, String(value));
   }
   return out;

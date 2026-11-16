@@ -9,7 +9,7 @@
 
 import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type HingeStyles, type Pane, type PanelSpec } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
-import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type CutOverride, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
+import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type CutOverride, type JobDetail, type JobEvent, type JobPayment, type JobFile, type Revision, type Stage } from '../lib/api';
 import { bytes, humanise, layoutName, money, STAGE_NAMES, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { describeFeature, hingeStyle, panes as panesFor } from '../lib/panes';
@@ -132,6 +132,8 @@ export function Job({ id }: { id: string }) {
         <WriteQuote jobId={detail.job.id} />
       </Section>
 
+      {detail.payment && <PaymentSection jobId={detail.job.id} payment={detail.payment} onChanged={job.reload} />}
+
       {earlier.length > 0 && (
         <Section title="Earlier drawings">
           <details className="rounded-lg border border-rule bg-surface p-3 text-sm">
@@ -193,6 +195,112 @@ export function Job({ id }: { id: string }) {
         <NoteForm jobId={detail.job.id} onAdded={job.reload} />
       </Section>
     </article>
+  );
+}
+
+const PAYMENT_STATE: Record<string, { label: string; tone: string }> = {
+  unpaid: { label: 'Not paid', tone: 'bg-rule text-quiet' },
+  checkout_open: { label: 'Customer is paying', tone: 'bg-warn/15 text-warn' },
+  payment_failed: { label: 'Payment failed', tone: 'bg-bad/15 text-bad' },
+  invoice_sent: { label: 'Invoice sent', tone: 'bg-accent/15 text-accent' },
+  paid: { label: 'Paid', tone: 'bg-good/15 text-good' },
+  partially_refunded: { label: 'Partly refunded', tone: 'bg-warn/15 text-warn' },
+  refunded: { label: 'Refunded', tone: 'bg-rule text-quiet' },
+};
+
+const PRICE_MISSING: Record<string, string> = {
+  no_quote: 'No sent or accepted quote yet, so there is nothing to pay. The customer’s pay button stays off.',
+  quote_expired: 'The quote has run out. Send a new one before the customer can pay.',
+  quote_empty: 'The quote has no total.',
+  not_gbp: 'Only quotes in pounds can be paid.',
+  quote_has_vat: 'The quote has VAT on it, and VAT is not charged (Stripe Tax is off). Write a quote with 0% VAT before the customer can pay.',
+};
+
+const PAYMENTS_OFF: Record<string, string> = {
+  no_key: 'Payments are switched on for this company but the Stripe key is not set.',
+  live_key_refused: 'A live Stripe key is set but live payments are not allowed. Nobody can pay.',
+  bad_key: 'The Stripe key is not a Stripe secret key. Nobody can pay.',
+  off: 'Payments are off.',
+};
+
+/** Where the customer's payment stands, from Stripe's messages, and a trade invoice to raise. */
+function PaymentSection({ jobId, payment, onChanged }: { jobId: string; payment: JobPayment; onChanged: () => void }) {
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const standing = PAYMENT_STATE[payment.standing.state] ?? PAYMENT_STATE.unpaid;
+  const invoice = async () => {
+    setState({ busy: true, error: null });
+    try {
+      await api.invoiceJob(jobId, true);
+      setState({ busy: false, error: null });
+      onChanged();
+    } catch (error) {
+      if (error instanceof SignedOut) return signInAgain();
+      setState({ busy: false, error: error instanceof ApiError ? error.message : 'The invoice could not be raised.' });
+    }
+  };
+  const tax = payment.stripeTax ? `Stripe Tax on, prices ${payment.taxMode ?? 'undecided'} of VAT` : 'No VAT charged (Stripe Tax off)';
+  return (
+    <Section title="Payment">
+      <div className="space-y-3 rounded-lg border border-rule bg-surface p-4 text-sm" data-testid="payment">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${standing.tone}`}>{standing.label}</span>
+          <span className="text-xs text-quiet">
+            {payment.live ? 'Live' : 'Test mode'} · {tax}
+          </span>
+        </div>
+        {!payment.enabled && payment.off && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2">{PAYMENTS_OFF[payment.off] ?? payment.off}</p>}
+        {payment.undecided.length > 0 && <p className="text-quiet">Still to be set: {payment.undecided.join(', ')}.</p>}
+        {payment.price &&
+          ('missing' in payment.price ? (
+            <p className="text-quiet">{PRICE_MISSING[payment.price.missing] ?? payment.price.missing}</p>
+          ) : (
+            <p>
+              Price from quote {payment.price.quoteNumber}: <strong className="tabular-nums">{money(payment.price.amountPence, 'GBP')}</strong>, paid in full up front.
+            </p>
+          ))}
+        {payment.standing.paidTotalPence > 0 && (
+          <p>
+            Paid <strong className="tabular-nums">{money(payment.standing.paidTotalPence, 'GBP')}</strong>
+            {payment.standing.taxPence > 0 && <> including {money(payment.standing.taxPence, 'GBP')} VAT</>}
+            {payment.standing.refundedPence > 0 && <>, {money(payment.standing.refundedPence, 'GBP')} refunded</>}.
+          </p>
+        )}
+        {payment.standing.paidCount > 1 && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2">The customer paid more than once. Refund the extra payment in Stripe.</p>}
+        {payment.standing.hostedInvoiceUrl && (
+          <p>
+            <a href={payment.standing.hostedInvoiceUrl} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
+              Open the invoice
+            </a>
+          </p>
+        )}
+        {payment.payments.length > 0 && (
+          <ul className="divide-y divide-rule border-t border-rule">
+            {payment.payments.map((p) => (
+              <li key={p.id} className="flex justify-between gap-3 py-2">
+                <span>
+                  {p.method === 'checkout' ? 'Card payment (Checkout)' : 'Trade invoice'} · <span className="text-quiet">{humanise(p.status)}</span>
+                </span>
+                <span className="text-right tabular-nums">
+                  {money(p.amountTotalPence ?? p.amountPence, 'GBP')}
+                  <span className="block text-xs text-quiet">{when(p.paidAt ?? p.createdAt)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {payment.canInvoice && (
+          <div>
+            <button type="button" onClick={invoice} disabled={state.busy} className="rounded-md border border-rule bg-surface px-3 py-1.5 font-medium hover:bg-ground disabled:opacity-60">
+              {state.busy ? 'Raising invoice…' : `Invoice trade customer for ${money(payment.canInvoice.amountPence, 'GBP')}`}
+            </button>
+            <p className="mt-1 text-xs text-quiet">
+              Due in {payment.invoiceDays} days{payment.bankTransfer ? ', card or bank transfer' : ''}. Stripe emails the customer the invoice.
+            </p>
+          </div>
+        )}
+        {state.error && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2">{state.error}</p>}
+      </div>
+    </Section>
   );
 }
 
@@ -791,6 +899,32 @@ function describe(event: JobEvent): string {
       }. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''}${
         typeof d.comments === 'string' && d.comments ? ` Comments: ${d.comments}` : ''
       }`;
+    case 'checkout_started':
+      return `The customer opened Stripe Checkout to pay ${money(Number(d.amountPence ?? 0), 'GBP')}.`;
+    case 'payment_processing':
+      return 'The customer paid by a method that takes time to clear. Waiting for Stripe.';
+    case 'payment_received':
+      return `Stripe says ${money(Number(d.amountTotalPence ?? d.amountPence ?? 0), 'GBP')} was paid${d.via === 'invoice' ? ' on the invoice' : ' by Checkout'}${
+        Number(d.taxPence ?? 0) > 0 ? `, including ${money(Number(d.taxPence), 'GBP')} VAT` : ''
+      }.`;
+    case 'payment_duplicate':
+      return 'This job was already paid. Refund the extra payment in Stripe.';
+    case 'payment_failed':
+      return `A payment failed${d.via === 'invoice' ? ' on the invoice; it stays open for the customer to try again' : '; the customer can try again from their link'}.`;
+    case 'checkout_expired':
+      return 'The customer left Stripe Checkout without paying. They can pay again from their link.';
+    case 'invoice_created':
+      return `${who ?? 'Someone'} raised a Stripe invoice for ${money(Number(d.amountPence ?? 0), 'GBP')}, due in ${String(d.days)} days${d.sent ? ', emailed by Stripe' : ''}.`;
+    case 'invoice_sent':
+      return 'Stripe finalised the invoice.';
+    case 'invoice_voided':
+      return 'The invoice was voided in Stripe.';
+    case 'payment_refunded':
+      return `${money(Number(d.refundedPence ?? 0), 'GBP')} refunded in Stripe${d.whole ? ', the whole payment' : ''}.`;
+    case 'credit_note':
+      return `A credit note for ${money(Number(d.creditPence ?? 0), 'GBP')} was issued in Stripe.`;
+    case 'bank_transfer_received':
+      return `A bank transfer of ${money(Number(d.amountPence ?? 0), 'GBP')} arrived on the customer's Stripe balance. Not paid until Stripe applies it to the invoice.`;
     case 'installation_changed': {
       const names: Record<string, string> = { address: 'installation address', postcode: 'site postcode', notes: 'installation comments' };
       const changed = Array.isArray(d.changed) ? d.changed.map((c) => names[String(c)] ?? String(c)) : [];

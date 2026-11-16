@@ -23,6 +23,14 @@ interface SetOutSecrets {
   STRIPE_SECRET_KEY?: string;
   /** Checks that a webhook came from Stripe. Only used with BILLING on. */
   STRIPE_WEBHOOK_SECRET?: string;
+  /**
+   * The API key of the Stripe account a company's customers pay into, for
+   * the company named in JOB_PAYMENTS_COMPANY. Not SetOut's own key above.
+   * A test key (sk_test_ or rk_test_) unless JOB_PAYMENTS_ALLOW_LIVE is on.
+   */
+  JOB_STRIPE_SECRET_KEY?: string;
+  /** Checks that a payment webhook came from that account's endpoint. */
+  JOB_STRIPE_WEBHOOK_SECRET?: string;
 }
 
 interface Env extends SetOutSecrets {}

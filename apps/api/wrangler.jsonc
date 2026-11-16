@@ -51,7 +51,31 @@
     // Whether the designer deals the cards for measuring with a tape and a
     // level: "on" or "off". Signed off by Matt, 13 November 2026; "off" takes
     // a customer without a laser back to the older screens.
-    "TAPE_DECKS": "on"
+    "TAPE_DECKS": "on",
+    // A company's customers paying for their job, through that company's own
+    // Stripe account: the whole order up front with Checkout from the order
+    // confirmation page, or a Stripe invoice for a trade customer. Not SetOut's own billing above. The keys
+    // are secrets, JOB_STRIPE_SECRET_KEY and JOB_STRIPE_WEBHOOK_SECRET. See
+    // docs/deploying.md.
+    // The one company whose jobs may be paid for. Empty is off.
+    "JOB_PAYMENTS_COMPANY": "",
+    // Whether Stripe Tax works out VAT on payments and invoices: "on" or
+    // "off". Off: the quote's total is exactly what the customer pays, and no
+    // tax is sent to Stripe. Custom Showers is not VAT registered (Matt, 16
+    // November 2026), so it stays off.
+    "JOB_PAYMENTS_STRIPE_TAX": "off",
+    // Only with Stripe Tax on: whether quoted prices already include VAT,
+    // "inclusive" or "exclusive". With Stripe Tax on and this empty, nobody
+    // can pay.
+    "JOB_PAYMENTS_TAX_BEHAVIOR": "",
+    // Days a trade customer's invoice has to be paid in. Empty until Matt
+    // decides; no invoice can be raised until it is set.
+    "JOB_PAYMENTS_INVOICE_DAYS": "",
+    // Whether invoices offer UK bank transfer as well as card: "on" or "off".
+    "JOB_PAYMENTS_BANK_TRANSFER": "off",
+    // A live Stripe key is refused unless this is "on". Test keys only until
+    // Matt activates the live account and says so.
+    "JOB_PAYMENTS_ALLOW_LIVE": "off"
   },
   "d1_databases": [
     {
@@ -95,7 +119,14 @@
         "BILLING": "off",
         "TRIAL_DAYS": "14",
         // The tape and level measuring cards (signed off 13 November 2026).
-        "TAPE_DECKS": "on"
+        "TAPE_DECKS": "on",
+        // Customer payments for jobs: off until Matt says otherwise.
+        "JOB_PAYMENTS_COMPANY": "",
+        "JOB_PAYMENTS_STRIPE_TAX": "off",
+        "JOB_PAYMENTS_TAX_BEHAVIOR": "",
+        "JOB_PAYMENTS_INVOICE_DAYS": "",
+        "JOB_PAYMENTS_BANK_TRANSFER": "off",
+        "JOB_PAYMENTS_ALLOW_LIVE": "off"
       },
       "d1_databases": [
         {
@@ -139,7 +170,14 @@
         "BILLING": "off",
         "TRIAL_DAYS": "14",
         // The tape and level measuring cards, signed off by Matt on 13 November 2026.
-        "TAPE_DECKS": "on"
+        "TAPE_DECKS": "on",
+        // Customer payments for jobs: off until Matt says otherwise.
+        "JOB_PAYMENTS_COMPANY": "",
+        "JOB_PAYMENTS_STRIPE_TAX": "off",
+        "JOB_PAYMENTS_TAX_BEHAVIOR": "",
+        "JOB_PAYMENTS_INVOICE_DAYS": "",
+        "JOB_PAYMENTS_BANK_TRANSFER": "off",
+        "JOB_PAYMENTS_ALLOW_LIVE": "off"
       },
       "d1_databases": [
         {

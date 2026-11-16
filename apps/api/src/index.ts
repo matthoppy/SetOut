@@ -16,6 +16,7 @@ import { confirmation } from './routes/confirm';
 import { designer } from './routes/designer';
 import { platform } from './routes/platform';
 import { quote } from './routes/quote';
+import { jobPaymentsWebhook } from './routes/job-payments-webhook';
 import { stripeWebhook } from './routes/stripe-webhook';
 import { siteRoutes } from './routes/site-enquiries';
 import { workspace } from './routes/workspace';
@@ -105,6 +106,7 @@ for (const path of ['/api/platform/*', '/api/stripe/*']) {
   });
 }
 app.route('/api/platform', platform);
+app.route('/api/stripe/payments', jobPaymentsWebhook);
 app.route('/api/stripe', stripeWebhook);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));

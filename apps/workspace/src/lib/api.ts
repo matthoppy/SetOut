@@ -324,6 +324,41 @@ export interface JobDetail {
   files: JobFile[];
   events: JobEvent[];
   quotes: QuoteSummary[];
+  /** The customer paying, where this company takes payments. */
+  payment: JobPayment | null;
+}
+
+export type PaymentState = 'unpaid' | 'checkout_open' | 'payment_failed' | 'invoice_sent' | 'paid' | 'partially_refunded' | 'refunded';
+export type PaymentTaxMode = 'none' | 'inclusive' | 'exclusive';
+
+/** Where a job's payments stand, in the company's own Stripe account. */
+export interface JobPayment {
+  enabled: boolean;
+  off: 'off' | 'no_key' | 'live_key_refused' | 'bad_key' | null;
+  /** Settings still to be decided, by name. */
+  undecided: string[];
+  live: boolean;
+  stripeTax: boolean;
+  taxMode: PaymentTaxMode | null;
+  invoiceDays: number | null;
+  bankTransfer: boolean;
+  price: { quoteNumber: number; amountPence: number } | { missing: string } | null;
+  standing: { state: PaymentState; paidTotalPence: number; taxPence: number; refundedPence: number; paidCount: number; hostedInvoiceUrl: string | null };
+  canInvoice: { amountPence: number } | null;
+  payments: {
+    id: string;
+    kind: 'full' | 'invoice';
+    method: 'checkout' | 'invoice';
+    status: string;
+    amountPence: number;
+    amountTotalPence: number | null;
+    taxPence: number | null;
+    refundedPence: number;
+    taxMode: PaymentTaxMode;
+    hostedInvoiceUrl: string | null;
+    paidAt: string | null;
+    createdAt: string;
+  }[];
 }
 
 export type Role = 'owner' | 'staff';
@@ -546,6 +581,9 @@ export const api = {
   },
   job: (id: string, signal?: AbortSignal) => call<JobDetail>(`/jobs/${encodeURIComponent(id)}`, { signal }),
   moveJob: (id: string, stage: Stage) => send<{ ok: true }>('PATCH', `/jobs/${encodeURIComponent(id)}`, { stage }),
+  /** Raise a Stripe invoice for a trade customer's whole order. */
+  invoiceJob: (id: string, sendEmail: boolean) =>
+    send<{ paymentId: string; invoiceId: string; hostedInvoiceUrl: string | null; amountPence: number }>('POST', `/jobs/${encodeURIComponent(id)}/payments/invoice`, { send: sendEmail }),
   addNote: (id: string, text: string) => send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(id)}/notes`, { text }),
   /** A field left out stays as it is. */
   saveInstallation: (id: string, changes: { address?: string | null; postcode?: string | null; notes?: string | null }) =>

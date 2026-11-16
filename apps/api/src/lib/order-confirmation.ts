@@ -385,6 +385,10 @@ button.submit:disabled{opacity:.6;cursor:wait}
 .pay .m strong{display:block;color:var(--ink);font-size:15px}
 button.paybtn{min-height:46px;padding:0 20px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:700;cursor:not-allowed;display:inline-flex;align-items:center;gap:8px}
 .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#fff;border:1px solid var(--acc);color:var(--grey);padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle}
+button.paybtn.on,a.paybtn.on{background:var(--navy);cursor:pointer;text-decoration:none}
+button.paybtn.on:hover,a.paybtn.on:hover{background:var(--navy-d)}
+button.paybtn.on:disabled{opacity:.7;cursor:wait}
+#payform{margin:0}
 .err{color:var(--err);font-size:14px;margin:10px 0 0;font-weight:600}
 .done{text-align:center;padding:36px 20px}
 .done .tick{width:64px;height:64px;border-radius:50%;background:#dcfce7;color:var(--ok);display:grid;place-items:center;margin:0 auto 14px;font-size:34px;font-weight:800}
@@ -433,7 +437,7 @@ export interface FormState {
 }
 
 /** The form, with whatever the customer had answered and the first problem, if any. */
-export function formPage(s: OrderSummary, action: string, state: FormState, nonce: string): string {
+export function formPage(s: OrderSummary, action: string, state: FormState, nonce: string, pay: PayView = { kind: 'not_open' }): string {
   const v = state.values;
   const hello = s.firstName
     ? `Hi ${s.firstName}, check the details below, answer a couple of quick questions and press confirm. It takes about two minutes.`
@@ -497,15 +501,7 @@ ${drawings}
 </fieldset>
 </div>
 
-<div class="card">
-<h2><span class="n">5</span>Payment<span class="badge">Coming soon</span></h2>
-<p class="sub">Once we've sent your final quote, you'll be able to pay for your order here.</p>
-<div class="pay">
-<div class="m"><strong>Total: shown on your quote</strong>Payment method to be confirmed.</div>
-<!-- TODO: enable once the payment method is chosen (likely a Stripe Payment Link, bank transfer as backup) and the quote total is set. -->
-<button type="button" class="paybtn" disabled aria-disabled="true"><svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M3 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z" fill="currentColor"/></svg>Pay securely</button>
-</div>
-</div>
+${paymentCard(pay)}
 
 <div class="card">
 <h2><span class="n">6</span>Confirm</h2>
@@ -530,17 +526,108 @@ ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` :
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
 }
 
-/** What the customer sees once they have confirmed, and every time they open the link after. */
-export function thankYouPage(s: OrderSummary, nonce: string): string {
-  const body = `${hero(s, s.firstName ? `Thanks ${s.firstName}, there's nothing more to do on this page.` : "There's nothing more to do on this page.", 'Your shower order')}
+/** What the customer sees once they have confirmed, and every time they open the link after: the thank-you, and paying. */
+export function thankYouPage(s: OrderSummary, nonce: string, pay: PayView = { kind: 'not_open' }): string {
+  const paid = pay.kind === 'paid';
+  const body = `${hero(s, s.firstName ? `Thanks ${s.firstName}, ${paid ? "you're all done." : pay.kind === 'ready' ? 'one last step: payment.' : "there's nothing more to do on this page."}` : paid ? "You're all done." : "There's nothing more to do on this page.", 'Your shower order')}
 <main><div class="wrap">
 <div class="card done" id="done">
 <div class="tick">✓</div>
 <h2>Thank you, your details are confirmed</h2>
-<p class="sub">We've received your answers for <strong>${esc(s.reference)}</strong>. We'll email your final quote and delivery date to the address you gave us.</p>
+<p class="sub">We've received your answers for <strong>${esc(s.reference)}</strong>. ${paid ? "We'll email your delivery date to the address you gave us." : "We'll email your final quote and delivery date to the address you gave us."}</p>
 </div>
+${paymentCard(pay)}
 </div></main>`;
-  return shell(`Order ${s.reference} confirmed`, body, nonce);
+  // Only to stop a second press while the first is on its way. The page works without it.
+  const script =
+    pay.kind === 'ready'
+      ? `document.getElementById('payform').addEventListener('submit',function(){var b=document.getElementById('paybtn');setTimeout(function(){b.disabled=true;b.lastChild.textContent='Opening secure payment\\u2026'},0)});`
+      : '';
+  return shell(`Order ${s.reference} confirmed`, body, nonce, script);
+}
+
+// ---------------------------------------------------------------------------
+// Paying
+// ---------------------------------------------------------------------------
+
+/**
+ * Where paying stands, as the customer's page shows it. Worked out by the
+ * route from the job's quote, its payments and the deploy's settings.
+ */
+export type PayView =
+  /** Payments are not open for this company yet, or what to charge is still being decided. */
+  | { kind: 'not_open' }
+  /** No agreed price on the job yet. Nothing is made up. */
+  | { kind: 'no_price' }
+  /** The order is not confirmed yet: confirm first, then pay. */
+  | { kind: 'confirm_first'; amount: PayAmount | null }
+  | { kind: 'ready'; action: string; amount: PayAmount; error: string | null }
+  /** Back from Stripe, and Stripe's message has not arrived yet. */
+  | { kind: 'processing' }
+  | { kind: 'invoice'; invoiceUrl: string; failed: boolean }
+  | { kind: 'paid'; paidPence: number }
+  | { kind: 'failed'; action: string; amount: PayAmount }
+  | { kind: 'refunded' };
+
+export interface PayAmount {
+  /** The whole order, in pence, paid up front. */
+  pence: number;
+  /** 'none': this is exactly what is paid, no VAT is charged. Otherwise Stripe Tax's VAT is in it, or added at checkout. */
+  vat: 'none' | 'included' | 'added';
+}
+
+export const pounds = (pence: number) => `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function amountWords(a: PayAmount): { headline: string; detail: string } {
+  const vat = a.vat === 'none' ? 'The full amount for your order' : a.vat === 'included' ? 'Including VAT' : 'Plus VAT, added at checkout';
+  return { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}. Delivered to the address you give at checkout.` };
+}
+
+const LOCK = '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M3 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z" fill="currentColor"/></svg>';
+const disabledButton = `<button type="button" class="paybtn" disabled aria-disabled="true">${LOCK}Pay securely</button>`;
+
+/** The payment card, in whichever state paying is in. */
+export function paymentCard(pay: PayView): string {
+  const card = (badge: string, sub: string, inner: string) => `<div class="card" id="payment">
+<h2><span class="n">5</span>Payment${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</h2>
+<p class="sub">${sub}</p>
+${inner}
+</div>`;
+  const box = (strong: string, line: string, button: string) => `<div class="pay"><div class="m"><strong>${esc(strong)}</strong>${esc(line)}</div>${button}</div>`;
+  const payForm = (action: string, label: string) =>
+    `<form id="payform" method="post" action="${esc(action)}"><button type="submit" class="paybtn on" id="paybtn">${LOCK}<span>${esc(label)}</span></button></form>`;
+  switch (pay.kind) {
+    case 'not_open':
+      return card('Coming soon', "Once we've sent your final quote, you'll be able to pay for your order here.", box('Total: shown on your quote', "Online payment isn't open yet. We'll email you when it is.", disabledButton));
+    case 'no_price':
+      return card('', "Your final price isn't ready yet.", box('Total: not set yet', "We'll email your quote, then you can pay here. Nothing is charged until then.", disabledButton));
+    case 'confirm_first': {
+      const words = pay.amount ? amountWords(pay.amount) : { headline: 'Total: shown on your quote', detail: '' };
+      return card('', 'Confirm your order below first, then you can pay securely here.', box(words.headline, words.detail || 'Payment opens once you confirm.', disabledButton));
+    }
+    case 'ready':
+    case 'failed': {
+      const words = amountWords(pay.amount);
+      const error = pay.kind === 'ready' ? pay.error : 'Your last payment didn\'t go through. You can try again.';
+      return card(
+        '',
+        'Pay by card or another method on Stripe\'s secure page. We never see your card details.',
+        `${box(words.headline, words.detail, payForm(pay.action, 'Pay securely'))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
+      );
+    }
+    case 'processing':
+      return card('', "Thanks, we're confirming your payment with our payment provider.", box('Payment received, confirming', 'This usually takes a few seconds. Refresh the page to check.', ''));
+    case 'invoice':
+      return card(
+        pay.failed ? 'Payment failed' : '',
+        pay.failed ? "Your last payment didn't go through. You can try again on the invoice page." : 'Your invoice is ready to pay.',
+        box('Invoice', 'View and pay it on our secure invoice page.', `<a class="paybtn on" href="${esc(pay.invoiceUrl)}" rel="noreferrer">${LOCK}<span>View invoice</span></a>`)
+      );
+    case 'paid':
+      return card('Paid', `Thank you, we've received your payment of ${esc(pounds(pay.paidPence))}.`, box('Paid in full', "There's nothing more to pay for this order.", ''));
+    case 'refunded':
+      return card('', 'This order has been refunded.', box('Refunded', `Questions? Email ${CONFIRMATION_BRAND.email}.`, ''));
+  }
 }
 
 /** A link that opens nothing. */
@@ -562,7 +649,8 @@ export const confirmationCsp = (nonce: string) =>
     'font-src https://fonts.gstatic.com',
     `script-src 'nonce-${nonce}'`,
     'img-src data:',
-    "form-action 'self'",
+    // The pay button posts here and is sent on to Stripe's own page.
+    "form-action 'self' https://checkout.stripe.com",
     "base-uri 'none'",
     "frame-ancestors 'none'",
   ].join('; ');
