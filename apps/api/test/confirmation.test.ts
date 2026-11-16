@@ -9,6 +9,7 @@ import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { addMember } from '../src/db/auth';
 import { hashResumeToken, newConfirmationToken, resolveConfirmationLink } from '../src/db/platform';
 import { extrasOf, readAnswers } from '../src/lib/order-confirmation';
+import { addWorkingDays, deliveryWindow, leadWorkingDaysOf, londonToday, readDeliveryDate } from '../src/lib/delivery-date';
 import { DEFAULT_TERMS, TERMS_CHECKBOX, termsFor, termsVersion } from '../src/lib/terms-of-sale';
 import { APP, callWith, company, DESIGNER, json, post, signIn, type Company } from './helpers';
 import { walkInJob } from './walk-in';
@@ -30,6 +31,8 @@ const FULL: Record<string, string> = {
   addr_line2: '',
   addr_town: 'St Albans',
   addr_postcode: 'al35qn',
+  // The earliest date a delivery can be asked for today.
+  preferred_delivery_date: deliveryWindow().min,
   can_unload: 'yes',
   unload_note: 'Drive is steep.',
   silicone_clear: '1',
@@ -131,6 +134,9 @@ describe('the page', () => {
     for (const name of ['addr_line1', 'addr_line2', 'addr_town', 'addr_postcode']) expect(delivery).toContain(`name="${name}"`);
     expect(delivery).toMatch(/name="addr_postcode"[^>]*value="AL3 5QN"/);
     expect(delivery).toContain('Delivery / site address');
+    const w = deliveryWindow();
+    expect(delivery).toContain(`type="date" id="preferred_delivery_date" name="preferred_delivery_date" min="${w.min}" max="${w.max}"`);
+    expect(delivery).toContain("we'll confirm the date once the glass is ready.");
   });
 
   test('sells silicone by the tube in three colours, and the tool as a tick box, with their prices', async () => {
@@ -170,6 +176,26 @@ describe('the page', () => {
     expect(html).toContain('plus any extras you choose in section 4. Delivered kerbside to the address in section 3.');
   });
 
+  test('the sizing note under the drawing is the reference wording, held back until Matt says, and leaks nothing', async () => {
+    const { formPage, summarise, SIZING_NOTE, SHOW_SIZING_NOTE } = await import('../src/lib/order-confirmation');
+    expect(SHOW_SIZING_NOTE).toBe(false);
+    expect(await (await page(await linkFor(shop, jobId))).text()).not.toContain('How we size your glass');
+    const [design] = await shop.db.find('designs', { where: { job_id: jobId } });
+    const [revision] = await shop.db.find('design_revisions', { where: { design_id: design.id } });
+    const summary = summarise({ reference: 'CS-1001', customerName: 'Oliver Milton', postcode: 'AL3 5QN', design: revision.document.design, spec });
+    const html = formPage(summary, '/confirm/x', { values: {}, error: null }, 'n', undefined, undefined, undefined, true);
+    const shown = html.replace(/&#39;/g, "'");
+    expect(shown).toContain(`<p class="note" id="sizing"><strong>How we size your glass.</strong> ${SIZING_NOTE.text}</p>`);
+    // It sits in the drawing's card, before section 3.
+    expect(shown.indexOf('id="sizing"')).toBeLessThan(shown.indexOf('3</span>Delivery'));
+    expect(shown.indexOf('id="sizing"')).toBeGreaterThan(shown.indexOf('2</span>Drawing'));
+    // No cut size or deduction: the only figures in it are the packers and the tolerance.
+    expect(SIZING_NOTE.text.match(/\d+(\.\d+)?\s*mm/g)).toEqual(['3mm', '3mm']);
+    const panel = spec.panels[0];
+    for (const n of [panel.cutWidthMm, panel.cutHeightMm, 392, 1795]) expect(said(html), `shows ${n}`).not.toContain(String(n));
+    expect(said(html)).not.toMatch(/cut size|deduction|cutWidth|cutHeight|tight/i);
+  });
+
   test('never shows the cut size or the deductions, in the page, its drawings or their labels', async () => {
     const html = said(await (await page(await linkFor(shop, jobId))).text());
     const panel = spec.panels[0];
@@ -197,6 +223,8 @@ describe('the answers', () => {
       [{ ...FULL, addr_postcode: '' }, 'Please enter the full delivery address (section 3).'],
       [{ ...FULL, addr_postcode: 'NOT A CODE' }, 'Please check the postcode of the delivery address (section 3).'],
       [{ ...FULL, addr_line2: 'x'.repeat(121) }, 'Please keep each line of the delivery address to 120 characters (section 3).'],
+      [{ ...FULL, preferred_delivery_date: '' }, 'Please choose a preferred delivery date (section 3).'],
+      [{ ...FULL, preferred_delivery_date: '30/11/2026' }, 'Please choose a preferred delivery date (section 3).'],
       [{ ...FULL, can_unload: '' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
       [{ ...FULL, can_unload: 'maybe' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
       [{ ...FULL, silicone_clear: '11' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
@@ -218,9 +246,10 @@ describe('the answers', () => {
 
   test('tidy the address, count the tubes, and record the terms with the server’s time', () => {
     const at = new Date('2026-11-16T19:00:00.000Z');
-    const read = readAnswers('CS-1', { ...FULL, silicone_translucent: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
+    const read = readAnswers('CS-1', { ...FULL, preferred_delivery_date: '2026-11-30', silicone_translucent: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
     expect('answers' in read && read.answers).toMatchObject({
       delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
+      preferred_delivery_date: '2026-11-30',
       silicone_tubes: { clear: 1, translucent: 0, white: 2 },
       silicone_tool: 'yes',
       terms_accepted: true,
@@ -230,6 +259,37 @@ describe('the answers', () => {
     // An unticked tool box sends nothing at all.
     const none = readAnswers('CS-1', { ...FULL, silicone_clear: '0', silicone_white: '0' }, { version: 'v' });
     expect('answers' in none && [none.answers.silicone_tubes, none.answers.silicone_tool]).toEqual([{ clear: 0, translucent: 0, white: 0 }, 'no']);
+  });
+
+  test('a delivery date: weekdays only, from 10 working days to 90 days ahead, in London’s dates', () => {
+    // Monday 16 November 2026, 7pm in London.
+    const now = new Date('2026-11-16T19:00:00.000Z');
+    const w = deliveryWindow(now);
+    expect(w).toEqual({ today: '2026-11-16', min: '2026-11-30', max: '2027-02-12', leadWorkingDays: 10 });
+    const at = (date: string) => readAnswers('CS-1', { ...FULL, preferred_delivery_date: date }, { version: 'v' }, now);
+    expect('answers' in at('2026-11-30') && at('2026-11-30')).toBeTruthy();
+    expect(at('2026-11-27')).toEqual({ error: 'Please choose a delivery date between Mon 30 Nov 2026 and Fri 12 Feb 2027 (section 3).' });
+    expect(at('2027-02-15')).toEqual({ error: 'Please choose a delivery date between Mon 30 Nov 2026 and Fri 12 Feb 2027 (section 3).' });
+    expect(at('2026-12-05')).toEqual({ error: 'Please choose a weekday for delivery (section 3).' });
+    expect(at('2026-12-06')).toEqual({ error: 'Please choose a weekday for delivery (section 3).' });
+    expect(at('2026-12-25')).toEqual({ error: "Please choose a delivery date that isn't a bank holiday (section 3)." });
+    expect(at('2026-02-30')).toEqual({ error: 'Please choose a preferred delivery date (section 3).' });
+    // In summer London is an hour ahead of UTC; in winter it is UTC.
+    expect(londonToday(new Date('2026-07-01T23:30:00.000Z'))).toBe('2026-07-02');
+    expect(londonToday(new Date('2026-12-31T23:30:00.000Z'))).toBe('2026-12-31');
+    // Working days skip weekends and bank holidays: Christmas and Boxing Day's substitute.
+    expect(addWorkingDays('2026-12-23', 2)).toBe('2026-12-29');
+    expect(readDeliveryDate('2026-12-29', w)).toEqual({ date: '2026-12-29' });
+  });
+
+  test('the lead time is the company’s, if set, or 10 working days', () => {
+    expect(leadWorkingDaysOf({})).toBe(10);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: 3 })).toBe(3);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: -1 })).toBe(10);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: '5' })).toBe(10);
+    expect(deliveryWindow(new Date('2026-11-16T12:00:00Z'), 3).min).toBe('2026-11-19');
+    // Friday with no lead time: the next working day.
+    expect(deliveryWindow(new Date('2026-11-21T12:00:00Z'), 0).min).toBe('2026-11-23');
   });
 
   test('extras are one line per colour ordered, at 850p a tube, and the tool at 495p', () => {
@@ -266,6 +326,7 @@ describe('the answers', () => {
     expect(html).toMatch(/name="silicone_white" min="0" max="10" step="1" value="2"/);
     expect(html).toMatch(/name="terms_accepted" value="yes" checked/);
     expect(html).toContain('Extras: £25.50');
+    expect(html).toContain(`value="${FULL.preferred_delivery_date}" aria-describedby="date_hint"`);
     expect(said(html)).not.toMatch(/392|1795|cut size|deduction/i);
     expect(await events('order_confirmed')).toHaveLength(0);
   });
@@ -322,6 +383,7 @@ describe('confirming', () => {
       terms_version: await termsVersion(DEFAULT_TERMS),
       terms_source: 'default',
       delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
+      preferred_delivery_date: FULL.preferred_delivery_date,
       can_unload: 'yes',
       unload_note: 'Drive is steep.',
       silicone_tubes: { clear: 1, translucent: 0, white: 2 },
@@ -339,6 +401,7 @@ describe('confirming', () => {
     expect(mail[0].subject).toBe('CS-1001: order confirmed by the customer');
     expect(mail[0].html).toContain('<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top;">12 Holly Lane<br>St Albans<br>AL3 5QN</td>');
     expect(mail[0].html).toContain('1 clear, 2 white');
+    expect(mail[0].html).toContain(`(${FULL.preferred_delivery_date}), to be confirmed once the glass is ready`);
     expect(mail[0].html).toContain(`Accepted, version ${await termsVersion(DEFAULT_TERMS)}`);
     expect(mail[0].html).toContain('agree to the terms of sale');
     expect(await events('email_sent')).toHaveLength(1);

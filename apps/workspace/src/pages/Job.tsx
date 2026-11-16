@@ -94,6 +94,9 @@ export function Job({ id }: { id: string }) {
               <span className="whitespace-pre-line">{confirmedAddress.join('\n')}</span>
             </Row>
           )}
+          {confirmed && typeof confirmed.data.preferred_delivery_date === 'string' && (
+            <Row label="Preferred delivery date">{`${prettyDay(confirmed.data.preferred_delivery_date)} (to be confirmed)`}</Row>
+          )}
           {confirmed && <Row label="Silicone tubes">{siliconeWords(confirmed.data)}</Row>}
           {confirmed && <Row label="Finishing tool">{confirmed.data.silicone_tool === 'yes' ? 'Yes' : 'No'}</Row>}
           {confirmed && (
@@ -912,7 +915,9 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} made a link for the customer to confirm their order.`;
     case 'order_confirmed': {
       const address = deliveryAddressOf(d);
-      return `${String(d.signed_name ?? 'The customer')} confirmed the order${d.terms_accepted === true ? ' and accepted the terms of sale' : ''}.${address ? ` Deliver to: ${address.join(', ')}.` : ''} Help unloading: ${
+      return `${String(d.signed_name ?? 'The customer')} confirmed the order${d.terms_accepted === true ? ' and accepted the terms of sale' : ''}.${address ? ` Deliver to: ${address.join(', ')}.` : ''}${
+        typeof d.preferred_delivery_date === 'string' ? ` Preferred delivery date: ${prettyDay(d.preferred_delivery_date)}.` : ''
+      } Help unloading: ${
         d.can_unload === 'yes' ? 'yes' : 'no'
       }. Silicone: ${siliconeWords(d)}. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${
         typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''
@@ -1030,4 +1035,10 @@ function siliconeWords(d: Record<string, unknown>): string {
     return parts.length ? parts.join(', ') : 'none';
   }
   return d.silicone === 'yes' ? String(d.silicone_colour) : 'no';
+}
+
+/** "Mon 30 Nov 2026" for a YYYY-MM-DD date, read as the date it is wherever the browser is. */
+function prettyDay(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }

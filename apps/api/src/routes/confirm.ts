@@ -39,6 +39,7 @@ import {
 import { createJobCheckout, jobPrice, mayStartPayment, paymentSettings, standingOf } from '../lib/job-payments';
 import { StripeError } from '../lib/stripe';
 import { termsFor, type TermsOfSale } from '../lib/terms-of-sale';
+import { deliveryWindow, leadWorkingDaysOf, type DeliveryWindow } from '../lib/delivery-date';
 
 export const confirmation = new Hono<{ Bindings: Env }>();
 
@@ -71,6 +72,8 @@ interface Opened {
   designerId: string | null;
   /** The terms of sale shown in section 6: the company's own, or the default. */
   terms: TermsOfSale;
+  /** The dates a delivery may be asked for, from today in London and the company's lead time. */
+  window: DeliveryWindow;
 }
 
 /**
@@ -108,8 +111,10 @@ async function open(env: Env, token: string): Promise<Opened | null> {
     finishes: settings.finishes,
     handles: settings.handles,
   });
-  const terms = await termsFor((await db.company())?.settings ?? {});
-  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null, terms };
+  const companySettings = (await db.company())?.settings ?? {};
+  const terms = await termsFor(companySettings);
+  const window = deliveryWindow(new Date(), leadWorkingDaysOf(companySettings));
+  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null, terms, window };
 }
 
 /**
@@ -161,7 +166,7 @@ confirmation.get('/:token', async (c) => {
   if (!found) return page(c, notFoundPage, 404);
   const pay = await payView(c.env, found, c.req.path, { returned: c.req.query('paid') === '1' });
   if (found.link.confirmed_at) return page(c, (n) => thankYouPage(found.summary, n, pay));
-  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n, pay, found.terms));
+  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n, pay, found.terms, found.window));
 });
 
 /**
@@ -283,10 +288,10 @@ confirmation.post('/:token', async (c) => {
   const values: Posted = {};
   for (const [key, value] of Object.entries(raw)) if (typeof value === 'string') values[key] = value;
 
-  const read = readAnswers(job.reference, values, found.terms);
+  const read = readAnswers(job.reference, values, found.terms, new Date(), found.window);
   if ('error' in read) {
     const pay = await payView(c.env, found, c.req.path);
-    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n, pay, found.terms), 400);
+    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n, pay, found.terms, found.window), 400);
   }
   const { answers } = read;
   try {

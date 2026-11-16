@@ -20,6 +20,7 @@
  * move the brand below into the company's settings.
  */
 
+import { deliveryWindow, prettyDate, readDeliveryDate, type DeliveryWindow } from './delivery-date';
 import { DEFAULT_TERMS, TERMS_CHECKBOX, type TermsOfSale } from './terms-of-sale';
 import { METHOD_LABELS, type ConfiguratorSpec, type ConfiguratorState } from '@setout/engine';
 import { CUSTOM_SHOWERS_LOGO_PNG } from './confirmation-logo';
@@ -217,6 +218,8 @@ export interface ConfirmationAnswers {
   terms_version: string;
   terms_accepted_at: string;
   delivery_address: DeliveryAddress;
+  /** YYYY-MM-DD, a weekday in the delivery window. We confirm the real date once the glass is ready. */
+  preferred_delivery_date: string;
   can_unload: 'yes' | 'no';
   unload_note: string;
   /** How many tubes of each colour, 0 to LIMITS.tubes each. */
@@ -305,7 +308,8 @@ export function readAnswers(
   reference: string,
   form: Posted,
   terms: { version: string },
-  now = new Date()
+  now = new Date(),
+  window: DeliveryWindow = deliveryWindow(now)
 ): { answers: ConfirmationAnswers } | { error: string } {
   const line1 = text(form.addr_line1).replace(/\s+/g, ' ');
   const line2 = text(form.addr_line2).replace(/\s+/g, ' ');
@@ -317,6 +321,8 @@ export function readAnswers(
   }
   const postcode = normalisePostcode(rawPostcode);
   if (!postcode) return { error: 'Please check the postcode of the delivery address (section 3).' };
+  const date = readDeliveryDate(form.preferred_delivery_date, window);
+  if ('error' in date) return date;
   const canUnload = oneOf(form.can_unload, ['yes', 'no'] as const);
   if (!canUnload) return { error: 'Please tell us if someone can help take the glass off the van (section 3).' };
   const tubes: SiliconeTubes = { clear: 0, translucent: 0, white: 0 };
@@ -348,6 +354,7 @@ export function readAnswers(
       terms_version: terms.version,
       terms_accepted_at: now.toISOString(),
       delivery_address: { line1, line2, town, postcode },
+      preferred_delivery_date: date.date,
       can_unload: canUnload,
       unload_note: note,
       silicone_tubes: tubes,
@@ -480,6 +487,7 @@ dl.spec dd{margin:0;font-weight:600;color:var(--ink);text-align:right}
 .seg input:focus-visible+label{outline:3px solid #93c5fd;outline-offset:2px}
 .swatch{width:14px;height:14px;border-radius:50%;border:1px solid #94a3b8;margin-right:8px;flex:none}
 .swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.translucent{background:linear-gradient(135deg,#f8fafc,#cbd5e1);opacity:.7}.swatch.white{background:#fff}
+.note{background:#f0f7fd;border:1px solid #cfe6f7;color:#12406b;border-radius:10px;padding:12px 14px;font-size:14px;margin:14px 0 0}
 .terms{margin:0;padding-left:18px;color:var(--ink);font-size:14px;line-height:1.5}
 .terms li{margin:0 0 8px}
 .addr .lbl{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:8px 0 4px}
@@ -488,6 +496,7 @@ dl.spec dd{margin:0;font-weight:600;color:var(--ink);text-align:right}
 .qb{width:40px;height:40px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;font:inherit;font-size:20px;font-weight:700;color:var(--navy);cursor:pointer}
 .qn{width:56px;height:40px;text-align:center;font:inherit;font-size:16px;border:1.5px solid #cbd5e1;border-radius:10px}
 .check.priced{align-items:center}.check.priced .ex{flex:1;display:flex;flex-direction:column}.check.priced .amt{font-weight:700}
+input[type=date]{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
 textarea,input[type=text]{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
 textarea{min-height:84px;resize:vertical}
 textarea:focus,input[type=text]:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(29,59,88,.15)}
@@ -565,6 +574,20 @@ function extrasWords(v: Posted): string {
   return `Extras: ${pounds(tubes * EXTRA_PRICES.siliconeTubePence + (ticked(v.silicone_tool) ? EXTRA_PRICES.toolPence : 0))}`;
 }
 
+/**
+ * The note under the drawing, word for word from Matt's reference page
+ * (16 November 2026). It names no size or deduction from the job.
+ *
+ * Held back for now: besides the ±3mm tolerance, the wording says "3mm
+ * setting packers", a figure behind the height allowance. Matt is to say
+ * whether that may be shown before SHOW_SIZING_NOTE is turned on.
+ */
+export const SIZING_NOTE = {
+  title: 'How we size your glass.',
+  text: "Your panel is made slightly smaller than the sizes you measured, so it fits properly. We allow for 3mm setting packers in the floor channel, and leave a little room in the wall channel in case the wall isn't perfectly straight or upright. The channels hide these gaps, so the finished panel fills your measured space. Toughened glass is made to a manufacturing tolerance of about ±3mm, which this allowance also covers.",
+} as const;
+export const SHOW_SIZING_NOTE = false;
+
 export interface FormState {
   values: Posted;
   error: string | null;
@@ -577,7 +600,9 @@ export function formPage(
   state: FormState,
   nonce: string,
   pay: PayView = { kind: 'not_open' },
-  terms: Pick<TermsOfSale, 'items'> = { items: [...DEFAULT_TERMS] }
+  terms: Pick<TermsOfSale, 'items'> = { items: [...DEFAULT_TERMS] },
+  window: DeliveryWindow = deliveryWindow(),
+  sizingNote: boolean = SHOW_SIZING_NOTE
 ): string {
   const v = state.values;
   const hello = s.firstName
@@ -593,6 +618,7 @@ export function formPage(
 <div class="drawing"><p class="lbl">Plan view (from above)</p>${planView(s.drawing)}</div>
 </div>
 <div class="legend"><span><i class="glass"></i>${esc(s.glassWords)}</span>${s.channelWords ? `<span><i class="channel"></i>${esc(s.channelWords)}</span>` : ''}</div>
+${sizingNote ? `<p class="note" id="sizing"><strong>${esc(SIZING_NOTE.title)}</strong> ${esc(SIZING_NOTE.text)}</p>` : ''}
 </div>`
     : `<div class="card">
 <h2><span class="n">2</span>Drawing</h2>
@@ -624,6 +650,11 @@ ${drawings}
 <label class="lbl" for="addr_postcode">Postcode</label>
 <input type="text" id="addr_postcode" name="addr_postcode" autocomplete="postal-code" maxlength="10" value="${esc(v.addr_postcode ?? s.postcode)}">
 </fieldset>
+<div class="q">
+<label class="t" for="preferred_delivery_date">Preferred delivery date</label>
+<p class="price hint" id="date_hint">Your glass is made to order, so the earliest date is ${esc(prettyDate(window.min))}. Pick a weekday and we'll do our best to match it, and we'll confirm the date once the glass is ready.</p>
+<input type="date" id="preferred_delivery_date" name="preferred_delivery_date" min="${window.min}" max="${window.max}" value="${esc(v.preferred_delivery_date ?? '')}" aria-describedby="date_hint">
+</div>
 <fieldset class="q">
 <legend class="t">Will someone be able to help take the glass off the van?</legend>
 <div class="seg">${radio('can_unload', 'u_yes', 'yes', 'Yes', v.can_unload)}${radio('can_unload', 'u_no', 'no', 'No', v.can_unload)}</div>
@@ -830,6 +861,7 @@ export function confirmedEmail(from: string, to: string[], input: { reference: s
     ['Signed', a.signed_name],
     ['Terms of sale', `Accepted, version ${a.terms_version}, at ${a.terms_accepted_at}`],
     ['Delivery address', addressLines(a.delivery_address).join('\n')],
+    ['Preferred delivery date', `${prettyDate(a.preferred_delivery_date)} (${a.preferred_delivery_date}), to be confirmed once the glass is ready`],
     ['Help unloading the van', yesNo(a.can_unload)],
     ['Delivery note', a.unload_note || '—'],
     ['Silicone tubes', tubesWords(a.silicone_tubes)],
