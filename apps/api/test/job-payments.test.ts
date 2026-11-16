@@ -282,7 +282,6 @@ describe('the pay button', () => {
       'line_items[0][price_data][currency]': 'gbp',
       'line_items[0][price_data][unit_amount]': '45000',
       'line_items[0][price_data][product_data][name]': `${made.job.reference}, made-to-measure shower glass`,
-      'shipping_address_collection[allowed_countries][0]': 'GB',
       customer_email: 'oliver@example.test',
       customer_creation: 'always',
       'metadata[company_id]': shop.id,
@@ -298,8 +297,45 @@ describe('the pay button', () => {
     const keys = Object.keys(call.form);
     expect(keys.filter((k) => /tax/.test(k))).toEqual([]);
     expect(keys.filter((k) => /payment_method_types/.test(k))).toEqual([]);
+    // Stripe never asks for the address again: it was given on our page.
+    expect(keys.filter((k) => /shipping_address_collection|billing_address_collection/.test(k))).toEqual([]);
     expect(row).toMatchObject({ status: 'pending', kind: 'full', method: 'checkout', tax_behavior: 'none', amount_pence: 45_000, stripe_checkout_session_id: expect.stringMatching(/^cs_test_\d+$/) });
     expect(await eventsOf(made.job.id, 'checkout_started')).toHaveLength(1);
+  });
+
+  test('puts the confirmed delivery address on the session and payment as metadata and shipping, with no address step', async () => {
+    const made = await job();
+    const [link] = await shop.db.find('order_confirmations', { where: { job_id: made.job.id } });
+    await shop.db.insert('job_events', {
+      job_id: made.job.id,
+      type: 'order_confirmed',
+      actor_kind: 'customer',
+      data: {
+        confirmationId: link.id,
+        signed_name: 'Oliver Milton',
+        delivery_address: { line1: '12 Station Road', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
+        silicone_tubes: { clear: 0, white: 0, black: 0 },
+        silicone_tool: 'no',
+      },
+    });
+    const sent = stripe();
+    expect((await pay(made.token)).status).toBe(303);
+    const form = sent[0].form;
+    expect(form).toMatchObject({
+      'metadata[delivery_line1]': '12 Station Road',
+      'metadata[delivery_line2]': '',
+      'metadata[delivery_town]': 'St Albans',
+      'metadata[delivery_postcode]': 'AL3 5QN',
+      'payment_intent_data[metadata][delivery_postcode]': 'AL3 5QN',
+      'payment_intent_data[shipping][address][line1]': '12 Station Road',
+      'payment_intent_data[shipping][address][city]': 'St Albans',
+      'payment_intent_data[shipping][address][postal_code]': 'AL3 5QN',
+      'payment_intent_data[shipping][address][country]': 'GB',
+    });
+    expect(form['payment_intent_data[shipping][name]']).toBeTruthy();
+    expect(Object.keys(form).some((k) => k.startsWith('shipping_address_collection'))).toBe(false);
+    expect(Object.keys(form).some((k) => k.includes('[line2]') && k.includes('shipping'))).toBe(false);
+    expect(sent.filter((c) => c.path.startsWith('/customers'))).toHaveLength(0);
   });
 
   test('adds the extras chosen when confirming, one line per silicone colour and the tool, to the total and to Checkout', async () => {
@@ -311,8 +347,10 @@ describe('the pay button', () => {
       actor_kind: 'customer',
       data: { confirmationId: link.id, silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' },
     });
-    // 450.00 + 3 tubes at 8.50 + the tool at 4.95.
-    expect(await (await page(made.token)).text()).toContain('Total: £480.45');
+    // 450.00 + 3 tubes at 8.50 + the tool at 4.95, line by line.
+    const html = await (await page(made.token)).text();
+    expect(html).toContain('Total: £480.45');
+    expect(html).toMatch(/Shower glass package<\/span><span class="amt">£450\.00<.*Silicone sealant, clear<\/span><span class="amt">£8\.50<.*Silicone sealant, white × 2<\/span><span class="amt">£17\.00<.*Silicone finishing tool<\/span><span class="amt">£4\.95<.*id="pay_total">£480\.45</s);
     const sent = stripe();
     expect((await pay(made.token)).status).toBe(303);
     expect(sent[0].form).toMatchObject({

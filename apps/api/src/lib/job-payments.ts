@@ -23,7 +23,7 @@
  * quote that has VAT in it is then not a price anyone can pay, because a
  * business that is not registered must not charge VAT. On, Stripe Tax works
  * out the VAT (automatic_tax, tax code txcd_99999999, General - Tangible
- * Goods) on the address shipped to, and JOB_PAYMENTS_TAX_BEHAVIOR says
+ * Goods) on the billing address, and JOB_PAYMENTS_TAX_BEHAVIOR says
  * whether quotes include it.
  *
  * Only Stripe's webhook says a payment happened (job-payments-webhook.ts).
@@ -253,6 +253,14 @@ export interface CheckoutInput {
    */
   packagePence?: number;
   extras?: { key: string; description: string; quantity: number; unitPence: number }[];
+  /**
+   * Where the glass goes, as the customer confirmed it on our page. Stripe
+   * does not ask again: it rides on the session and payment as metadata, and
+   * as the payment's shipping details, with no Stripe customer made for it.
+   */
+  deliveryAddress?: { line1: string; line2: string; town: string; postcode: string } | null;
+  /** Who the delivery is for, when the job's customer has no name. */
+  deliveryName?: string | null;
   /** Where the customer comes back to: the confirmation page. */
   returnUrl: string;
   now?: Date;
@@ -271,7 +279,18 @@ export async function createJobCheckout(input: CheckoutInput, send: typeof fetch
   const now = input.now ?? new Date();
   const expires = Math.floor(now.getTime() / 1000) + CHECKOUT_MINUTES * 60 + 60;
   const name = `${job.reference}, made-to-measure shower glass`;
-  const metadata = metadataFor(settings, job, payment);
+  const address = input.deliveryAddress ?? null;
+  const metadata = {
+    ...metadataFor(settings, job, payment),
+    ...(address
+      ? { delivery_line1: address.line1, delivery_line2: address.line2, delivery_town: address.town, delivery_postcode: address.postcode }
+      : {}),
+  };
+  const shipName = (customer?.name || input.deliveryName || '').trim();
+  const shipping =
+    address && shipName
+      ? { name: shipName, address: { line1: address.line1, ...(address.line2 ? { line2: address.line2 } : {}), city: address.town, postal_code: address.postcode, country: 'GB' } }
+      : null;
   const taxed = settings.taxMode !== 'none';
   const extras = input.extras ?? [];
   const extrasTotal = extras.reduce((sum, e) => sum + e.quantity * e.unitPence, 0);
@@ -294,13 +313,14 @@ export async function createJobCheckout(input: CheckoutInput, send: typeof fetch
       currency: 'gbp',
       client_reference_id: job.id,
       line_items: [line(packagePence, 1, name, 'order'), ...extras.map((e) => line(e.unitPence, e.quantity, e.description, e.key))],
-      ...(taxed ? { automatic_tax: { enabled: true } } : {}),
-      // Where the glass goes, for delivery (and, with Stripe Tax on, for VAT).
-      shipping_address_collection: { allowed_countries: ['GB'] },
+      // With Stripe Tax on, VAT is worked out on the billing address, which
+      // Stripe then always asks for. The delivery address is never asked for
+      // again: the customer gave it on the confirmation page.
+      ...(taxed ? { automatic_tax: { enabled: true }, billing_address_collection: 'required' } : {}),
       customer_email: customer?.email ?? undefined,
       customer_creation: 'always',
       metadata,
-      payment_intent_data: { metadata, description: name },
+      payment_intent_data: { metadata, description: name, ...(shipping ? { shipping } : {}) },
       expires_at: expires,
       success_url: `${input.returnUrl}?paid=1`,
       cancel_url: `${input.returnUrl}?cancelled=1`,

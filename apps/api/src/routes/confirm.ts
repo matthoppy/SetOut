@@ -33,6 +33,7 @@ import {
   type OrderSummary,
   type PayAmount,
   type ExtraLine,
+  type DeliveryAddress,
   type PayView,
   type Posted,
 } from '../lib/order-confirmation';
@@ -121,11 +122,22 @@ async function open(env: Env, token: string): Promise<Opened | null> {
  * The extras the customer chose when they confirmed through this link, from
  * the answers saved on the job's timeline. None before they confirm.
  */
-async function confirmedExtras(found: Opened): Promise<ExtraLine[]> {
-  if (!found.link.confirmed_at) return [];
+async function confirmedAnswers(found: Opened): Promise<Record<string, unknown> | null> {
+  if (!found.link.confirmed_at) return null;
   const events = await found.db.find('job_events', { where: { job_id: found.job.id, type: 'order_confirmed' } });
   const mine = events.filter((e) => (e.data as Record<string, unknown>).confirmationId === found.link.id).pop();
-  return extrasOf(mine ? (mine.data as Record<string, unknown>) : null);
+  return mine ? (mine.data as Record<string, unknown>) : null;
+}
+
+async function confirmedExtras(found: Opened): Promise<ExtraLine[]> {
+  return extrasOf(await confirmedAnswers(found));
+}
+
+/** The delivery address the customer confirmed, if it is whole. */
+function addressOf(answers: Record<string, unknown> | null): DeliveryAddress | null {
+  const a = answers?.delivery_address as Partial<DeliveryAddress> | undefined;
+  if (!a || typeof a.line1 !== 'string' || !a.line1 || typeof a.town !== 'string' || typeof a.postcode !== 'string') return null;
+  return { line1: a.line1, line2: typeof a.line2 === 'string' ? a.line2 : '', town: a.town, postcode: a.postcode };
 }
 
 /**
@@ -153,7 +165,7 @@ async function payView(env: Env, found: Opened, confirmPath: string, options: { 
   if ('missing' in price) return { kind: 'no_price' };
   // Once confirmed, the extras chosen are part of what is paid.
   const extras = await confirmedExtras(found);
-  const amount: PayAmount = { pence: price.amountPence + extrasPence(extras), vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
+  const amount: PayAmount = { pence: price.amountPence + extrasPence(extras), packagePence: price.amountPence, extras, vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
   if (!link.confirmed_at) return { kind: 'confirm_first', amount };
   const action = `${confirmPath}/pay`;
   if (standing.state === 'payment_failed' && !options.error) return { kind: 'failed', action, amount };
@@ -203,7 +215,8 @@ confirmation.post('/:token/pay', async (c) => {
   if ('missing' in price) return back();
   // The quote, plus the extras the customer chose when confirming, at the
   // page's prices. Nothing the browser sends now changes what is charged.
-  const extras = await confirmedExtras(found);
+  const answers = await confirmedAnswers(found);
+  const extras = extrasOf(answers);
   const amountPence = price.amountPence + extrasPence(extras);
 
   // A session that ran out with no message from Stripe yet is closed here.
@@ -236,6 +249,8 @@ confirmation.post('/:token/pay', async (c) => {
       payment,
       packagePence: price.amountPence,
       extras,
+      deliveryAddress: addressOf(answers),
+      deliveryName: typeof answers?.signed_name === 'string' ? answers.signed_name : null,
       returnUrl: `${new URL(c.req.url).origin}${confirmPath}`,
     });
     await db.batch((batch) => {

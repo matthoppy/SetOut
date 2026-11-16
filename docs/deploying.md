@@ -200,7 +200,9 @@ Retail customers pay the whole order up front from their order confirmation page
    npx wrangler secret put JOB_STRIPE_SECRET_KEY --env staging
    npx wrangler secret put JOB_STRIPE_WEBHOOK_SECRET --env staging
    ```
-3. Set `JOB_PAYMENTS_COMPANY` (the company's id) and `JOB_PAYMENTS_INVOICE_DAYS` under `env.staging.vars`, apply migration 0011 to staging, and deploy.
+3. `JOB_PAYMENTS_COMPANY` is already Custom Showers' id under `env.staging.vars` (16 November 2026). Set `JOB_PAYMENTS_INVOICE_DAYS` there too before raising a trade invoice, apply migration 0011 to staging, and deploy.
+
+The webhook only answers on the workspace's address (`app-staging…`), never the designer's: an endpoint on `designer-staging.setoutglass.com` gets a 404. Checkout never asks for a delivery address: the customer gives it on the confirmation page, and it goes to Stripe as the session's and payment's metadata (`delivery_line1`, `delivery_line2`, `delivery_town`, `delivery_postcode`) and as the payment's shipping details.
 4. Try it with Stripe's test cards: confirm an order, pay, cancel and pay again, a card that fails, a refund, and a trade invoice. Locally, `stripe listen --forward-to localhost:8787/api/stripe/payments/webhook` forwards test events to `wrangler dev`, with the secret it prints in `apps/api/.dev.vars` (never committed).
 
 Production only after Matt has activated the live account and said so: its own live webhook endpoint at `https://app.setoutglass.com/api/stripe/payments/webhook`, its own secrets, and `JOB_PAYMENTS_ALLOW_LIVE` set to `on`.

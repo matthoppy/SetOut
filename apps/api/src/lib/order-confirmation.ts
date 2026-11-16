@@ -510,6 +510,9 @@ textarea:focus,input[type=text]:focus{outline:none;border-color:var(--navy);box-
 button.submit{width:100%;min-height:54px;border:0;border-radius:12px;background:var(--navy);color:#fff;font:inherit;font-size:17px;font-weight:800;cursor:pointer;margin-top:6px}
 button.submit:hover{background:var(--navy-d)}
 button.submit:disabled{opacity:.6;cursor:wait}
+.quote{margin:0 0 12px;border:1px solid var(--line,#e2e8f0);border-radius:10px;overflow:hidden}
+.quote .line{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;font-size:14px;border-top:1px solid var(--line,#e2e8f0)}
+.quote .line:first-child{border-top:0}.quote .line.total{font-weight:700;background:var(--bg)}
 .pay{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px;border:1.5px dashed var(--acc);border-radius:10px;background:var(--bg)}
 .pay .m{font-size:14px;color:var(--grey)}
 .pay .m strong{display:block;color:var(--ink);font-size:15px}
@@ -568,6 +571,16 @@ const tubeRow = (colour: SiliconeColour, value: string | undefined) => {
   return `<div class="silrow"><span class="swatch ${colour}"></span><label class="silname" for="silicone_${colour}">${name}</label><button type="button" class="qb" data-k="${colour}" data-d="-1" aria-label="Remove a ${colour} tube">−</button><input class="qn" type="number" inputmode="numeric" id="silicone_${colour}" name="silicone_${colour}" min="0" max="${LIMITS.tubes}" step="1" value="${esc(n)}"><button type="button" class="qb" data-k="${colour}" data-d="1" aria-label="Add a ${colour} tube">+</button></div>`;
 };
 
+/** The extras the form holds, as lines, ignoring anything out of range. */
+function formExtrasOf(v: Posted): ExtraLine[] {
+  const tubes: Record<string, number> = {};
+  for (const c of SILICONE_COLOURS) {
+    const n = Number((v[`silicone_${c}`] ?? '0').trim() || '0');
+    tubes[c] = Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0;
+  }
+  return extrasOf({ silicone_tubes: tubes, silicone_tool: ticked(v.silicone_tool) ? 'yes' : 'no' });
+}
+
 /** "Extras: £17.00", from what the form holds, as the page first shows it. The page's script keeps it up to date. */
 function extrasWords(v: Posted): string {
   const tubes = SILICONE_COLOURS.reduce((sum, c) => {
@@ -581,15 +594,13 @@ function extrasWords(v: Posted): string {
  * The note under the drawing, word for word from Matt's reference page
  * (16 November 2026). It names no size or deduction from the job.
  *
- * Held back for now: besides the ±3mm tolerance, the wording says "3mm
- * setting packers", a figure behind the height allowance. Matt is to say
- * whether that may be shown before SHOW_SIZING_NOTE is turned on.
+ * Matt agreed it as written, "3mm setting packers" included (16 November).
  */
 export const SIZING_NOTE = {
   title: 'How we size your glass.',
   text: "Your panel is made slightly smaller than the sizes you measured, so it fits properly. We allow for 3mm setting packers in the floor channel, and leave a little room in the wall channel in case the wall isn't perfectly straight or upright. The channels hide these gaps, so the finished panel fills your measured space. Toughened glass is made to a manufacturing tolerance of about ±3mm, which this allowance also covers.",
 } as const;
-export const SHOW_SIZING_NOTE = false;
+export const SHOW_SIZING_NOTE = true;
 
 export interface FormState {
   values: Posted;
@@ -680,7 +691,7 @@ ${SILICONE_COLOURS.map((c) => tubeRow(c, v[`silicone_${c}`])).join('')}
 <p class="price" id="extras_total" aria-live="polite">${esc(extrasWords(v))}</p>
 </div>
 
-${paymentCard(pay)}
+${paymentCard(pay, formExtrasOf(v))}
 
 <div class="card" id="terms">
 <h2><span class="n">6</span>Terms of sale</h2>
@@ -711,7 +722,12 @@ ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` :
   const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent='Sending\\u2026'},0)});
 (function(){var f=document.getElementById('form'),out=document.getElementById('extras_total'),T=${EXTRA_PRICES.siliconeTubePence},K=${EXTRA_PRICES.toolPence},M=${LIMITS.tubes};
 function n(c){var x=parseInt(f.elements['silicone_'+c].value,10);return isNaN(x)?0:Math.max(0,Math.min(M,x))}
-function sum(){var p=(n('clear')+n('white')+n('black'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: \\u00a3'+(p/100).toFixed(2)}
+function g(p){return '\\u00a3'+(p/100).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
+var W={clear:'clear',white:'white',black:'black'},box=document.getElementById('price_lines'),xl=document.getElementById('extra_lines'),tt=document.getElementById('pay_total'),hd=document.getElementById('pay_headline');
+function row(d,p){var r=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');r.className='line';a.className='desc';b.className='amt';a.textContent=d;b.textContent=g(p);r.appendChild(a);r.appendChild(b);return r}
+function sum(){var p=(n('clear')+n('white')+n('black'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: '+g(p);
+if(!box)return;xl.textContent='';['clear','white','black'].forEach(function(c){var q=n(c);if(q)xl.appendChild(row('Silicone sealant, '+W[c]+(q>1?' \\u00d7 '+q:''),q*T))});if(f.elements.silicone_tool.checked)xl.appendChild(row('Silicone finishing tool',K));
+var t=Number(box.getAttribute('data-package'))+p;tt.textContent=g(t);if(hd)hd.textContent='Total: '+g(t)}
 f.addEventListener('click',function(e){var b=e.target.closest('.qb');if(!b)return;var c=b.getAttribute('data-k');f.elements['silicone_'+c].value=Math.max(0,Math.min(M,n(c)+Number(b.getAttribute('data-d'))));sum()});
 f.addEventListener('input',sum);f.addEventListener('change',sum)})();`;
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
@@ -763,6 +779,9 @@ export type PayView =
 export interface PayAmount {
   /** The whole order, in pence, paid up front. */
   pence: number;
+  /** The quote's part, and the extras chosen when confirming. Without them, one line for the whole. */
+  packagePence?: number;
+  extras?: ExtraLine[];
   /** 'none': this is exactly what is paid, no VAT is charged. Otherwise Stripe Tax's VAT is in it, or added at checkout. */
   vat: 'none' | 'included' | 'added';
 }
@@ -775,14 +794,32 @@ function amountWords(a: PayAmount, confirmed: boolean): { headline: string; deta
   // and extras chosen in section 4 are added when paying.
   return confirmed
     ? { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, with any extras you chose. Delivered kerbside to the address you confirmed.` }
-    : { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, plus any extras you choose in section 4. Delivered kerbside to the address in section 3.` };
+    : { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, including any extras you choose in section 4. Delivered kerbside to the address in section 3.` };
+}
+
+/**
+ * The price, line by line: the package, each extra, and the total. Before
+ * confirming, the extras follow the form (the page's script keeps them up to
+ * date); afterwards they are the ones saved.
+ */
+function priceLines(a: PayAmount, live: ExtraLine[] | null): string {
+  const extras = live ?? a.extras ?? [];
+  const packagePence = a.packagePence ?? a.pence - extrasPence(a.extras ?? []);
+  const total = packagePence + extrasPence(extras);
+  const row = (desc: string, pence: number, attrs = '') => `<div class="line"${attrs}><span class="desc">${desc}</span><span class="amt">${esc(pounds(pence))}</span></div>`;
+  const lines = extras.map((e) => row(`${esc(e.description)}${e.quantity > 1 ? ` × ${e.quantity}` : ''}`, e.quantity * e.unitPence, ' data-extra="1"'));
+  return `<div class="quote" id="price_lines" data-package="${packagePence}">
+${row('Shower glass package', packagePence)}
+<div id="extra_lines">${lines.join('')}</div>
+<div class="line total"><span class="desc">Total</span><span class="amt" id="pay_total">${esc(pounds(total))}</span></div>
+</div>`;
 }
 
 const LOCK = '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M3 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z" fill="currentColor"/></svg>';
 const disabledButton = `<button type="button" class="paybtn" disabled aria-disabled="true">${LOCK}Pay securely</button>`;
 
 /** The payment card, in whichever state paying is in. */
-export function paymentCard(pay: PayView): string {
+export function paymentCard(pay: PayView, formExtras: ExtraLine[] | null = null): string {
   const card = (badge: string, sub: string, inner: string) => `<div class="card" id="payment">
 <h2><span class="n">5</span>Payment${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</h2>
 <p class="sub">${sub}</p>
@@ -797,8 +834,14 @@ ${inner}
     case 'no_price':
       return card('', "Your final price isn't ready yet.", box('Total: not set yet', "We'll email your quote, then you can pay here. Nothing is charged until then.", disabledButton));
     case 'confirm_first': {
-      const words = pay.amount ? amountWords(pay.amount, false) : { headline: 'Total: shown on your quote', detail: '' };
-      return card('', 'Confirm your order below first, then you can pay securely here.', box(words.headline, words.detail || 'Payment opens once you confirm.', disabledButton));
+      if (!pay.amount) return card('', 'Confirm your order below first, then you can pay securely here.', box('Total: shown on your quote', 'Payment opens once you confirm.', disabledButton));
+      const shown = { ...pay.amount, pence: (pay.amount.packagePence ?? pay.amount.pence) + extrasPence(formExtras ?? []) };
+      const words = amountWords(shown, false);
+      return card(
+        '',
+        'Confirm your order below first, then you can pay securely here.',
+        `${priceLines(pay.amount, formExtras ?? [])}${box(words.headline, words.detail, disabledButton).replace('<strong>', '<strong id="pay_headline">')}`
+      );
     }
     case 'ready':
     case 'failed': {
@@ -807,7 +850,7 @@ ${inner}
       return card(
         '',
         'Pay by card or another method on Stripe\'s secure page. We never see your card details.',
-        `${box(words.headline, words.detail, payForm(pay.action, 'Pay securely'))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
+        `${priceLines(pay.amount, null)}${box(words.headline, words.detail, payForm(pay.action, 'Pay securely'))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
       );
     }
     case 'processing':

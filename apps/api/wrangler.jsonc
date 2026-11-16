@@ -120,8 +120,10 @@
         "TRIAL_DAYS": "14",
         // The tape and level measuring cards (signed off 13 November 2026).
         "TAPE_DECKS": "on",
-        // Customer payments for jobs: off until Matt says otherwise.
-        "JOB_PAYMENTS_COMPANY": "",
+        // Customer payments for jobs: on for Custom Showers, in test mode
+        // (Matt, 16 November 2026). Needs the JOB_STRIPE_SECRET_KEY secret (a
+        // test key: a live one is refused) and JOB_STRIPE_WEBHOOK_SECRET.
+        "JOB_PAYMENTS_COMPANY": "co_01M743BPZKD74GKMNAQGQCEV9K",
         "JOB_PAYMENTS_STRIPE_TAX": "off",
         "JOB_PAYMENTS_TAX_BEHAVIOR": "",
         "JOB_PAYMENTS_INVOICE_DAYS": "",

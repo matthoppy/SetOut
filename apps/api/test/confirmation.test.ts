@@ -176,13 +176,37 @@ describe('the page', () => {
     });
     const html = await (await callWith({ JOB_PAYMENTS_COMPANY: shop.id, JOB_STRIPE_SECRET_KEY: 'sk_test_abc123' }, `/confirm/${await linkFor(shop, made.job.id)}`, {}, DESIGNER)).text();
     expect(html).toContain('Total: £449.00');
-    expect(html).toContain('plus any extras you choose in section 4. Delivered kerbside to the address in section 3.');
+    expect(html).toContain('including any extras you choose in section 4. Delivered kerbside to the address in section 3.');
+    // The price, line by line, kept up to date as extras are chosen.
+    expect(html).toContain('<div class="quote" id="price_lines" data-package="44900">');
+    expect(html).toMatch(/Shower glass package<\/span><span class="amt">£449\.00<\/span>/);
+    expect(html).toContain('<span class="amt" id="pay_total">£449.00</span>');
+    expect(html).toContain('<strong id="pay_headline">Total: £449.00</strong>');
   });
 
-  test('the sizing note under the drawing is the reference wording, held back until Matt says, and leaks nothing', async () => {
+  test("the page's script is valid JavaScript", async () => {
+    const html = await (await page(await linkFor(shop, jobId))).text();
+    const scripts = [...html.matchAll(/<script nonce="[^"]*">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const code of scripts) expect(() => new Function(code)).not.toThrow();
+  });
+
+  test('a form sent back with extras shows them in the price, and the total with them', async () => {
+    const { paymentCard } = await import('../src/lib/order-confirmation');
+    const card = paymentCard({ kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } }, extrasOf({ silicone_tubes: { clear: 1, white: 0, black: 2 }, silicone_tool: 'yes' }));
+    expect(card).toContain('Silicone sealant, clear</span><span class="amt">£8.50');
+    expect(card).toContain('Silicone sealant, black × 2</span><span class="amt">£17.00');
+    expect(card).toContain('Silicone finishing tool</span><span class="amt">£4.95');
+    expect(card).toContain('id="pay_total">£479.45</span>');
+    expect(card).toContain('Total: £479.45');
+  });
+
+  test('the sizing note under the drawing is the reference wording, shown, and leaks nothing', async () => {
     const { formPage, summarise, SIZING_NOTE, SHOW_SIZING_NOTE } = await import('../src/lib/order-confirmation');
-    expect(SHOW_SIZING_NOTE).toBe(false);
-    expect(await (await page(await linkFor(shop, jobId))).text()).not.toContain('How we size your glass');
+    expect(SHOW_SIZING_NOTE).toBe(true);
+    const live = (await (await page(await linkFor(shop, jobId))).text()).replace(/&#39;/g, "'");
+    expect(live).toContain(`<strong>How we size your glass.</strong> ${SIZING_NOTE.text}</p>`);
+    expect(said(live)).not.toMatch(/cut size|deduction|cutWidth|cutHeight/i);
     const [design] = await shop.db.find('designs', { where: { job_id: jobId } });
     const [revision] = await shop.db.find('design_revisions', { where: { design_id: design.id } });
     const summary = summarise({ reference: 'CS-1001', customerName: 'Oliver Milton', postcode: 'AL3 5QN', design: revision.document.design, spec });
