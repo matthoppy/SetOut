@@ -105,6 +105,16 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     link_token_hash: `hash-of-${prefix}-confirmation`,
   });
 
+  const cutOverride = await db.insert('cut_overrides', {
+    job_id: job.id,
+    design_id: design.id,
+    pane_id: 'p1',
+    width_deduction_mm: 8,
+    height_deduction_mm: 5,
+    reason: 'No rake measurement supplied by customer',
+    revision_number: 1,
+  });
+
   return {
     company,
     db,
@@ -123,6 +133,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       price_list: price,
       subscriptions: subscription,
       order_confirmations: confirmation,
+      cut_overrides: cutOverride,
     },
   };
 }

@@ -246,6 +246,21 @@ export interface OrderConfirmationRow {
   updated_at: string;
 }
 
+/** A different deduction for one pane of one job, in place of the company's rule. Never shown to the customer. */
+export interface CutOverrideRow {
+  id: string;
+  job_id: string;
+  design_id: string;
+  pane_id: string;
+  width_deduction_mm: number;
+  height_deduction_mm: number;
+  reason: string;
+  revision_number: number;
+  set_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface JobEventRow {
   id: string;
   job_id: string;
@@ -286,6 +301,10 @@ export interface Tables {
   price_list: { row: PriceRow; required: 'key' | 'unit' | 'unit_price_pence' };
   subscriptions: { row: SubscriptionRow; required: 'status' };
   order_confirmations: { row: OrderConfirmationRow; required: 'job_id' | 'link_token_hash' };
+  cut_overrides: {
+    row: CutOverrideRow;
+    required: 'job_id' | 'design_id' | 'pane_id' | 'width_deduction_mm' | 'height_deduction_mm' | 'reason' | 'revision_number';
+  };
 }
 
 export type TableName = keyof Tables;
@@ -401,6 +420,15 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
   order_confirmations: {
     id: 'confirmation',
     columns: ['id', 'job_id', 'link_token_hash', 'created_by', 'confirmed_at', 'created_at', 'updated_at'],
+    json: [],
+    tracksUpdates: true,
+  },
+  cut_overrides: {
+    id: 'cutOverride',
+    columns: [
+      'id', 'job_id', 'design_id', 'pane_id', 'width_deduction_mm', 'height_deduction_mm', 'reason',
+      'revision_number', 'set_by', 'created_at', 'updated_at',
+    ],
     json: [],
     tracksUpdates: true,
   },

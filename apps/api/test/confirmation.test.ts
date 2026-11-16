@@ -3,47 +3,18 @@
  * address: what the page shows and never shows, the answers it accepts, the
  * job event it writes, the thank-you on reopening, and the workshop's email.
  */
-import { buildSpec, createDocument, designFromTemplate, DOCUMENT_FORMAT, ENGINE_VERSION, type ConfiguratorSpec } from '@setout/engine';
+import type { ConfiguratorSpec } from '@setout/engine';
 import { env, exports } from 'cloudflare:workers';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { addMember } from '../src/db/auth';
 import { hashResumeToken, newConfirmationToken, resolveConfirmationLink } from '../src/db/platform';
 import { readAnswers } from '../src/lib/order-confirmation';
 import { APP, callWith, company, DESIGNER, json, post, signIn, type Company } from './helpers';
+import { walkInJob } from './walk-in';
 
 let shop: Company;
 let jobId = '';
 let spec: ConfiguratorSpec;
-
-/** A walk-in screen like CS-1001: one 400 × 1800 fixed panel, matte black channel on the floor and up the wall, a 900 opening. */
-async function walkInJob(c: Company, name = 'Oliver Milton', postcode = 'AL3 5QN') {
-  const designer = (await c.db.find('designers', { limit: 1 }))[0];
-  await c.db.update('designers', designer.id, { notify_emails: ['workshop@cs.example'] });
-  const customer = await c.db.insert('customers', { name, email: 'oliver@example.test', phone: '07000 000000', postcode });
-  const job = await c.db.insert('jobs', { reference: await c.db.allocateJobReference(), customer_id: customer.id, designer_id: designer.id, site_postcode: postcode });
-  const design = designFromTemplate('walk-in');
-  design.panels[0].width_mm = 400;
-  design.heightMm = 1800;
-  design.glassType = 'low-iron';
-  design.glassCoating = 'easy-clean';
-  design.finishId = 'matte-black';
-  design.opening.walkInOpeningMm = 900;
-  design.opening.runs[0].widthAtFloorMm = 400;
-  const { context, rulesetVersion } = await c.db.engineContext();
-  const computed = buildSpec(design, context);
-  const row = await c.db.insert('designs', { job_id: job.id, current_revision: 1 });
-  await c.db.insert('design_revisions', {
-    design_id: row.id,
-    number: 1,
-    document: createDocument(design),
-    format_version: DOCUMENT_FORMAT,
-    engine_version: ENGINE_VERSION,
-    ruleset_version: rulesetVersion,
-    computed,
-    author_kind: 'customer',
-  });
-  return { job, computed };
-}
 
 async function linkFor(c: Company, job: string): Promise<string> {
   const token = newConfirmationToken();
@@ -75,8 +46,8 @@ const submit = (token: string, form: Record<string, string>, origin: string | nu
 
 const events = async (type: string) => shop.db.find('job_events', { where: { job_id: jobId, type } });
 
-/** The page with its inline logo and its one-time nonce taken out, so a number found is one the page says. */
-const said = (html: string) => html.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g, '').replace(/nonce="[^"]*"/g, '');
+/** The page with its inline logo, its one-time nonce and its own random link taken out, so a number found is one the page says. */
+const said = (html: string) => html.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g, '').replace(/nonce="[^"]*"/g, '').replace(/\/confirm\/oc_[a-z0-9]+/g, '');
 
 beforeAll(async () => {
   shop = await company('Custom Showers', 'CS');

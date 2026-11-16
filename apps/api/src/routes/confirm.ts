@@ -16,6 +16,7 @@ import { Hono, type Context } from 'hono';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import { resolveConfirmationLink, type DesignerSettings } from '../db/platform';
 import type { Row } from '../db/tables';
+import { applyCutOverrides } from '../lib/cut-overrides';
 import { sendEmail } from '../lib/email';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import {
@@ -90,7 +91,9 @@ async function open(env: Env, token: string): Promise<Opened | null> {
     customerName: customer?.name ?? null,
     postcode: job.site_postcode ?? customer?.postcode ?? null,
     design: revision.document.design,
-    spec: revision.computed,
+    // The weight is of the glass as it will be cut, override and all. The
+    // cut size itself is never shown.
+    spec: applyCutOverrides(revision.computed, await db.find('cut_overrides', { where: { design_id: design.id } }), revision.document.design),
     finishes: settings.finishes,
     handles: settings.handles,
   });
