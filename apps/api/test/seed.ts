@@ -115,6 +115,17 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     revision_number: 1,
   });
 
+  const jobPayment = await db.insert('job_payments', {
+    job_id: job.id,
+    kind: 'full',
+    method: 'checkout',
+    status: 'paid',
+    quote_id: quote.id,
+    tax_behavior: 'none',
+    amount_pence: 30_000,
+    stripe_checkout_session_id: `cs_test_${prefix}`,
+  });
+
   return {
     company,
     db,
@@ -134,6 +145,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       subscriptions: subscription,
       order_confirmations: confirmation,
       cut_overrides: cutOverride,
+      job_payments: jobPayment,
     },
   };
 }

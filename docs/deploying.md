@@ -121,6 +121,8 @@ Secrets are set per environment with `wrangler secret put`, or in the Cloudflare
 | `TURNSTILE_SITE_KEY` | The bot check widget's public key, for the sign-up form and for each new company's designer. Not secret, but kept with the secrets so it is set once per environment | Sign-up has no bot check, and a new company's designer has none until its key is put in its settings |
 | `STRIPE_SECRET_KEY` | Stripe's API key. Only used with `BILLING` on | Checkout and the billing portal say billing is not set up |
 | `STRIPE_WEBHOOK_SECRET` | Checking that a webhook came from Stripe. Only used with `BILLING` on | Every webhook is refused |
+| `JOB_STRIPE_SECRET_KEY` | The API key of the Stripe account a company's customers pay into (Custom Showers'), not SetOut's own. A test key (`sk_test_` or `rk_test_`) unless `JOB_PAYMENTS_ALLOW_LIVE` is `on` | Nobody can pay for a job |
+| `JOB_STRIPE_WEBHOOK_SECRET` | Checking that a payment webhook came from that account's endpoint | The payment webhook answers "not found" |
 
 ```sh
 cd apps/api
@@ -173,6 +175,37 @@ Billing is off everywhere and nothing calls Stripe. Do not turn it on until the 
 9. The same for production, with Stripe in live mode, its own webhook endpoint at `https://app.setoutglass.com/api/stripe/webhook`, and its own two secrets.
 
 To turn billing off again, set `BILLING` back to `off` and deploy. Nothing is locked from that moment. Subscriptions carry on in Stripe until they are cancelled there.
+
+## Customers paying for their job
+
+Separate from billing above: this is a company's own customers paying the company for a shower, into the company's own Stripe account, with its own two secrets and its own webhook. Off everywhere until `JOB_PAYMENTS_COMPANY` names a company. Only one company per deploy can take payments, because the key is the deploy's.
+
+| Setting | What it is | Shipped |
+| --- | --- | --- |
+| `JOB_PAYMENTS_COMPANY` | The company whose jobs may be paid for. Empty is off | empty |
+| `JOB_PAYMENTS_STRIPE_TAX` | `on`: Stripe Tax works out VAT (`automatic_tax`, tax code `txcd_99999999`). `off`: the quote's total is exactly what is paid and no tax is sent to Stripe; a quote with VAT on it cannot be paid | `off` (Custom Showers is not VAT registered) |
+| `JOB_PAYMENTS_TAX_BEHAVIOR` | Only with Stripe Tax on: `inclusive` (quote totals include VAT) or `exclusive` (VAT added at checkout). Empty with Stripe Tax on means nobody can pay | empty |
+| `JOB_PAYMENTS_INVOICE_DAYS` | Days a trade invoice has to be paid in. Empty means no invoice can be raised | empty |
+| `JOB_PAYMENTS_BANK_TRANSFER` | `on`: trade invoices offer UK bank transfer as well as card | `off` |
+| `JOB_PAYMENTS_ALLOW_LIVE` | `on` lets a live key be used. Anything else refuses one | `off` |
+
+Retail customers pay the whole order up front from their order confirmation page, once they have confirmed it: the Worker opens a Stripe Checkout session for the job's accepted (or sent and still standing) quote and sends them there. Staff raise a Stripe invoice for a trade customer from the job's Payment section. Only Stripe's webhook marks anything paid.
+
+### Turning it on, on staging, in test mode
+
+1. In the company's Stripe account (test mode), under Developers, then Webhooks, add an endpoint at `https://app-staging.setoutglass.com/api/stripe/payments/webhook` for: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.finalized`, `invoice.sent`, `invoice.paid`, `invoice.payment_failed`, `invoice.voided`, `invoice.marked_uncollectible`, `charge.refunded`, `credit_note.created`, `cash_balance.funds_available`, `customer_cash_balance_transaction.created`.
+2. Set the two secrets, typed in, never in a file:
+   ```sh
+   cd apps/api
+   npx wrangler secret put JOB_STRIPE_SECRET_KEY --env staging
+   npx wrangler secret put JOB_STRIPE_WEBHOOK_SECRET --env staging
+   ```
+3. `JOB_PAYMENTS_COMPANY` is already Custom Showers' id under `env.staging.vars` (16 November 2026). Set `JOB_PAYMENTS_INVOICE_DAYS` there too before raising a trade invoice, apply migration 0011 to staging, and deploy.
+
+The webhook only answers on the workspace's address (`app-staging…`), never the designer's: an endpoint on `designer-staging.setoutglass.com` gets a 404. Checkout never asks for a delivery address: the customer gives it on the confirmation page, and it goes to Stripe as the session's and payment's metadata (`delivery_line1`, `delivery_line2`, `delivery_town`, `delivery_postcode`) and as the payment's shipping details.
+4. Try it with Stripe's test cards: confirm an order, pay, cancel and pay again, a card that fails, a refund, and a trade invoice. Locally, `stripe listen --forward-to localhost:8787/api/stripe/payments/webhook` forwards test events to `wrangler dev`, with the secret it prints in `apps/api/.dev.vars` (never committed).
+
+Production only after Matt has activated the live account and said so: its own live webhook endpoint at `https://app.setoutglass.com/api/stripe/payments/webhook`, its own secrets, and `JOB_PAYMENTS_ALLOW_LIVE` set to `on`.
 
 ## The site's settings
 

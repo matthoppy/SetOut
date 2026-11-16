@@ -30,6 +30,7 @@ export const ID_PREFIX = {
   siteEnquiry: 'enq',
   confirmation: 'ocf',
   cutOverride: 'cov',
+  jobPayment: 'jpy',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

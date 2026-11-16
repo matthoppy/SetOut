@@ -8,7 +8,9 @@ import { env, exports } from 'cloudflare:workers';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { addMember } from '../src/db/auth';
 import { hashResumeToken, newConfirmationToken, resolveConfirmationLink } from '../src/db/platform';
-import { readAnswers } from '../src/lib/order-confirmation';
+import { extrasOf, readAnswers } from '../src/lib/order-confirmation';
+import { addWorkingDays, deliveryWindow, leadWorkingDaysOf, londonToday, readDeliveryDate } from '../src/lib/delivery-date';
+import { DEFAULT_TERMS, TERMS_CHECKBOX, termsFor, termsVersion } from '../src/lib/terms-of-sale';
 import { APP, callWith, company, DESIGNER, json, post, signIn, type Company } from './helpers';
 import { walkInJob } from './walk-in';
 
@@ -24,14 +26,21 @@ async function linkFor(c: Company, job: string): Promise<string> {
 
 const page = (token: string, host = DESIGNER) => exports.default.fetch(`${host}/confirm/${token}`);
 
-const FULL = {
+const FULL: Record<string, string> = {
+  addr_line1: ' 12  Holly Lane ',
+  addr_line2: '',
+  addr_town: 'St Albans',
+  addr_postcode: 'al35qn',
+  // The earliest date a delivery can be asked for today.
+  preferred_delivery_date: deliveryWindow().min,
   can_unload: 'yes',
   unload_note: 'Drive is steep.',
-  silicone: 'yes',
-  silicone_colour: 'black',
-  silicone_tool: 'no',
+  silicone_clear: '1',
+  silicone_black: '0',
+  silicone_white: '2',
   details_confirmed: 'yes',
   measurements_accepted: 'yes',
+  terms_accepted: 'yes',
   signed_name: '  Oliver   Milton ',
   comments: '',
 };
@@ -109,12 +118,109 @@ describe('the page', () => {
     expect(html).toContain('10mm toughened, low-iron (extra clear)');
     expect(html).toContain('U-channel on the floor and up the wall');
     expect(html).toContain('Matte black');
-    expect(html).toMatch(/<dt>Handle<\/dt><dd>None<\/dd>/);
-    expect(html).toContain('No handle.');
+    // A fixed panel has no handle, and the page says nothing about one (Matt, 16 November 2026).
+    expect(html).not.toMatch(/handle/i);
     expect(html).toContain('data-part="wall-channel"');
     expect(html).toContain('data-part="floor-channel"');
-    expect(html).toContain('Prices will be confirmed on your quote.');
+    expect(html).toContain("They're added to your total when you pay.");
     expect(html).toMatch(/<button type="button" class="paybtn" disabled[^>]*>.*Pay securely<\/button>/s);
+  });
+
+  test('asks for the delivery address in section 3, with the job’s postcode filled in', async () => {
+    const html = await (await page(await linkFor(shop, jobId))).text();
+    const sections = [...html.matchAll(/<h2><span class="n">(\d)<\/span>([^<]+)/g)].map((m) => `${m[1]} ${m[2]}`);
+    expect(sections).toEqual(['1 Your glass', '2 Drawing', '3 Delivery', '4 Optional extras', '5 Payment', '6 Terms of sale', '7 Confirm']);
+    const delivery = html.slice(html.indexOf('3</span>Delivery'), html.indexOf('4</span>Optional extras'));
+    for (const name of ['addr_line1', 'addr_line2', 'addr_town', 'addr_postcode']) expect(delivery).toContain(`name="${name}"`);
+    expect(delivery).toMatch(/name="addr_postcode"[^>]*value="AL3 5QN"/);
+    expect(delivery).toContain('Delivery / site address');
+    const w = deliveryWindow();
+    expect(delivery).toContain(`type="date" id="preferred_delivery_date" name="preferred_delivery_date" min="${w.min}" max="${w.max}"`);
+    expect(delivery).toContain("we'll confirm the date once the glass is ready.");
+  });
+
+  test('sells silicone by the tube in three colours, and the tool as a tick box, with their prices', async () => {
+    const html = await (await page(await linkFor(shop, jobId))).text();
+    for (const c of ['clear', 'white', 'black']) expect(html).toMatch(new RegExp(`type="number"[^>]*name="silicone_${c}" min="0" max="10" step="1" value="0"`));
+    expect(html).toContain('£8.50 per tube');
+    expect(html).toContain('This job needs at least one tube of clear silicone to seal the glass into the channel. Add one here, or use your own if you already have some. You can also add white or black, for example to seal where the channel meets the tiles.');
+    expect(html.indexOf('name="silicone_clear"')).toBeLessThan(html.indexOf('name="silicone_white"'));
+    expect(html.indexOf('name="silicone_white"')).toBeLessThan(html.indexOf('name="silicone_black"'));
+    expect(html).not.toMatch(/translucent/i);
+    expect(html).toMatch(/<input type="checkbox" name="silicone_tool" value="yes">.*Silicone finishing tool.*£4\.95/s);
+    expect(html).not.toMatch(/name="silicone"|silicone_colour/);
+    expect(html).toContain('Extras: £0.00');
+  });
+
+  test('shows the terms of sale word for word, and a third box to agree to them', async () => {
+    const html = await (await page(await linkFor(shop, jobId))).text();
+    const terms = html.slice(html.indexOf('6</span>Terms of sale'), html.indexOf('7</span>Confirm'));
+    const unescape = (t: string) => t.replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    const items = [...terms.matchAll(/<li><strong>([^<]+)<\/strong> ([^<]+)<\/li>/g)].map((m) => ({ title: unescape(m[1]), text: unescape(m[2]) }));
+    expect(items).toEqual([...DEFAULT_TERMS]);
+    expect(unescape(html)).toContain(`name="terms_accepted" value="yes"><span>${TERMS_CHECKBOX}</span>`);
+    expect(html).toContain('Please read and tick all three boxes.');
+  });
+
+  test('says delivery is kerbside to the address in section 3 next to the price', async () => {
+    const made = await walkInJob(shop);
+    await shop.db.insert('quotes', {
+      job_id: made.job.id,
+      number: 1,
+      status: 'sent',
+      lines: [{ key: 'package', description: 'Shower panel package', quantity: 1, unit: 'job', unitPricePence: 44_900 }],
+      vat_rate_bp: 0,
+      subtotal_pence: 44_900,
+      vat_pence: 0,
+      total_pence: 44_900,
+    });
+    const html = await (await callWith({ JOB_PAYMENTS_COMPANY: shop.id, JOB_STRIPE_SECRET_KEY: 'sk_test_abc123' }, `/confirm/${await linkFor(shop, made.job.id)}`, {}, DESIGNER)).text();
+    expect(html).toContain('Total: £449.00');
+    expect(html).toContain('including any extras you choose in section 4. Delivered kerbside to the address in section 3.');
+    // The price, line by line, kept up to date as extras are chosen.
+    expect(html).toContain('<div class="quote" id="price_lines" data-package="44900">');
+    expect(html).toMatch(/Shower glass package<\/span><span class="amt">£449\.00<\/span>/);
+    expect(html).toContain('<span class="amt" id="pay_total">£449.00</span>');
+    expect(html).toContain('<strong id="pay_headline">Total: £449.00</strong>');
+  });
+
+  test("the page's script is valid JavaScript", async () => {
+    const html = await (await page(await linkFor(shop, jobId))).text();
+    const scripts = [...html.matchAll(/<script nonce="[^"]*">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const code of scripts) expect(() => new Function(code)).not.toThrow();
+  });
+
+  test('a form sent back with extras shows them in the price, and the total with them', async () => {
+    const { paymentCard } = await import('../src/lib/order-confirmation');
+    const card = paymentCard({ kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } }, extrasOf({ silicone_tubes: { clear: 1, white: 0, black: 2 }, silicone_tool: 'yes' }));
+    expect(card).toContain('Silicone sealant, clear</span><span class="amt">£8.50');
+    expect(card).toContain('Silicone sealant, black × 2</span><span class="amt">£17.00');
+    expect(card).toContain('Silicone finishing tool</span><span class="amt">£4.95');
+    expect(card).toContain('id="pay_total">£479.45</span>');
+    expect(card).toContain('Total: £479.45');
+  });
+
+  test('the sizing note under the drawing is the reference wording, shown, and leaks nothing', async () => {
+    const { formPage, summarise, SIZING_NOTE, SHOW_SIZING_NOTE } = await import('../src/lib/order-confirmation');
+    expect(SHOW_SIZING_NOTE).toBe(true);
+    const live = (await (await page(await linkFor(shop, jobId))).text()).replace(/&#39;/g, "'");
+    expect(live).toContain(`<strong>How we size your glass.</strong> ${SIZING_NOTE.text}</p>`);
+    expect(said(live)).not.toMatch(/cut size|deduction|cutWidth|cutHeight/i);
+    const [design] = await shop.db.find('designs', { where: { job_id: jobId } });
+    const [revision] = await shop.db.find('design_revisions', { where: { design_id: design.id } });
+    const summary = summarise({ reference: 'CS-1001', customerName: 'Oliver Milton', postcode: 'AL3 5QN', design: revision.document.design, spec });
+    const html = formPage(summary, '/confirm/x', { values: {}, error: null }, 'n', undefined, undefined, undefined, true);
+    const shown = html.replace(/&#39;/g, "'");
+    expect(shown).toContain(`<p class="note" id="sizing"><strong>How we size your glass.</strong> ${SIZING_NOTE.text}</p>`);
+    // It sits in the drawing's card, before section 3.
+    expect(shown.indexOf('id="sizing"')).toBeLessThan(shown.indexOf('3</span>Delivery'));
+    expect(shown.indexOf('id="sizing"')).toBeGreaterThan(shown.indexOf('2</span>Drawing'));
+    // No cut size or deduction: the only figures in it are the packers and the tolerance.
+    expect(SIZING_NOTE.text.match(/\d+(\.\d+)?\s*mm/g)).toEqual(['3mm', '3mm']);
+    const panel = spec.panels[0];
+    for (const n of [panel.cutWidthMm, panel.cutHeightMm, 392, 1795]) expect(said(html), `shows ${n}`).not.toContain(String(n));
+    expect(said(html)).not.toMatch(/cut size|deduction|cutWidth|cutHeight|tight/i);
   });
 
   test('never shows the cut size or the deductions, in the page, its drawings or their labels', async () => {
@@ -139,26 +245,106 @@ describe('the page', () => {
 describe('the answers', () => {
   test('are checked in the page’s order, with the page’s words', () => {
     const tries: [Record<string, string>, string][] = [
+      [{ ...FULL, addr_line1: '' }, 'Please enter the full delivery address (section 3).'],
+      [{ ...FULL, addr_town: ' ' }, 'Please enter the full delivery address (section 3).'],
+      [{ ...FULL, addr_postcode: '' }, 'Please enter the full delivery address (section 3).'],
+      [{ ...FULL, addr_postcode: 'NOT A CODE' }, 'Please check the postcode of the delivery address (section 3).'],
+      [{ ...FULL, addr_line2: 'x'.repeat(121) }, 'Please keep each line of the delivery address to 120 characters (section 3).'],
+      [{ ...FULL, preferred_delivery_date: '' }, 'Please choose a preferred delivery date (section 3).'],
+      [{ ...FULL, preferred_delivery_date: '30/11/2026' }, 'Please choose a preferred delivery date (section 3).'],
       [{ ...FULL, can_unload: '' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
       [{ ...FULL, can_unload: 'maybe' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
-      [{ ...FULL, silicone: '' }, 'Please choose whether you need silicone (section 4).'],
-      [{ ...FULL, silicone_colour: '' }, 'Please choose a silicone colour (section 4).'],
-      [{ ...FULL, silicone_colour: 'pink' }, 'Please choose a silicone colour (section 4).'],
-      [{ ...FULL, silicone_tool: '' }, 'Please choose whether you need a silicone finishing tool (section 4).'],
-      [{ ...FULL, details_confirmed: '' }, 'Please tick both confirmation boxes.'],
-      [{ ...FULL, measurements_accepted: '' }, 'Please tick both confirmation boxes.'],
+      [{ ...FULL, silicone_clear: '11' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
+      [{ ...FULL, silicone_white: '-1' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
+      [{ ...FULL, silicone_black: '1.5' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
+      [{ ...FULL, silicone_clear: 'two' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
+      [{ ...FULL, details_confirmed: '' }, 'Please tick all three confirmation boxes.'],
+      [{ ...FULL, measurements_accepted: '' }, 'Please tick all three confirmation boxes.'],
+      [{ ...FULL, terms_accepted: '' }, 'Please tick all three confirmation boxes.'],
+      [{ ...FULL, terms_accepted: 'no' }, 'Please tick all three confirmation boxes.'],
       [{ ...FULL, signed_name: ' O ' }, 'Please type your full name.'],
       [{ ...FULL, signed_name: 'x'.repeat(121) }, 'Please keep your name to 120 characters.'],
       [{ ...FULL, unload_note: 'x'.repeat(1001) }, 'Please keep the delivery note to 1000 characters (section 3).'],
       [{ ...FULL, comments: 'x'.repeat(2001) }, 'Please keep your comments to 2000 characters.'],
-      [{ ...FULL, can_unload: '', silicone: '' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
+      [{ ...FULL, can_unload: '', silicone_clear: '99' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
     ];
-    for (const [form, error] of tries) expect(readAnswers('CS-1', form)).toEqual({ error });
+    for (const [form, error] of tries) expect(readAnswers('CS-1', form, { version: 'v' })).toEqual({ error });
   });
 
-  test('no silicone means no colour, whatever was sent', () => {
-    const read = readAnswers('CS-1', { ...FULL, silicone: 'no', silicone_colour: 'black' });
-    expect('answers' in read && read.answers.silicone_colour).toBeNull();
+  test('tidy the address, count the tubes, and record the terms with the server’s time', () => {
+    const at = new Date('2026-11-16T19:00:00.000Z');
+    const read = readAnswers('CS-1', { ...FULL, preferred_delivery_date: '2026-11-30', silicone_black: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
+    expect('answers' in read && read.answers).toMatchObject({
+      delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
+      preferred_delivery_date: '2026-11-30',
+      silicone_tubes: { clear: 1, white: 2, black: 0 },
+      silicone_tool: 'yes',
+      terms_accepted: true,
+      terms_version: 'sha256:abc',
+      terms_accepted_at: '2026-11-16T19:00:00.000Z',
+    });
+    // An unticked tool box sends nothing at all.
+    const none = readAnswers('CS-1', { ...FULL, silicone_clear: '0', silicone_white: '0' }, { version: 'v' });
+    expect('answers' in none && [none.answers.silicone_tubes, none.answers.silicone_tool]).toEqual([{ clear: 0, white: 0, black: 0 }, 'no']);
+  });
+
+  test('a delivery date: weekdays only, from 10 working days to 90 days ahead, in London’s dates', () => {
+    // Monday 16 November 2026, 7pm in London.
+    const now = new Date('2026-11-16T19:00:00.000Z');
+    const w = deliveryWindow(now);
+    expect(w).toEqual({ today: '2026-11-16', min: '2026-11-30', max: '2027-02-12', leadWorkingDays: 10 });
+    const at = (date: string) => readAnswers('CS-1', { ...FULL, preferred_delivery_date: date }, { version: 'v' }, now);
+    expect('answers' in at('2026-11-30') && at('2026-11-30')).toBeTruthy();
+    expect(at('2026-11-27')).toEqual({ error: 'Please choose a delivery date between Mon 30 Nov 2026 and Fri 12 Feb 2027 (section 3).' });
+    expect(at('2027-02-15')).toEqual({ error: 'Please choose a delivery date between Mon 30 Nov 2026 and Fri 12 Feb 2027 (section 3).' });
+    expect(at('2026-12-05')).toEqual({ error: 'Please choose a weekday for delivery (section 3).' });
+    expect(at('2026-12-06')).toEqual({ error: 'Please choose a weekday for delivery (section 3).' });
+    expect(at('2026-12-25')).toEqual({ error: "Please choose a delivery date that isn't a bank holiday (section 3)." });
+    expect(at('2026-02-30')).toEqual({ error: 'Please choose a preferred delivery date (section 3).' });
+    // In summer London is an hour ahead of UTC; in winter it is UTC.
+    expect(londonToday(new Date('2026-07-01T23:30:00.000Z'))).toBe('2026-07-02');
+    expect(londonToday(new Date('2026-12-31T23:30:00.000Z'))).toBe('2026-12-31');
+    // Working days skip weekends and bank holidays: Christmas and Boxing Day's substitute.
+    expect(addWorkingDays('2026-12-23', 2)).toBe('2026-12-29');
+    expect(readDeliveryDate('2026-12-29', w)).toEqual({ date: '2026-12-29' });
+  });
+
+  test('the lead time is the company’s, if set, or 10 working days', () => {
+    expect(leadWorkingDaysOf({})).toBe(10);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: 3 })).toBe(3);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: -1 })).toBe(10);
+    expect(leadWorkingDaysOf({ deliveryLeadWorkingDays: '5' })).toBe(10);
+    expect(deliveryWindow(new Date('2026-11-16T12:00:00Z'), 3).min).toBe('2026-11-19');
+    // Friday with no lead time: the next working day.
+    expect(deliveryWindow(new Date('2026-11-21T12:00:00Z'), 0).min).toBe('2026-11-23');
+  });
+
+  test('extras are one line per colour ordered, at 850p a tube, and the tool at 495p', () => {
+    expect(extrasOf({ silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' })).toEqual([
+      { key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 },
+      { key: 'silicone:white', description: 'Silicone sealant, white', quantity: 2, unitPence: 850 },
+      { key: 'silicone-tool', description: 'Silicone finishing tool', quantity: 1, unitPence: 495 },
+    ]);
+    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
+    // Clear can be 0: the customer may use their own.
+    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 3 }, silicone_tool: 'no' })).toEqual([
+      { key: 'silicone:black', description: 'Silicone sealant, black', quantity: 3, unitPence: 850 },
+    ]);
+    // A colour that is not sold is ignored.
+    expect(extrasOf({ silicone_tubes: { clear: 0, translucent: 2, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
+    // Saved before tubes were counted: one tube of the colour chosen.
+    expect(extrasOf({ silicone: 'yes', silicone_colour: 'clear', silicone_tool: 'no' })).toEqual([{ key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 }]);
+  });
+
+  test('terms are a company’s own when it has set them, each wording with its own version', async () => {
+    const standard = await termsFor({});
+    expect(standard).toMatchObject({ source: 'default', items: [...DEFAULT_TERMS] });
+    expect(standard.version).toBe(await termsVersion(DEFAULT_TERMS));
+    expect(standard.version).toMatch(/^sha256:[0-9a-f]{16}$/);
+    const own = await termsFor({ termsOfSale: [{ title: 'Ours.', text: 'Different words.' }] });
+    expect(own).toMatchObject({ source: 'company', items: [{ title: 'Ours.', text: 'Different words.' }] });
+    expect(own.version).not.toBe(standard.version);
+    expect((await termsFor({ termsOfSale: [{ title: 'Empty.' }] })).source).toBe('default');
   });
 
   test('a mistake comes back with the answers kept and nothing written', async () => {
@@ -166,10 +352,14 @@ describe('the answers', () => {
     const response = await submit(token, { ...FULL, details_confirmed: '' });
     expect(response.status).toBe(400);
     const html = await response.text();
-    expect(html).toContain('Please tick both confirmation boxes.');
+    expect(html).toContain('Please tick all three confirmation boxes.');
     expect(html).toContain('value="  Oliver   Milton "');
     expect(html).toContain('Drive is steep.');
-    expect(html).toMatch(/id="c_black" value="black" checked/);
+    expect(html).toMatch(/name="addr_postcode"[^>]*value="al35qn"/);
+    expect(html).toMatch(/name="silicone_white" min="0" max="10" step="1" value="2"/);
+    expect(html).toMatch(/name="terms_accepted" value="yes" checked/);
+    expect(html).toContain('Extras: £25.50');
+    expect(html).toContain(`value="${FULL.preferred_delivery_date}" aria-describedby="date_hint"`);
     expect(said(html)).not.toMatch(/392|1795|cut size|deduction/i);
     expect(await events('order_confirmed')).toHaveLength(0);
   });
@@ -222,21 +412,31 @@ describe('confirming', () => {
       order_ref: 'CS-1001',
       details_confirmed: true,
       measurements_accepted: true,
+      terms_accepted: true,
+      terms_version: await termsVersion(DEFAULT_TERMS),
+      terms_source: 'default',
+      delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
+      preferred_delivery_date: FULL.preferred_delivery_date,
       can_unload: 'yes',
       unload_note: 'Drive is steep.',
-      silicone: 'yes',
-      silicone_colour: 'black',
+      silicone_tubes: { clear: 1, white: 2, black: 0 },
       silicone_tool: 'no',
       signed_name: 'Oliver Milton',
       comments: '',
     });
     expect(typeof event.data.submitted_at).toBe('string');
+    expect(event.data.terms_accepted_at).toBe(event.data.submitted_at);
+    expect(event.data).not.toHaveProperty('silicone_colour');
     expect((event.data.shown as Record<string, string>).Fixing).toBe('U-channel on the floor and up the wall');
 
     expect(mail).toHaveLength(1);
     expect(mail[0].to).toEqual(['workshop@cs.example']);
     expect(mail[0].subject).toBe('CS-1001: order confirmed by the customer');
-    expect(mail[0].html).toContain('Yes, black');
+    expect(mail[0].html).toContain('<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top;">12 Holly Lane<br>St Albans<br>AL3 5QN</td>');
+    expect(mail[0].html).toContain('1 clear, 2 white');
+    expect(mail[0].html).toContain(`(${FULL.preferred_delivery_date}), to be confirmed once the glass is ready`);
+    expect(mail[0].html).toContain(`Accepted, version ${await termsVersion(DEFAULT_TERMS)}`);
+    expect(mail[0].html).toContain('agree to the terms of sale');
     expect(await events('email_sent')).toHaveLength(1);
   });
 
@@ -249,7 +449,7 @@ describe('confirming', () => {
   });
 
   test('confirming again changes nothing', async () => {
-    const again = await submit(token, { ...FULL, silicone: 'no' });
+    const again = await submit(token, { ...FULL, silicone_white: '0' });
     expect(again.status).toBe(303);
     expect(await events('order_confirmed')).toHaveLength(1);
   });

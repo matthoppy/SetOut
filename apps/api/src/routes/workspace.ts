@@ -43,6 +43,8 @@ import { isPlatformAdmin, signUpsAreOpen } from '../lib/sign-up';
 import { staffBilling } from './billing';
 import { signUp } from './sign-up';
 import { staffConfirmations } from './staff-confirmations';
+import { staffPayments } from './staff-payments';
+import { paymentViewFor } from '../lib/job-payments';
 import { staffCutOverrides } from './staff-cut-overrides';
 import { staffQuotes } from './staff-quotes';
 import { staffSettings } from './settings';
@@ -377,7 +379,7 @@ staff.get('/jobs/:id', async (c) => {
       ...overrides.flatMap((o) => (o.set_by ? [o.set_by] : [])),
     ]),
   ];
-  const people = await usersByIds(c.env, c.get('session').companyId, staffIds);
+  const [people, payment] = await Promise.all([usersByIds(c.env, c.get('session').companyId, staffIds), paymentViewFor(c.env, db, job, quotes)]);
 
   return c.json(
     {
@@ -436,6 +438,8 @@ staff.get('/jobs/:id', async (c) => {
         data: e.data,
         createdAt: e.created_at,
       })),
+      // The customer paying, where this company takes payments. Null where it does not.
+      payment: payment.enabled || payment.payments.length > 0 ? payment : null,
     },
     200,
     PRIVATE
@@ -541,6 +545,7 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
 
 staff.route('/', staffQuotes);
 staff.route('/', staffConfirmations);
+staff.route('/', staffPayments);
 staff.route('/', staffCutOverrides);
 staff.route('/', staffSettings);
 

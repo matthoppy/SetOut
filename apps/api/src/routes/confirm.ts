@@ -20,16 +20,27 @@ import { applyCutOverrides } from '../lib/cut-overrides';
 import { sendEmail } from '../lib/email';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import {
+  CONFIRMATION_BRAND,
   confirmationCsp,
   confirmedEmail,
+  extrasOf,
+  extrasPence,
   formPage,
   notFoundPage,
   readAnswers,
   summarise,
   thankYouPage,
   type OrderSummary,
+  type PayAmount,
+  type ExtraLine,
+  type DeliveryAddress,
+  type PayView,
   type Posted,
 } from '../lib/order-confirmation';
+import { createJobCheckout, jobPrice, mayStartPayment, paymentSettings, standingOf } from '../lib/job-payments';
+import { StripeError } from '../lib/stripe';
+import { termsFor, type TermsOfSale } from '../lib/terms-of-sale';
+import { deliveryWindow, leadWorkingDaysOf, type DeliveryWindow } from '../lib/delivery-date';
 
 export const confirmation = new Hono<{ Bindings: Env }>();
 
@@ -39,7 +50,7 @@ function nonce(): string {
   return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
 }
 
-function page(c: Ctx, html: (nonce: string) => string, status: 200 | 400 | 403 | 404 = 200): Response {
+function page(c: Ctx, html: (nonce: string) => string, status: 200 | 400 | 403 | 404 | 409 | 502 = 200): Response {
   const n = nonce();
   return c.html(html(n), status, {
     'Content-Security-Policy': confirmationCsp(n),
@@ -60,6 +71,10 @@ interface Opened {
   summary: OrderSummary;
   revisionId: string;
   designerId: string | null;
+  /** The terms of sale shown in section 6: the company's own, or the default. */
+  terms: TermsOfSale;
+  /** The dates a delivery may be asked for, from today in London and the company's lead time. */
+  window: DeliveryWindow;
 }
 
 /**
@@ -97,15 +112,174 @@ async function open(env: Env, token: string): Promise<Opened | null> {
     finishes: settings.finishes,
     handles: settings.handles,
   });
-  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null };
+  const companySettings = (await db.company())?.settings ?? {};
+  const terms = await termsFor(companySettings);
+  const window = deliveryWindow(new Date(), leadWorkingDaysOf(companySettings));
+  return { db, link, job, summary, revisionId: revision.id, designerId: designer?.id ?? null, terms, window };
 }
 
-/** The order, as the customer reads it: the form, or the thank-you once confirmed. */
+/**
+ * The extras the customer chose when they confirmed through this link, from
+ * the answers saved on the job's timeline. None before they confirm.
+ */
+async function confirmedAnswers(found: Opened): Promise<Record<string, unknown> | null> {
+  if (!found.link.confirmed_at) return null;
+  const events = await found.db.find('job_events', { where: { job_id: found.job.id, type: 'order_confirmed' } });
+  const mine = events.filter((e) => (e.data as Record<string, unknown>).confirmationId === found.link.id).pop();
+  return mine ? (mine.data as Record<string, unknown>) : null;
+}
+
+async function confirmedExtras(found: Opened): Promise<ExtraLine[]> {
+  return extrasOf(await confirmedAnswers(found));
+}
+
+/** The delivery address the customer confirmed, if it is whole. */
+function addressOf(answers: Record<string, unknown> | null): DeliveryAddress | null {
+  const a = answers?.delivery_address as Partial<DeliveryAddress> | undefined;
+  if (!a || typeof a.line1 !== 'string' || !a.line1 || typeof a.town !== 'string' || typeof a.postcode !== 'string') return null;
+  return { line1: a.line1, line2: typeof a.line2 === 'string' ? a.line2 : '', town: a.town, postcode: a.postcode };
+}
+
+/**
+ * Where paying stands for this job, as its page shows it. The price is the
+ * job's quote; with no quote, or with what to charge still undecided, there
+ * is nothing to pay and the page says so.
+ */
+async function payView(env: Env, found: Opened, confirmPath: string, options: { returned?: boolean; error?: string | null } = {}): Promise<PayView> {
+  const { db, job, link } = found;
+  const settings = paymentSettings(env, db.companyId);
+  if (!settings.ok || !settings.settings.taxMode) return { kind: 'not_open' };
+  const { taxMode } = settings.settings;
+  const [payments, quotes] = await Promise.all([
+    db.find('job_payments', { where: { job_id: job.id }, orderBy: { column: 'created_at' } }),
+    db.find('quotes', { where: { job_id: job.id } }),
+  ]);
+  const standing = standingOf(payments);
+  if (standing.state === 'refunded') return { kind: 'refunded' };
+  if (standing.state === 'paid' || standing.state === 'partially_refunded') return { kind: 'paid', paidPence: standing.paidTotalPence };
+  if (standing.openInvoice?.hosted_invoice_url) return { kind: 'invoice', invoiceUrl: standing.openInvoice.hosted_invoice_url, failed: standing.openInvoice.status === 'failed' };
+  // Back from Stripe before its message: say so, rather than offer to pay again.
+  if (options.returned && (standing.openCheckout || payments.some((p) => p.method === 'checkout' && p.status === 'pending'))) return { kind: 'processing' };
+
+  const price = jobPrice(quotes, taxMode);
+  if ('missing' in price) return { kind: 'no_price' };
+  // Once confirmed, the extras chosen are part of what is paid.
+  const extras = await confirmedExtras(found);
+  const amount: PayAmount = { pence: price.amountPence + extrasPence(extras), packagePence: price.amountPence, extras, vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
+  if (!link.confirmed_at) return { kind: 'confirm_first', amount };
+  const action = `${confirmPath}/pay`;
+  if (standing.state === 'payment_failed' && !options.error) return { kind: 'failed', action, amount };
+  return { kind: 'ready', action, amount, error: options.error ?? null };
+}
+
+/** The order, as the customer reads it: the form, or the thank-you once confirmed, with paying. */
 confirmation.get('/:token', async (c) => {
   const found = await open(c.env, c.req.param('token'));
   if (!found) return page(c, notFoundPage, 404);
-  if (found.link.confirmed_at) return page(c, (n) => thankYouPage(found.summary, n));
-  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n));
+  const pay = await payView(c.env, found, c.req.path, { returned: c.req.query('paid') === '1' });
+  if (found.link.confirmed_at) return page(c, (n) => thankYouPage(found.summary, n, pay));
+  return page(c, (n) => formPage(found.summary, c.req.path, { values: {}, error: null }, n, pay, found.terms, found.window));
+});
+
+/**
+ * Pay: start a Checkout session on Stripe's own page and send the customer
+ * there. Only from this page, only once the order is confirmed, only if the
+ * job is not already paid, and only for the whole order as the job's quote says.
+ * A session still open is used again rather than starting a second.
+ */
+confirmation.post('/:token/pay', async (c) => {
+  const origin = c.req.header('origin');
+  const sameSite = origin === new URL(c.req.url).origin || ((!origin || origin === 'null') && c.req.header('sec-fetch-site') === 'same-origin');
+  if (!sameSite) return page(c, notFoundPage, 403);
+  const found = await open(c.env, c.req.param('token'));
+  if (!found) return page(c, notFoundPage, 404);
+  const confirmPath = c.req.path.replace(/\/pay$/, '');
+  const back = () => c.redirect(confirmPath, 303);
+  if (!found.link.confirmed_at) return back();
+
+  const view = await payView(c.env, found, confirmPath);
+  if (view.kind !== 'ready' && view.kind !== 'failed') return back();
+  const settings = paymentSettings(c.env, found.db.companyId);
+  if (!settings.ok || !settings.settings.taxMode) return back();
+  const taxMode = settings.settings.taxMode;
+  const { db, job } = found;
+  const [payments, quotes, customer] = await Promise.all([
+    db.find('job_payments', { where: { job_id: job.id } }),
+    db.find('quotes', { where: { job_id: job.id } }),
+    db.get('customers', job.customer_id),
+  ]);
+  const standing = standingOf(payments);
+  if (!mayStartPayment(standing)) return back();
+  if (standing.openCheckout?.stripe_checkout_url) return c.redirect(standing.openCheckout.stripe_checkout_url, 303);
+  const price = jobPrice(quotes, taxMode);
+  if ('missing' in price) return back();
+  // The quote, plus the extras the customer chose when confirming, at the
+  // page's prices. Nothing the browser sends now changes what is charged.
+  const answers = await confirmedAnswers(found);
+  const extras = extrasOf(answers);
+  const amountPence = price.amountPence + extrasPence(extras);
+
+  // A session that ran out with no message from Stripe yet is closed here.
+  const stale = payments.filter((p) => p.method === 'checkout' && p.status === 'pending');
+  let payment;
+  try {
+    await db.batch((batch) => {
+      for (const old of stale) batch.update('job_payments', old.id, { status: 'expired', stripe_checkout_url: null });
+    });
+    payment = await db.insert('job_payments', {
+      job_id: job.id,
+      kind: 'full',
+      method: 'checkout',
+      status: 'pending',
+      quote_id: price.quote.id,
+      tax_behavior: taxMode,
+      amount_pence: amountPence,
+      currency: 'GBP',
+    });
+  } catch {
+    // Another press, a moment ago, is opening one.
+    return back();
+  }
+
+  try {
+    const session = await createJobCheckout({
+      settings: { ...settings.settings, taxMode },
+      job,
+      customer,
+      payment,
+      packagePence: price.amountPence,
+      extras,
+      deliveryAddress: addressOf(answers),
+      deliveryName: typeof answers?.signed_name === 'string' ? answers.signed_name : null,
+      returnUrl: `${new URL(c.req.url).origin}${confirmPath}`,
+    });
+    await db.batch((batch) => {
+      batch.update('job_payments', payment.id, { stripe_checkout_session_id: session.id, stripe_checkout_url: session.url, expires_at: session.expiresAt });
+      batch.insert('job_events', {
+        job_id: job.id,
+        type: 'checkout_started',
+        actor_kind: 'customer',
+        data: {
+          paymentId: payment.id,
+          kind: 'full',
+          amountPence,
+          quotePence: price.amountPence,
+          extras: extras.map((e) => ({ key: e.key, quantity: e.quantity, unitPence: e.unitPence })),
+          taxMode,
+          quoteNumber: price.quote.number,
+        },
+      });
+    });
+    return c.redirect(session.url, 303);
+  } catch (error) {
+    await db.remove('job_payments', payment.id);
+    console.error(JSON.stringify({ message: 'checkout failed', job: job.id, reason: error instanceof Error ? error.message : String(error) }));
+    if (!(error instanceof StripeError)) throw error;
+    const pay = await payView(c.env, found, confirmPath, {
+      error: `We couldn't open the payment page just now. Please try again in a few minutes, or email ${CONFIRMATION_BRAND.email}.`,
+    });
+    return page(c, (n) => thankYouPage(found.summary, n, pay), 502);
+  }
 });
 
 /**
@@ -129,9 +303,10 @@ confirmation.post('/:token', async (c) => {
   const values: Posted = {};
   for (const [key, value] of Object.entries(raw)) if (typeof value === 'string') values[key] = value;
 
-  const read = readAnswers(job.reference, values);
+  const read = readAnswers(job.reference, values, found.terms, new Date(), found.window);
   if ('error' in read) {
-    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n), 400);
+    const pay = await payView(c.env, found, c.req.path);
+    return page(c, (n) => formPage(summary, c.req.path, { values, error: read.error }, n, pay, found.terms, found.window), 400);
   }
   const { answers } = read;
   try {
@@ -141,7 +316,7 @@ confirmation.post('/:token', async (c) => {
         job_id: job.id,
         type: 'order_confirmed',
         actor_kind: 'customer',
-        data: { ...answers, confirmationId: link.id, revisionId: found.revisionId, shown: Object.fromEntries(summary.rows) },
+        data: { ...answers, terms_source: found.terms.source, confirmationId: link.id, revisionId: found.revisionId, shown: Object.fromEntries(summary.rows) },
       });
     });
   } catch {

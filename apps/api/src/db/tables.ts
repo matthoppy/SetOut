@@ -261,6 +261,50 @@ export interface CutOverrideRow {
   updated_at: string;
 }
 
+export const PAYMENT_KINDS = ['full', 'invoice'] as const;
+export type PaymentKind = (typeof PAYMENT_KINDS)[number];
+
+export const PAYMENT_METHODS = ['checkout', 'invoice'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_STATUSES = ['pending', 'open', 'paid', 'failed', 'expired', 'void', 'refunded', 'partially_refunded'] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export const TAX_BEHAVIORS = ['inclusive', 'exclusive'] as const;
+export type TaxBehavior = (typeof TAX_BEHAVIORS)[number];
+
+/** How a payment was taxed: 'none' with Stripe Tax off, the amount being exactly what is paid. */
+export const PAYMENT_TAX_MODES = ['none', ...TAX_BEHAVIORS] as const;
+export type PaymentTaxMode = (typeof PAYMENT_TAX_MODES)[number];
+
+/** One attempt to take a customer's money for a job: a Checkout session or an invoice, in the company's own Stripe account. */
+export interface JobPaymentRow {
+  id: string;
+  job_id: string;
+  kind: PaymentKind;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  quote_id: string | null;
+  tax_behavior: PaymentTaxMode;
+  /** Asked for, in pence (before Stripe Tax adds VAT to an exclusive amount). */
+  amount_pence: number;
+  amount_total_pence: number | null;
+  tax_pence: number | null;
+  amount_refunded_pence: number;
+  currency: string;
+  stripe_checkout_session_id: string | null;
+  stripe_checkout_url: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_invoice_id: string | null;
+  stripe_customer_id: string | null;
+  hosted_invoice_url: string | null;
+  expires_at: string | null;
+  paid_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface JobEventRow {
   id: string;
   job_id: string;
@@ -305,6 +349,7 @@ export interface Tables {
     row: CutOverrideRow;
     required: 'job_id' | 'design_id' | 'pane_id' | 'width_deduction_mm' | 'height_deduction_mm' | 'reason' | 'revision_number';
   };
+  job_payments: { row: JobPaymentRow; required: 'job_id' | 'kind' | 'method' | 'tax_behavior' | 'amount_pence' };
 }
 
 export type TableName = keyof Tables;
@@ -432,6 +477,17 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: [],
     tracksUpdates: true,
   },
+  job_payments: {
+    id: 'jobPayment',
+    columns: [
+      'id', 'job_id', 'kind', 'method', 'status', 'quote_id', 'tax_behavior', 'amount_pence', 'amount_total_pence',
+      'tax_pence', 'amount_refunded_pence', 'currency', 'stripe_checkout_session_id', 'stripe_checkout_url',
+      'stripe_payment_intent_id', 'stripe_invoice_id', 'stripe_customer_id', 'hosted_invoice_url', 'expires_at',
+      'paid_at', 'created_by', 'created_at', 'updated_at',
+    ],
+    json: [],
+    tracksUpdates: true,
+  },
 };
 
 /**
@@ -448,4 +504,5 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   quotes: { status: QUOTE_STATUSES },
   price_list: { unit: QUOTE_UNITS },
   subscriptions: { status: SUBSCRIPTION_STATUSES },
+  job_payments: { kind: PAYMENT_KINDS, method: PAYMENT_METHODS, status: PAYMENT_STATUSES, tax_behavior: PAYMENT_TAX_MODES },
 };

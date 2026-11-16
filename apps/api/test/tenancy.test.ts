@@ -35,6 +35,7 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   subscriptions: { status: 'active', plan_id: 'free' },
   order_confirmations: { confirmed_at: '2000-01-01T00:00:00.000Z' },
   cut_overrides: { width_deduction_mm: 0, reason: 'tampered' },
+  job_payments: { status: 'refunded', amount_pence: 1 },
 };
 
 let ours: Seeded;

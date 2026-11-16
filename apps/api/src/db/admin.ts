@@ -316,6 +316,23 @@ export async function forgetStripeEvent(env: Env_, id: string): Promise<void> {
   await env.DB.prepare('DELETE FROM stripe_events WHERE id = ?').bind(id).run();
 }
 
+/**
+ * Remember one of a company's own Stripe messages, about a customer paying
+ * for a job. Kept apart from SetOut's own: a different account and endpoint.
+ * False if it has been handled before.
+ */
+export async function rememberJobStripeEvent(env: Env_, id: string, type: string, now = new Date()): Promise<boolean> {
+  const result = await env.DB.prepare('INSERT INTO job_stripe_events (id, type, created_at) VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING')
+    .bind(id, type, now.toISOString())
+    .run();
+  return result.meta.changes === 1;
+}
+
+/** Forget a job payment message that could not be handled, so that Stripe's next try is. */
+export async function forgetJobStripeEvent(env: Env_, id: string): Promise<void> {
+  await env.DB.prepare('DELETE FROM job_stripe_events WHERE id = ?').bind(id).run();
+}
+
 /** The plan a company is on, as Stripe now says it is. Not in the audit log: nobody at SetOut did it. */
 export async function setPlanFromStripe(env: Env_, companyId: string, planId: string, now = new Date()): Promise<void> {
   await env.DB.prepare('UPDATE companies SET plan = ?, updated_at = ? WHERE id = ? AND plan <> ?').bind(planId, now.toISOString(), companyId, planId).run();
