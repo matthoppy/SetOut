@@ -12,6 +12,7 @@
 import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
+import { confirmation } from './routes/confirm';
 import { designer } from './routes/designer';
 import { platform } from './routes/platform';
 import { quote } from './routes/quote';
@@ -107,6 +108,17 @@ app.route('/api/platform', platform);
 app.route('/api/stripe', stripeWebhook);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
+
+// A customer confirming their order: a page of its own, on the designer's
+// address like a quote, never where staff sign in or on SetOut's own site.
+app.use('/confirm/*', async (c, next) => {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'workspace' || surface === 'site') {
+    return c.text('Not found', 404, { 'Cache-Control': 'no-store' });
+  }
+  await next();
+});
+app.route('/confirm', confirmation);
 
 // Everything else is one of the apps, or the site.
 app.all('*', serveSite);

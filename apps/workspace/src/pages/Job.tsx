@@ -9,7 +9,7 @@
 
 import { journeySummary, type ConfiguratorSpec, type ConfiguratorState, type HingeStyles, type Pane, type PanelSpec } from '@setout/engine';
 import { useState, type FormEvent } from 'react';
-import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
+import { api, ApiError, fileUrl, signInAgain, SignedOut, STAGES, type CutOverride, type JobDetail, type JobEvent, type JobFile, type Revision, type Stage } from '../lib/api';
 import { bytes, humanise, layoutName, money, STAGE_NAMES, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { describeFeature, hingeStyle, panes as panesFor } from '../lib/panes';
@@ -103,6 +103,7 @@ export function Job({ id }: { id: string }) {
             editHref={`/edit/${encodeURIComponent(detail.job.id)}/${encodeURIComponent(design.id)}`}
             changed={design.revision.author_kind === 'staff' ? { by: design.revision.changedBy, reason: design.revision.reason, at: design.revision.created_at } : null}
             signOff={<SignOff jobId={detail.job.id} designId={design.id} revision={design.revision} canBeMade={design.revision.computed.blockingIssues.length === 0} onChanged={job.reload} />}
+            overrides={{ jobId: detail.job.id, designId: design.id, list: design.revision.cutOverrides ?? [], onChanged: job.reload }}
           />
         ) : null
       )}
@@ -306,6 +307,7 @@ function Shower({
   signOff,
   editHref,
   changed,
+  overrides,
 }: {
   title: string | null;
   layout: string | null;
@@ -320,6 +322,8 @@ function Shower({
   editHref: string;
   /** For a revision staff saved: who, why and when. */
   changed: { by: { name: string | null; email: string } | null; reason: string | null; at: string } | null;
+  /** The panes cut to an override, and how to set or clear one. */
+  overrides: { jobId: string; designId: string; list: CutOverride[]; onChanged: () => void };
 }) {
   const readings = journeySummary(design).filter((row) => row.status !== 'optional' || row.value);
   const drawn = panesFor(design, spec, hinges);
@@ -373,7 +377,18 @@ function Shower({
       <Section title="Cut sizes" aside={<span className="text-xs text-quiet">mm, width × height</span>}>
         <ul className="divide-y divide-rule rounded-lg border border-rule bg-surface">
           {spec.panels.map((panel, i) => (
-            <PanelRow key={panel.id} panel={panel} pane={drawn[i]} letters={letters} />
+            <PanelRow
+              key={panel.id}
+              panel={panel}
+              pane={drawn[i]}
+              letters={letters}
+              override={overrides.list.find((o) => o.paneId === panel.id) ?? null}
+              revision={revision}
+              canOverride={!spec.sliding}
+              onSave={(o) => api.setCutOverride(overrides.jobId, overrides.designId, panel.id, o)}
+              onClear={() => api.clearCutOverride(overrides.jobId, overrides.designId, panel.id)}
+              onChanged={overrides.onChanged}
+            />
           ))}
         </ul>
       </Section>
@@ -554,28 +569,160 @@ function Checks({ spec }: { spec: ConfiguratorSpec }) {
   );
 }
 
-function PanelRow({ panel, pane, letters }: { panel: PanelSpec; pane: Pane; letters: Map<string, string> }) {
+function PanelRow({
+  panel,
+  pane,
+  letters,
+  override,
+  revision,
+  canOverride,
+  onSave,
+  onClear,
+  onChanged,
+}: {
+  panel: PanelSpec;
+  pane: Pane;
+  letters: Map<string, string>;
+  override: CutOverride | null;
+  revision: number;
+  canOverride: boolean;
+  onSave: (o: { widthDeductionMm: number; heightDeductionMm: number; reason: string }) => Promise<unknown>;
+  onClear: () => Promise<unknown>;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
   return (
-    <li className="flex gap-4 px-3 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">{panel.label}</p>
-        {pane.shaped && <p className="mt-0.5 text-xs font-semibold text-warn">Cut to shape: see the glass order for its corners</p>}
-        {pane.features.map((f, i) => (
-          <p key={i} className="mt-0.5 text-xs text-quiet">
-            {describeFeature(f, pane, letters)}
+    <li className="px-3 py-3">
+      <div className="flex gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">{panel.label}</p>
+          {pane.shaped && <p className="mt-0.5 text-xs font-semibold text-warn">Cut to shape: see the glass order for its corners</p>}
+          {pane.features.map((f, i) => (
+            <p key={i} className="mt-0.5 text-xs text-quiet">
+              {describeFeature(f, pane, letters)}
+            </p>
+          ))}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-semibold tabular-nums">
+            {pane.widthMm} × {pane.heightMm}
           </p>
-        ))}
+          {override && <p className="text-xs font-semibold text-warn">From an override</p>}
+          <p className="text-xs tabular-nums text-quiet">
+            measured {panel.tightWidthMm} × {panel.tightHeightMm}
+          </p>
+          <p className="text-xs tabular-nums text-quiet">
+            off {panel.deductions.horizontal.total} × {panel.deductions.vertical.total}
+          </p>
+          <p className="text-xs tabular-nums text-quiet">{Math.round(pane.weightKg * 10) / 10}kg</p>
+        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="text-lg font-semibold tabular-nums">
-          {pane.widthMm} × {pane.heightMm}
-        </p>
-        <p className="text-xs tabular-nums text-quiet">
-          measured {panel.tightWidthMm} × {panel.tightHeightMm}
-        </p>
-        <p className="text-xs tabular-nums text-quiet">{Math.round(pane.weightKg * 10) / 10}kg</p>
-      </div>
+      {override && !editing && <OverrideNotice override={override} revision={revision} />}
+      {canOverride && !editing && (
+        <button type="button" onClick={() => setEditing(true)} className="mt-2 text-xs font-semibold text-accent underline underline-offset-2">
+          {override ? 'Change or clear the override' : 'Override the deductions for this job'}
+        </button>
+      )}
+      {editing && (
+        <OverrideForm
+          override={override}
+          onSave={onSave}
+          onClear={onClear}
+          onDone={(changed) => {
+            setEditing(false);
+            if (changed) onChanged();
+          }}
+        />
+      )}
     </li>
+  );
+}
+
+/** What the override takes off, instead of what, why, and who set it. */
+function OverrideNotice({ override: o, revision }: { override: CutOverride; revision: number }) {
+  const who = o.setBy ? (o.setBy.name ?? o.setBy.email) : 'someone no longer on the team';
+  const standard =
+    o.defaultWidthDeductionMm !== null && o.defaultHeightDeductionMm !== null
+      ? ` instead of the standard ${o.defaultWidthDeductionMm}mm and ${o.defaultHeightDeductionMm}mm`
+      : '';
+  return (
+    <div role="note" className="mt-2 rounded-md border border-warn/50 bg-warn/10 px-3 py-2 text-sm">
+      <p>
+        <span className="font-semibold">Cut size override for this job:</span> {o.widthDeductionMm}mm off the width and {o.heightDeductionMm}mm off the
+        height{standard}. The standard rule is not used for this pane.
+      </p>
+      <p className="mt-0.5">
+        <span className="font-semibold">Reason:</span> {o.reason}
+      </p>
+      <p className="mt-0.5 text-xs text-quiet">
+        Set by {who}, {whenExactly(o.setAt)}
+        {o.revisionNumber !== revision ? `, on revision ${o.revisionNumber}. The shower has changed since: check it still applies.` : '.'}
+      </p>
+    </div>
+  );
+}
+
+function OverrideForm({
+  override,
+  onSave,
+  onClear,
+  onDone,
+}: {
+  override: CutOverride | null;
+  onSave: (o: { widthDeductionMm: number; heightDeductionMm: number; reason: string }) => Promise<unknown>;
+  onClear: () => Promise<unknown>;
+  onDone: (changed: boolean) => void;
+}) {
+  const [width, setWidth] = useState(String(override?.widthDeductionMm ?? ''));
+  const [height, setHeight] = useState(String(override?.heightDeductionMm ?? ''));
+  const [reason, setReason] = useState(override?.reason ?? '');
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const act = async (change: () => Promise<unknown>) => {
+    setState({ busy: true, error: null });
+    try {
+      await change();
+      onDone(true);
+    } catch (error) {
+      if (error instanceof SignedOut) return signInAgain();
+      setState({ busy: false, error: error instanceof ApiError ? error.message : 'That could not be saved. Try again.' });
+    }
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void act(() => onSave({ widthDeductionMm: Number(width), heightDeductionMm: Number(height), reason }));
+  };
+  const field = 'mt-1 h-10 w-full rounded-md border border-rule bg-white px-3 text-sm';
+  return (
+    <form onSubmit={submit} className="mt-2 space-y-2 rounded-md border border-rule bg-white p-3 text-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="font-semibold">Off the width (mm)</span>
+          <input type="number" min={0} max={200} step={1} required value={width} onChange={(e) => setWidth(e.target.value)} className={field} />
+        </label>
+        <label className="block">
+          <span className="font-semibold">Off the height (mm)</span>
+          <input type="number" min={0} max={200} step={1} required value={height} onChange={(e) => setHeight(e.target.value)} className={field} />
+        </label>
+      </div>
+      <label className="block">
+        <span className="font-semibold">Reason</span>
+        <input type="text" required minLength={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} className={field} />
+      </label>
+      {state.error && <p className="text-bad">{state.error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={state.busy} className="h-10 rounded-md bg-accent px-4 font-semibold text-white disabled:opacity-60">
+          Save override
+        </button>
+        {override && (
+          <button type="button" disabled={state.busy} onClick={() => void act(onClear)} className="h-10 rounded-md border border-rule px-4 font-semibold">
+            Clear, use the standard rule
+          </button>
+        )}
+        <button type="button" disabled={state.busy} onClick={() => onDone(false)} className="h-10 px-2 text-quiet">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -630,6 +777,20 @@ function describe(event: JobEvent): string {
       return `${who ?? 'Someone'} checked ${named(d.label) ?? 'the shower'} and is happy for it to be made.`;
     case 'revision_unchecked':
       return `${who ?? 'Someone'} took back the check on ${named(d.label) ?? 'the shower'}.`;
+    case 'cut_override_set':
+      return `${who ?? 'Someone'} set ${String(d.pane ?? 'a pane')} to be cut ${String(d.cut ?? '')}: ${String(d.widthDeductionMm)}mm off the width and ${String(
+        d.heightDeductionMm
+      )}mm off the height, instead of the standard ${String(d.standardWidthDeductionMm)}mm and ${String(d.standardHeightDeductionMm)}mm. Reason: ${String(d.reason ?? '')}`;
+    case 'cut_override_cleared':
+      return `${who ?? 'Someone'} cleared the override on ${String(d.pane ?? 'a pane')}. It is cut to the standard rule again, ${String(d.cut ?? '')}.`;
+    case 'confirmation_link_made':
+      return `${who ?? 'Someone'} made a link for the customer to confirm their order.`;
+    case 'order_confirmed':
+      return `${String(d.signed_name ?? 'The customer')} confirmed the order. Help unloading: ${d.can_unload === 'yes' ? 'yes' : 'no'}. Silicone: ${
+        d.silicone === 'yes' ? String(d.silicone_colour) : 'no'
+      }. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''}${
+        typeof d.comments === 'string' && d.comments ? ` Comments: ${d.comments}` : ''
+      }`;
     case 'installation_changed': {
       const names: Record<string, string> = { address: 'installation address', postcode: 'site postcode', notes: 'installation comments' };
       const changed = Array.isArray(d.changed) ? d.changed.map((c) => names[String(c)] ?? String(c)) : [];

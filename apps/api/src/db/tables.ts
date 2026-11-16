@@ -235,6 +235,32 @@ export interface SubscriptionRow {
   updated_at: string;
 }
 
+/** A customer's link to confirm their order. Their answers are a job event. */
+export interface OrderConfirmationRow {
+  id: string;
+  job_id: string;
+  link_token_hash: string;
+  created_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A different deduction for one pane of one job, in place of the company's rule. Never shown to the customer. */
+export interface CutOverrideRow {
+  id: string;
+  job_id: string;
+  design_id: string;
+  pane_id: string;
+  width_deduction_mm: number;
+  height_deduction_mm: number;
+  reason: string;
+  revision_number: number;
+  set_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface JobEventRow {
   id: string;
   job_id: string;
@@ -274,6 +300,11 @@ export interface Tables {
   quotes: { row: QuoteRow; required: 'job_id' | 'number' };
   price_list: { row: PriceRow; required: 'key' | 'unit' | 'unit_price_pence' };
   subscriptions: { row: SubscriptionRow; required: 'status' };
+  order_confirmations: { row: OrderConfirmationRow; required: 'job_id' | 'link_token_hash' };
+  cut_overrides: {
+    row: CutOverrideRow;
+    required: 'job_id' | 'design_id' | 'pane_id' | 'width_deduction_mm' | 'height_deduction_mm' | 'reason' | 'revision_number';
+  };
 }
 
 export type TableName = keyof Tables;
@@ -382,6 +413,21 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     columns: [
       'id', 'plan_id', 'status', 'stripe_customer_id', 'stripe_subscription_id', 'trial_ends_at',
       'current_period_ends_at', 'cancel_at_period_end', 'payment_failed_at', 'created_at', 'updated_at',
+    ],
+    json: [],
+    tracksUpdates: true,
+  },
+  order_confirmations: {
+    id: 'confirmation',
+    columns: ['id', 'job_id', 'link_token_hash', 'created_by', 'confirmed_at', 'created_at', 'updated_at'],
+    json: [],
+    tracksUpdates: true,
+  },
+  cut_overrides: {
+    id: 'cutOverride',
+    columns: [
+      'id', 'job_id', 'design_id', 'pane_id', 'width_deduction_mm', 'height_deduction_mm', 'reason',
+      'revision_number', 'set_by', 'created_at', 'updated_at',
     ],
     json: [],
     tracksUpdates: true,

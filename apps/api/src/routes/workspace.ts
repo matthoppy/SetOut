@@ -35,12 +35,15 @@ import { billingIsOn, standingOf, subscriptionOf } from '../lib/billing';
 import { ALL_CHOICES, ALL_HINGES, designerConfig, GLASS_THICKNESSES, glassOf, optionLabelsFor, standardHinges } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { readFiles, RequestError } from '../lib/enquiry';
+import { applyCutOverrides, viewOf } from '../lib/cut-overrides';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { SESSION_COOKIE, setSessionCookie } from '../lib/session-cookie';
 import { signInEmail } from '../lib/sign-in-email';
 import { isPlatformAdmin, signUpsAreOpen } from '../lib/sign-up';
 import { staffBilling } from './billing';
 import { signUp } from './sign-up';
+import { staffConfirmations } from './staff-confirmations';
+import { staffCutOverrides } from './staff-cut-overrides';
 import { staffQuotes } from './staff-quotes';
 import { staffSettings } from './settings';
 import { addedToTeamEmail } from '../lib/team-email';
@@ -353,13 +356,14 @@ staff.get('/jobs/:id', async (c) => {
   const job = await db.get('jobs', c.req.param('id'));
   if (!job) return c.json({ error: 'not_found', message: 'There is no such job.' }, 404, PRIVATE);
 
-  const [customer, designs, files, events, quotes, labels] = await Promise.all([
+  const [customer, designs, files, events, quotes, labels, overrides] = await Promise.all([
     db.get('customers', job.customer_id),
     db.find('designs', { where: { job_id: job.id }, orderBy: { column: 'position' } }),
     db.find('files', { where: { job_id: job.id }, orderBy: { column: 'created_at' } }),
     db.find('job_events', { where: { job_id: job.id }, orderBy: { column: 'created_at' }, limit: 500 }),
     db.find('quotes', { where: { job_id: job.id }, orderBy: { column: 'number' } }),
     optionLabelsFor(db, job),
+    db.find('cut_overrides', { where: { job_id: job.id } }),
   ]);
   const revisions = await Promise.all(
     designs.map((d) => db.find('design_revisions', { where: { design_id: d.id, number: d.current_revision }, limit: 1 }))
@@ -370,6 +374,7 @@ staff.get('/jobs/:id', async (c) => {
       ...events.filter((e) => e.actor_kind === 'staff' && e.actor_id).map((e) => e.actor_id as string),
       ...revisions.flatMap(([r]) => (r?.checked_by ? [r.checked_by] : [])),
       ...revisions.flatMap(([r]) => (r?.author_kind === 'staff' && r.author_id ? [r.author_id] : [])),
+      ...overrides.flatMap((o) => (o.set_by ? [o.set_by] : [])),
     ]),
   ];
   const people = await usersByIds(c.env, c.get('session').companyId, staffIds);
@@ -382,10 +387,14 @@ staff.get('/jobs/:id', async (c) => {
       labels,
       designs: designs.map((design, i) => {
         const revision = revisions[i][0] ?? null;
+        // A pane cut to an override is shown cut to it, with the override beside it.
+        const own = overrides.filter((o) => o.design_id === design.id);
         return {
           ...design,
           revision: revision && {
             ...revision,
+            computed: applyCutOverrides(revision.computed, own, revision.document.design),
+            cutOverrides: own.map((o) => viewOf(o, revision.computed, people)),
             checkedBy: revision.checked_by ? (people[revision.checked_by] ?? null) : null,
             changedBy: revision.author_kind === 'staff' && revision.author_id ? (people[revision.author_id] ?? null) : null,
           },
@@ -531,6 +540,8 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
 }
 
 staff.route('/', staffQuotes);
+staff.route('/', staffConfirmations);
+staff.route('/', staffCutOverrides);
 staff.route('/', staffSettings);
 
 // ---------------------------------------------------------------------------

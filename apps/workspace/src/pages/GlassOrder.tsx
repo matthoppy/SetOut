@@ -14,7 +14,7 @@
 
 import type { Pane, PaneFeature } from '@setout/engine';
 import { useState } from 'react';
-import { api, type Inbox, type JobDetail } from '../lib/api';
+import { api, type CutOverride, type Inbox, type JobDetail } from '../lib/api';
 import { whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { describeFeature, panes as panesFor } from '../lib/panes';
@@ -37,6 +37,8 @@ interface Sheet {
   marks: string;
   /** A pane of a sliding shower, whose sizes are not confirmed yet. */
   sliding: boolean;
+  /** Cut with this job's own deductions instead of the standard rule. */
+  override: CutOverride | null;
 }
 
 /** Every pane of a job's checked showers, and the showers left out because they are not checked. */
@@ -64,6 +66,7 @@ function sheetsOf(detail: JobDetail): { sheets: Sheet[]; unchecked: string[] } {
         pane,
         marks: `${name ? `${name}, ` : ''}${pane.label}`,
         sliding: Boolean(revision.computed.sliding),
+        override: revision.cutOverrides?.find((o) => o.paneId === pane.id) ?? null,
       });
     }
   });
@@ -191,6 +194,7 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
                 </td>
                 <td className="whitespace-nowrap py-1.5 pr-2 text-right text-sm font-bold tabular-nums">
                   {s.pane.widthMm} × {s.pane.heightMm}
+                  {s.override && <span className="block text-[11px] font-normal">job override</span>}
                 </td>
                 <td className="py-1.5 pr-2">
                   {s.description}, {EDGEWORK}
@@ -214,6 +218,9 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
         <p className="mt-2 text-right text-sm font-semibold">
           {sheets.length === 1 ? '1 pane' : `${sheets.length} panes`}, {area.toFixed(2)}m², {Math.round(weight)}kg
         </p>
+        {sheets.filter((s) => s.override).map((s) => (
+          <OverrideNote key={`o-${s.key}`} override={s.override as CutOverride} marks={`${s.job} ${s.marks}`} />
+        ))}
         {sheets.some((s) => s.sliding) && (
           <p role="note" className="mt-2 border-2 border-black p-2 text-[12px]">
             <span className="font-bold uppercase">Sliding door glass on this order: sizes not confirmed. </span>
@@ -247,6 +254,7 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
                 {s.pane.widthMm} x {s.pane.heightMm} ({Math.round(s.pane.weightKg * 10) / 10}kg)
               </span>
             </div>
+            {s.override && <OverrideNote override={s.override} />}
             {s.sliding && (
               <p role="note" className="mt-2 border-2 border-black p-2 text-[12px]">
                 <span className="font-bold uppercase">Sliding door, CRL Serenity: sizes not confirmed. </span>
@@ -279,5 +287,19 @@ export function GlassOrder({ query, companyName }: { query: URLSearchParams; com
         </Page>
       )}
     </div>
+  );
+}
+
+/** A pane cut to this job's own deductions: what was taken off, instead of what, and why. */
+function OverrideNote({ override: o, marks }: { override: CutOverride; marks?: string }) {
+  const standard =
+    o.defaultWidthDeductionMm !== null && o.defaultHeightDeductionMm !== null
+      ? `, instead of the standard ${o.defaultWidthDeductionMm}mm and ${o.defaultHeightDeductionMm}mm`
+      : '';
+  return (
+    <p role="note" className="mt-2 border-2 border-black p-2 text-[12px]">
+      <span className="font-bold uppercase">{marks ? `${marks}: ` : ''}Cut size from a job override. </span>
+      {o.widthDeductionMm}mm off the width and {o.heightDeductionMm}mm off the height{standard}. Reason: {o.reason}
+    </p>
   );
 }

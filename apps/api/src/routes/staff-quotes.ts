@@ -15,6 +15,7 @@ import type { Session } from '../db/auth';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import { hashResumeToken, newQuoteToken } from '../db/platform';
 import type { JobStage, QuoteRow } from '../db/tables';
+import { applyCutOverrides } from '../lib/cut-overrides';
 import { optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { RequestError } from '../lib/enquiry';
@@ -95,11 +96,13 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
     db.company(),
     db.quotes.nextNumber(job.id),
   ]);
+  // Glass is priced as it will be cut: a pane with an override, from the override.
+  const overrides = await db.find('cut_overrides', { where: { job_id: job.id } });
   const lines = draftLines(
     showers.map(({ design, revision }, i) => ({
       prefix: showers.length > 1 ? `${showerName(design.label, i, showers.length)}: ` : '',
       design: revision.document.design,
-      spec: revision.computed,
+      spec: applyCutOverrides(revision.computed, overrides.filter((o) => o.design_id === design.id), revision.document.design),
     })),
     labels,
     prices

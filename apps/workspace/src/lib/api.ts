@@ -208,6 +208,22 @@ export interface JobEvent {
   createdAt: string;
 }
 
+/** A pane of one job cut with different deductions from the company's rule. Staff only. */
+export interface CutOverride {
+  id: string;
+  designId: string;
+  paneId: string;
+  widthDeductionMm: number;
+  heightDeductionMm: number;
+  /** What the company's rule takes off, which the override is used instead of. */
+  defaultWidthDeductionMm: number | null;
+  defaultHeightDeductionMm: number | null;
+  reason: string;
+  revisionNumber: number;
+  setBy: { name: string | null; email: string } | null;
+  setAt: string;
+}
+
 export interface Revision {
   id: string;
   number: number;
@@ -223,6 +239,8 @@ export interface Revision {
   reason: string | null;
   /** Who saved it, for a revision staff saved, if they are still on the team. */
   changedBy: { name: string | null; email: string } | null;
+  /** Panes cut to an override. `computed` already has their cut sizes from it. */
+  cutOverrides: CutOverride[];
   created_at: string;
 }
 
@@ -541,6 +559,17 @@ export const api = {
     send<{ ok: true }>('POST', `/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { revision }),
   uncheck: (jobId: string, designId: string) =>
     call<{ ok: true }>(`/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/check`, { method: 'DELETE' }),
+  /** Cut one pane with these deductions instead of the company's rule, and say why. */
+  setCutOverride: (jobId: string, designId: string, paneId: string, override: { widthDeductionMm: number; heightDeductionMm: number; reason: string }) =>
+    send<{ ok: true; cutWidthMm: number; cutHeightMm: number }>(
+      'PUT',
+      `/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/panes/${encodeURIComponent(paneId)}/cut-override`,
+      override
+    ),
+  clearCutOverride: (jobId: string, designId: string, paneId: string) =>
+    call<{ ok: true }>(`/jobs/${encodeURIComponent(jobId)}/designs/${encodeURIComponent(designId)}/panes/${encodeURIComponent(paneId)}/cut-override`, {
+      method: 'DELETE',
+    }),
   writeQuote: (jobId: string) => send<{ ok: true; id: string; number: number }>('POST', `/jobs/${encodeURIComponent(jobId)}/quotes`, {}),
   quote: (jobId: string, quoteId: string, signal?: AbortSignal) =>
     call<QuoteDetail>(`/jobs/${encodeURIComponent(jobId)}/quotes/${encodeURIComponent(quoteId)}`, { signal }),
