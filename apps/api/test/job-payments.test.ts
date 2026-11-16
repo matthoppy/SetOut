@@ -8,6 +8,7 @@ import { env } from 'cloudflare:workers';
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { addMember } from '../src/db/auth';
 import { hashResumeToken, newConfirmationToken } from '../src/db/platform';
+import { deliveryWindow } from '../src/lib/delivery-date';
 import { jobPrice, parseInvoiceDays, paymentSettings, standingOf } from '../src/lib/job-payments';
 import { formEncode, signStripePayload } from '../src/lib/stripe';
 import type { QuoteRow, Row } from '../src/db/tables';
@@ -98,6 +99,32 @@ async function job(options: { quote?: Partial<QuoteRow> | null; confirmed?: bool
 const page = async (token: string, overrides: Overrides = ON, query = '') => callWith(overrides, `/confirm/${token}${query}`, {}, DESIGNER);
 const pay = (token: string, overrides: Overrides = ON, origin: string | null = DESIGNER) =>
   callWith(overrides, `/confirm/${token}/pay`, { method: 'POST', origin: origin ?? null }, DESIGNER);
+
+const CONFIRM_FORM: Record<string, string> = {
+  addr_line1: '12 Holly Lane',
+  addr_line2: '',
+  addr_town: 'St Albans',
+  addr_postcode: 'AL3 5QN',
+  preferred_delivery_date: '', // filled in confirm()
+  can_unload: 'yes',
+  silicone_clear: '0',
+  silicone_black: '0',
+  silicone_white: '0',
+  details_confirmed: 'yes',
+  measurements_accepted: 'yes',
+  terms_accepted: 'yes',
+  signed_name: 'Oliver Milton',
+};
+
+async function confirm(token: string, form: Record<string, string> = {}, overrides: Overrides = ON, origin: string | null = DESIGNER) {
+  const body = { ...CONFIRM_FORM, preferred_delivery_date: deliveryWindow().min, ...form };
+  return callWith(
+    overrides,
+    `/confirm/${token}`,
+    { method: 'POST', origin: origin ?? null, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString() },
+    DESIGNER,
+  );
+}
 const paymentsOf = (jobId: string) => shop.db.find('job_payments', { where: { job_id: jobId }, orderBy: { column: 'created_at' } });
 const eventsOf = (jobId: string, type: string) => shop.db.find('job_events', { where: { job_id: jobId, type } });
 
@@ -223,6 +250,7 @@ describe('the pay button', () => {
     const html = await (await page(made.token, {})).text();
     expect(html).toContain('Coming soon');
     expect(html).toMatch(/<button type="button" class="paybtn" disabled/);
+    expect(html).not.toContain('>Confirm and pay');
     expect(html).not.toContain('/pay"');
     const response = await pay(made.token, {});
     expect(response.status).toBe(303);
@@ -230,15 +258,21 @@ describe('the pay button', () => {
     expect(seen.calls).toBe(0);
   });
 
-  test('waits for the order to be confirmed, and shows the total', async () => {
+  test('before confirming, shows one Confirm and pay button with the live total', async () => {
     const made = await job({ confirmed: false });
     const html = await (await page(made.token)).text();
-    expect(html).toContain('Confirm your order below first');
+    expect(html).toContain('Check the total, including any extras you choose in section 4, then press Confirm and pay below.');
     expect(html).toContain('Total: £450.00');
     expect(html).toContain('The full amount for your order');
+    expect(html).toContain('>Confirm and pay £450.00</button>');
+    expect(html).toContain('data-pay="1"');
+    expect(html).not.toContain('Confirm your order below first');
+    expect(html).not.toMatch(/<button type="button" class="paybtn" disabled/);
+    expect(html).not.toContain('Pay securely');
+    expect(html).not.toContain('id="payform"');
     // The payment card adds no VAT. (The terms of sale say none is charged.)
     expect(html.slice(html.indexOf('id="payment"'), html.indexOf('id="terms"'))).not.toMatch(/VAT/);
-    expect(html).toMatch(/<button type="button" class="paybtn" disabled/);
+    // The old /pay route still refuses until the order is confirmed.
     expect((await pay(made.token)).headers.get('location')).toBe(`/confirm/${made.token}`);
   });
 
@@ -259,10 +293,91 @@ describe('the pay button', () => {
     expect(await paymentsOf(vat.job.id)).toHaveLength(0);
   });
 
+  test('confirming with payments on records the confirmation and opens Checkout in one step', async () => {
+    const made = await job({ confirmed: false });
+    const sent = stripe();
+    const response = await confirm(made.token);
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toMatch(/^https:\/\/checkout\.stripe\.com\/c\/pay\/cs_test_\d+$/);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].path).toBe('/checkout/sessions');
+    const [row] = await paymentsOf(made.job.id);
+    expect(row.amount_pence).toBe(45_000);
+    expect(await eventsOf(made.job.id, 'order_confirmed')).toHaveLength(1);
+    const [started] = await eventsOf(made.job.id, 'checkout_started');
+    expect(started.data).toMatchObject({ amountPence: 45_000, quotePence: 45_000 });
+    const [link] = await shop.db.find('order_confirmations', { where: { job_id: made.job.id } });
+    expect(link.confirmed_at).toBeTruthy();
+  });
+
+  test('confirming with extras includes them in the Checkout total', async () => {
+    const made = await job({ confirmed: false });
+    const sent = stripe();
+    const response = await confirm(made.token, { silicone_clear: '1', silicone_white: '2', silicone_tool: 'yes' });
+    expect(response.status).toBe(303);
+    expect(sent[0].form).toMatchObject({
+      'line_items[0][price_data][unit_amount]': '45000',
+      'line_items[1][price_data][unit_amount]': '850',
+      'line_items[2][price_data][unit_amount]': '850',
+      'line_items[2][price_data][product_data][name]': 'Silicone sealant, white',
+      'line_items[3][price_data][unit_amount]': '495',
+    });
+    const [row] = await paymentsOf(made.job.id);
+    expect(row.amount_pence).toBe(48_045);
+    const [event] = await eventsOf(made.job.id, 'order_confirmed');
+    expect(event.data).toMatchObject({ silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' });
+  });
+
+  test('if Checkout fails after confirming, the confirmation is kept and they can retry', async () => {
+    const made = await job({ confirmed: false });
+    stripe({ '/checkout/sessions': { status: 500, body: { error: { message: 'boom' } } } });
+    const response = await confirm(made.token);
+    expect(response.status).toBe(502);
+    const html = await response.text();
+    expect(html).toContain('Thank you, your details are confirmed');
+    expect(html).toContain('open the payment page just now. Please try again in a few minutes');
+    expect(html).toContain('<span>Pay £450.00</span>');
+    expect(html).toContain(`<form id="payform" method="post" action="/confirm/${made.token}/pay">`);
+    expect(html).not.toContain('boom');
+    expect(await eventsOf(made.job.id, 'order_confirmed')).toHaveLength(1);
+    expect(await paymentsOf(made.job.id)).toHaveLength(0);
+    // Retry on the Pay button still works.
+    const sent = stripe();
+    const retry = await pay(made.token);
+    expect(retry.status).toBe(303);
+    expect(retry.headers.get('location')).toMatch(/^https:\/\/checkout\.stripe\.com\/c\/pay\/cs_test_\d+$/);
+    expect(sent).toHaveLength(1);
+  });
+
+  test('an incomplete form is not confirmed and does not open Checkout', async () => {
+    const seen = nothingGoesOut();
+    const made = await job({ confirmed: false });
+    const response = await confirm(made.token, { terms_accepted: '' });
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain('>Confirm and pay');
+    expect(await eventsOf(made.job.id, 'order_confirmed')).toHaveLength(0);
+    expect(await paymentsOf(made.job.id)).toHaveLength(0);
+    expect(seen.calls).toBe(0);
+  });
+
+  test('payments off still confirms only, and does not call Stripe', async () => {
+    const seen = nothingGoesOut();
+    const made = await job({ confirmed: false });
+    const response = await confirm(made.token, {}, {});
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(`/confirm/${made.token}`);
+    expect(await eventsOf(made.job.id, 'order_confirmed')).toHaveLength(1);
+    expect(await paymentsOf(made.job.id)).toHaveLength(0);
+    expect(seen.calls).toBe(0);
+  });
+
   test('once confirmed, posts to the Worker, which opens Checkout for the whole order with no tax', async () => {
     const made = await job();
     const html = await (await page(made.token)).text();
     expect(html).toContain(`<form id="payform" method="post" action="/confirm/${made.token}/pay">`);
+    expect(html).toContain('<span>Pay £450.00</span>');
+    expect(html).not.toContain('Pay securely');
     expect(html).toContain('Total: £450.00');
     const sent = stripe();
     const response = await pay(made.token);
@@ -433,6 +548,8 @@ describe('the pay button', () => {
     expect(response.status).toBe(502);
     const html = await response.text();
     expect(html).toContain('open the payment page just now. Please try again in a few minutes');
+    expect(html).toContain('<span>Pay £450.00</span>');
+    expect(html).toContain(`<form id="payform" method="post" action="/confirm/${made.token}/pay">`);
     expect(html).not.toContain('boom');
     expect(await paymentsOf(made.job.id)).toHaveLength(0);
   });

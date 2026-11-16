@@ -182,21 +182,14 @@ confirmation.get('/:token', async (c) => {
 });
 
 /**
- * Pay: start a Checkout session on Stripe's own page and send the customer
- * there. Only from this page, only once the order is confirmed, only if the
- * job is not already paid, and only for the whole order as the job's quote says.
+ * Start Checkout and send the customer to Stripe. The caller has already
+ * checked this post came from the page and that the order is confirmed.
  * A session still open is used again rather than starting a second.
+ * If Checkout fails, the confirmation is kept and the thank-you is shown
+ * with an error and a Pay button to try again.
  */
-confirmation.post('/:token/pay', async (c) => {
-  const origin = c.req.header('origin');
-  const sameSite = origin === new URL(c.req.url).origin || ((!origin || origin === 'null') && c.req.header('sec-fetch-site') === 'same-origin');
-  if (!sameSite) return page(c, notFoundPage, 403);
-  const found = await open(c.env, c.req.param('token'));
-  if (!found) return page(c, notFoundPage, 404);
-  const confirmPath = c.req.path.replace(/\/pay$/, '');
+async function startCheckout(c: Ctx, found: Opened, confirmPath: string): Promise<Response> {
   const back = () => c.redirect(confirmPath, 303);
-  if (!found.link.confirmed_at) return back();
-
   const view = await payView(c.env, found, confirmPath);
   if (view.kind !== 'ready' && view.kind !== 'failed') return back();
   const settings = paymentSettings(c.env, found.db.companyId);
@@ -280,12 +273,30 @@ confirmation.post('/:token/pay', async (c) => {
     });
     return page(c, (n) => thankYouPage(found.summary, n, pay), 502);
   }
+}
+
+/**
+ * Pay: start a Checkout session on Stripe's own page and send the customer
+ * there. Only from this page, only once the order is confirmed, only if the
+ * job is not already paid, and only for the whole order as the job's quote says.
+ */
+confirmation.post('/:token/pay', async (c) => {
+  const origin = c.req.header('origin');
+  const sameSite = origin === new URL(c.req.url).origin || ((!origin || origin === 'null') && c.req.header('sec-fetch-site') === 'same-origin');
+  if (!sameSite) return page(c, notFoundPage, 403);
+  const found = await open(c.env, c.req.param('token'));
+  if (!found) return page(c, notFoundPage, 404);
+  const confirmPath = c.req.path.replace(/\/pay$/, '');
+  if (!found.link.confirmed_at) return c.redirect(confirmPath, 303);
+  return startCheckout(c, found, confirmPath);
 });
 
 /**
  * Confirm the order. A mistake comes back with the answers kept and the first
  * problem shown. Confirming twice changes nothing: the second is sent to the
  * thank-you, and the database refuses a second confirmation outright.
+ * When payments are open and there is a price, confirmation then starts
+ * Checkout in the same request and sends the customer to Stripe.
  */
 confirmation.post('/:token', async (c) => {
   // From this page only. A form post says its origin; where a browser sends
@@ -346,5 +357,12 @@ confirmation.post('/:token', async (c) => {
         .catch(() => undefined)
     );
   }
+
+  // Payments are open and there is a price: record the confirmation, then
+  // open Checkout in this same request. If Checkout fails, the confirmation
+  // is kept and the customer is shown a Pay button to try again.
+  const confirmed: Opened = { ...found, link: { ...link, confirmed_at: answers.submitted_at } };
+  const pay = await payView(c.env, confirmed, c.req.path);
+  if (pay.kind === 'ready' || pay.kind === 'failed') return startCheckout(c, confirmed, c.req.path);
   return done();
 });

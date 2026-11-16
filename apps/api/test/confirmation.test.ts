@@ -124,6 +124,9 @@ describe('the page', () => {
     expect(html).toContain('data-part="floor-channel"');
     expect(html).toContain("They're added to your total when you pay.");
     expect(html).toMatch(/<button type="button" class="paybtn" disabled[^>]*>.*Pay securely<\/button>/s);
+    expect(html).toContain('>Confirm my order</button>');
+    expect(html).not.toContain('>Confirm and pay');
+    expect(html).toContain('Coming soon');
   });
 
   test('asks for the delivery address in section 3, with the job’s postcode filled in', async () => {
@@ -182,6 +185,18 @@ describe('the page', () => {
     expect(html).toMatch(/Shower glass package<\/span><span class="amt">£449\.00<\/span>/);
     expect(html).toContain('<span class="amt" id="pay_total">£449.00</span>');
     expect(html).toContain('<strong id="pay_headline">Total: £449.00</strong>');
+    expect(html).toContain('Check the total, including any extras you choose in section 4, then press Confirm and pay below.');
+    expect(html).toContain('>Confirm and pay £449.00</button>');
+    expect(html).toContain('data-pay="1"');
+    expect(html).toContain('press Confirm and pay');
+    expect(html).toContain('7</span>Confirm and pay');
+    expect(html).not.toMatch(/<button type="button" class="paybtn" disabled/);
+    expect(html).not.toContain('Pay securely');
+    expect(html).not.toContain('Confirm your order below first');
+    expect(html).not.toContain('id="payform"');
+    const scripts = [...html.matchAll(/<script nonce="[^"]*">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const code of scripts) expect(() => new Function(code)).not.toThrow();
   });
 
   test("the page's script is valid JavaScript", async () => {
@@ -192,13 +207,26 @@ describe('the page', () => {
   });
 
   test('a form sent back with extras shows them in the price, and the total with them', async () => {
-    const { paymentCard } = await import('../src/lib/order-confirmation');
+    const { paymentCard, formPage, summarise } = await import('../src/lib/order-confirmation');
     const card = paymentCard({ kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } }, extrasOf({ silicone_tubes: { clear: 1, white: 0, black: 2 }, silicone_tool: 'yes' }));
     expect(card).toContain('Silicone sealant, clear</span><span class="amt">£8.50');
     expect(card).toContain('Silicone sealant, black × 2</span><span class="amt">£17.00');
     expect(card).toContain('Silicone finishing tool</span><span class="amt">£4.95');
     expect(card).toContain('id="pay_total">£479.45</span>');
     expect(card).toContain('Total: £479.45');
+    expect(card).not.toMatch(/<button type="button" class="paybtn" disabled/);
+    expect(card).not.toContain('Pay securely');
+    const [design] = await shop.db.find('designs', { where: { job_id: jobId } });
+    const [revision] = await shop.db.find('design_revisions', { where: { design_id: design.id } });
+    const summary = summarise({ reference: 'CS-1001', customerName: 'Oliver Milton', postcode: 'AL3 5QN', design: revision.document.design, spec });
+    const html = formPage(
+      summary,
+      '/confirm/x',
+      { values: { silicone_clear: '1', silicone_black: '2', silicone_tool: 'yes' }, error: null },
+      'n',
+      { kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } },
+    );
+    expect(html).toContain('>Confirm and pay £479.45</button>');
   });
 
   test('the sizing note under the drawing is the reference wording, shown, and leaks nothing', async () => {

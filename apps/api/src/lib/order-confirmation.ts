@@ -619,9 +619,13 @@ export function formPage(
   sizingNote: boolean = SHOW_SIZING_NOTE
 ): string {
   const v = state.values;
+  const liveExtras = formExtrasOf(v);
+  const payNow = pay.kind === 'confirm_first' && pay.amount ? pay.amount : null;
+  const payTotal = payNow ? (payNow.packagePence ?? payNow.pence) + extrasPence(liveExtras) : null;
+  const press = payTotal != null ? 'press Confirm and pay' : 'press confirm';
   const hello = s.firstName
-    ? `Hi ${s.firstName}, check the details below, answer a couple of quick questions and press confirm. It takes about two minutes.`
-    : 'Check the details below, answer a couple of quick questions and press confirm. It takes about two minutes.';
+    ? `Hi ${s.firstName}, check the details below, answer a couple of quick questions and ${press}. It takes about two minutes.`
+    : `Check the details below, answer a couple of quick questions and ${press}. It takes about two minutes.`;
   const weighs = `${s.panelCount === 1 ? 'Your panel weighs' : 'Your glass weighs'} about ${s.weightKg}kg. It's delivered by one driver, to the ground floor only, so someone at the property needs to help lift it off the van.`;
   const drawings = s.drawing
     ? `<div class="card">
@@ -700,7 +704,7 @@ ${paymentCard(pay, formExtrasOf(v))}
 </div>
 
 <div class="card">
-<h2><span class="n">7</span>Confirm</h2>
+<h2><span class="n">7</span>${payTotal != null ? 'Confirm and pay' : 'Confirm'}</h2>
 <p class="sub">Please read and tick all three boxes.</p>
 <label class="check"><input type="checkbox" name="details_confirmed" value="yes"${v.details_confirmed ? ' checked' : ''}><span>I've checked the sizes, glass, fixing and drawing above and they're correct.</span></label>
 <label class="check"><input type="checkbox" name="measurements_accepted" value="yes"${v.measurements_accepted ? ' checked' : ''}><span>I measured this myself. I understand the glass is toughened and made to these measurements, so it can't be altered afterwards, and if my measurements turn out to be wrong a replacement panel is a new order at my cost.</span></label>
@@ -713,21 +717,21 @@ ${paymentCard(pay, formExtrasOf(v))}
 <label class="t" for="comments">Comments or questions <span class="opt">(optional)</span></label>
 <textarea id="comments" name="comments" maxlength="${LIMITS.comments}">${esc(v.comments ?? '')}</textarea>
 </div>
-<button class="submit" type="submit" id="btn">Confirm my order</button>
+<button class="submit" type="submit" id="btn"${payTotal != null ? ' data-pay="1"' : ''}>${payTotal != null ? esc(`Confirm and pay ${pounds(payTotal)}`) : 'Confirm my order'}</button>
 ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` : ''}
 </div>
 </form>
 </div></main>`;
   // Only to stop a second press while the first is on its way. The page works without it.
-  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent='Sending\\u2026'},0)});
+  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent=b.getAttribute('data-pay')==='1'?'Opening secure payment\\u2026':'Sending\\u2026'},0)});
 (function(){var f=document.getElementById('form'),out=document.getElementById('extras_total'),T=${EXTRA_PRICES.siliconeTubePence},K=${EXTRA_PRICES.toolPence},M=${LIMITS.tubes};
 function n(c){var x=parseInt(f.elements['silicone_'+c].value,10);return isNaN(x)?0:Math.max(0,Math.min(M,x))}
 function g(p){return '\\u00a3'+(p/100).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
-var W={clear:'clear',white:'white',black:'black'},box=document.getElementById('price_lines'),xl=document.getElementById('extra_lines'),tt=document.getElementById('pay_total'),hd=document.getElementById('pay_headline');
+var W={clear:'clear',white:'white',black:'black'},box=document.getElementById('price_lines'),xl=document.getElementById('extra_lines'),tt=document.getElementById('pay_total'),hd=document.getElementById('pay_headline'),btn=document.getElementById('btn');
 function row(d,p){var r=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');r.className='line';a.className='desc';b.className='amt';a.textContent=d;b.textContent=g(p);r.appendChild(a);r.appendChild(b);return r}
 function sum(){var p=(n('clear')+n('white')+n('black'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: '+g(p);
 if(!box)return;xl.textContent='';['clear','white','black'].forEach(function(c){var q=n(c);if(q)xl.appendChild(row('Silicone sealant, '+W[c]+(q>1?' \\u00d7 '+q:''),q*T))});if(f.elements.silicone_tool.checked)xl.appendChild(row('Silicone finishing tool',K));
-var t=Number(box.getAttribute('data-package'))+p;tt.textContent=g(t);if(hd)hd.textContent='Total: '+g(t)}
+var t=Number(box.getAttribute('data-package'))+p;tt.textContent=g(t);if(hd)hd.textContent='Total: '+g(t);if(btn&&btn.getAttribute('data-pay')==='1')btn.textContent='Confirm and pay '+g(t)}
 f.addEventListener('click',function(e){var b=e.target.closest('.qb');if(!b)return;var c=b.getAttribute('data-k');f.elements['silicone_'+c].value=Math.max(0,Math.min(M,n(c)+Number(b.getAttribute('data-d'))));sum()});
 f.addEventListener('input',sum);f.addEventListener('change',sum)})();`;
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
@@ -834,13 +838,13 @@ ${inner}
     case 'no_price':
       return card('', "Your final price isn't ready yet.", box('Total: not set yet', "We'll email your quote, then you can pay here. Nothing is charged until then.", disabledButton));
     case 'confirm_first': {
-      if (!pay.amount) return card('', 'Confirm your order below first, then you can pay securely here.', box('Total: shown on your quote', 'Payment opens once you confirm.', disabledButton));
+      if (!pay.amount) return card('', 'Confirm your order below first. Payment opens once a price is set.', box('Total: shown on your quote', 'Payment opens once you confirm.', ''));
       const shown = { ...pay.amount, pence: (pay.amount.packagePence ?? pay.amount.pence) + extrasPence(formExtras ?? []) };
       const words = amountWords(shown, false);
       return card(
         '',
-        'Confirm your order below first, then you can pay securely here.',
-        `${priceLines(pay.amount, formExtras ?? [])}${box(words.headline, words.detail, disabledButton).replace('<strong>', '<strong id="pay_headline">')}`
+        'Check the total, including any extras you choose in section 4, then press Confirm and pay below.',
+        `${priceLines(pay.amount, formExtras ?? [])}${box(words.headline, words.detail, '').replace('<strong>', '<strong id="pay_headline">')}`
       );
     }
     case 'ready':
@@ -850,7 +854,7 @@ ${inner}
       return card(
         '',
         'Pay by card or another method on Stripe\'s secure page. We never see your card details.',
-        `${priceLines(pay.amount, null)}${box(words.headline, words.detail, payForm(pay.action, 'Pay securely'))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
+        `${priceLines(pay.amount, null)}${box(words.headline, words.detail, payForm(pay.action, `Pay ${pounds(pay.amount.pence)}`))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
       );
     }
     case 'processing':
