@@ -1031,7 +1031,7 @@ function deliveryAddressOf(d: Record<string, unknown>): string[] | null {
 function siliconeWords(d: Record<string, unknown>): string {
   const tubes = d.silicone_tubes as Record<string, unknown> | undefined;
   if (tubes && typeof tubes === 'object') {
-    const parts = ['clear', 'translucent', 'white'].filter((c) => Number(tubes[c]) > 0).map((c) => `${Number(tubes[c])} ${c}`);
+    const parts = ['clear', 'white', 'black'].filter((c) => Number(tubes[c]) > 0).map((c) => `${Number(tubes[c])} ${c}`);
     return parts.length ? parts.join(', ') : 'none';
   }
   return d.silicone === 'yes' ? String(d.silicone_colour) : 'no';

@@ -309,7 +309,7 @@ describe('the pay button', () => {
       job_id: made.job.id,
       type: 'order_confirmed',
       actor_kind: 'customer',
-      data: { confirmationId: link.id, silicone_tubes: { clear: 1, translucent: 0, white: 2 }, silicone_tool: 'yes' },
+      data: { confirmationId: link.id, silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' },
     });
     // 450.00 + 3 tubes at 8.50 + the tool at 4.95.
     expect(await (await page(made.token)).text()).toContain('Total: £480.45');

@@ -36,7 +36,7 @@ const FULL: Record<string, string> = {
   can_unload: 'yes',
   unload_note: 'Drive is steep.',
   silicone_clear: '1',
-  silicone_translucent: '0',
+  silicone_black: '0',
   silicone_white: '2',
   details_confirmed: 'yes',
   measurements_accepted: 'yes',
@@ -141,11 +141,14 @@ describe('the page', () => {
 
   test('sells silicone by the tube in three colours, and the tool as a tick box, with their prices', async () => {
     const html = await (await page(await linkFor(shop, jobId))).text();
-    for (const c of ['clear', 'translucent', 'white']) expect(html).toMatch(new RegExp(`type="number"[^>]*name="silicone_${c}" min="0" max="10" step="1" value="0"`));
+    for (const c of ['clear', 'white', 'black']) expect(html).toMatch(new RegExp(`type="number"[^>]*name="silicone_${c}" min="0" max="10" step="1" value="0"`));
     expect(html).toContain('£8.50 per tube');
-    expect(html).toContain("One tube of clear or translucent is enough to seal the glass into the channel. Add a white tube if you'd also like to seal where the channel meets the tiles.");
+    expect(html).toContain('This job needs at least one tube of clear silicone to seal the glass into the channel. Add one here, or use your own if you already have some. You can also add white or black, for example to seal where the channel meets the tiles.');
+    expect(html.indexOf('name="silicone_clear"')).toBeLessThan(html.indexOf('name="silicone_white"'));
+    expect(html.indexOf('name="silicone_white"')).toBeLessThan(html.indexOf('name="silicone_black"'));
+    expect(html).not.toMatch(/translucent/i);
     expect(html).toMatch(/<input type="checkbox" name="silicone_tool" value="yes">.*Silicone finishing tool.*£4\.95/s);
-    expect(html).not.toMatch(/name="silicone"|silicone_colour|Black/);
+    expect(html).not.toMatch(/name="silicone"|silicone_colour/);
     expect(html).toContain('Extras: £0.00');
   });
 
@@ -229,7 +232,7 @@ describe('the answers', () => {
       [{ ...FULL, can_unload: 'maybe' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
       [{ ...FULL, silicone_clear: '11' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
       [{ ...FULL, silicone_white: '-1' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
-      [{ ...FULL, silicone_translucent: '1.5' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
+      [{ ...FULL, silicone_black: '1.5' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
       [{ ...FULL, silicone_clear: 'two' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
       [{ ...FULL, details_confirmed: '' }, 'Please tick all three confirmation boxes.'],
       [{ ...FULL, measurements_accepted: '' }, 'Please tick all three confirmation boxes.'],
@@ -246,11 +249,11 @@ describe('the answers', () => {
 
   test('tidy the address, count the tubes, and record the terms with the server’s time', () => {
     const at = new Date('2026-11-16T19:00:00.000Z');
-    const read = readAnswers('CS-1', { ...FULL, preferred_delivery_date: '2026-11-30', silicone_translucent: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
+    const read = readAnswers('CS-1', { ...FULL, preferred_delivery_date: '2026-11-30', silicone_black: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
     expect('answers' in read && read.answers).toMatchObject({
       delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
       preferred_delivery_date: '2026-11-30',
-      silicone_tubes: { clear: 1, translucent: 0, white: 2 },
+      silicone_tubes: { clear: 1, white: 2, black: 0 },
       silicone_tool: 'yes',
       terms_accepted: true,
       terms_version: 'sha256:abc',
@@ -258,7 +261,7 @@ describe('the answers', () => {
     });
     // An unticked tool box sends nothing at all.
     const none = readAnswers('CS-1', { ...FULL, silicone_clear: '0', silicone_white: '0' }, { version: 'v' });
-    expect('answers' in none && [none.answers.silicone_tubes, none.answers.silicone_tool]).toEqual([{ clear: 0, translucent: 0, white: 0 }, 'no']);
+    expect('answers' in none && [none.answers.silicone_tubes, none.answers.silicone_tool]).toEqual([{ clear: 0, white: 0, black: 0 }, 'no']);
   });
 
   test('a delivery date: weekdays only, from 10 working days to 90 days ahead, in London’s dates', () => {
@@ -293,12 +296,18 @@ describe('the answers', () => {
   });
 
   test('extras are one line per colour ordered, at 850p a tube, and the tool at 495p', () => {
-    expect(extrasOf({ silicone_tubes: { clear: 1, translucent: 0, white: 2 }, silicone_tool: 'yes' })).toEqual([
+    expect(extrasOf({ silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' })).toEqual([
       { key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 },
       { key: 'silicone:white', description: 'Silicone sealant, white', quantity: 2, unitPence: 850 },
       { key: 'silicone-tool', description: 'Silicone finishing tool', quantity: 1, unitPence: 495 },
     ]);
-    expect(extrasOf({ silicone_tubes: { clear: 0, translucent: 0, white: 0 }, silicone_tool: 'no' })).toEqual([]);
+    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
+    // Clear can be 0: the customer may use their own.
+    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 3 }, silicone_tool: 'no' })).toEqual([
+      { key: 'silicone:black', description: 'Silicone sealant, black', quantity: 3, unitPence: 850 },
+    ]);
+    // A colour that is not sold is ignored.
+    expect(extrasOf({ silicone_tubes: { clear: 0, translucent: 2, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
     // Saved before tubes were counted: one tube of the colour chosen.
     expect(extrasOf({ silicone: 'yes', silicone_colour: 'clear', silicone_tool: 'no' })).toEqual([{ key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 }]);
   });
@@ -386,7 +395,7 @@ describe('confirming', () => {
       preferred_delivery_date: FULL.preferred_delivery_date,
       can_unload: 'yes',
       unload_note: 'Drive is steep.',
-      silicone_tubes: { clear: 1, translucent: 0, white: 2 },
+      silicone_tubes: { clear: 1, white: 2, black: 0 },
       silicone_tool: 'no',
       signed_name: 'Oliver Milton',
       comments: '',

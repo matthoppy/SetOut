@@ -196,11 +196,14 @@ export interface DeliveryAddress {
 }
 
 /** The silicone colours sold by the tube (Matt, 16 November 2026). */
-export const SILICONE_COLOURS = ['clear', 'translucent', 'white'] as const;
+/** Word for word from the reference page. Clear may still be 0: the customer may use their own. */
+export const SILICONE_HINT =
+  "This job needs at least one tube of clear silicone to seal the glass into the channel. Add one here, or use your own if you already have some. You can also add white or black, for example to seal where the channel meets the tiles.";
+export const SILICONE_COLOURS = ['clear', 'white', 'black'] as const;
 export type SiliconeColour = (typeof SILICONE_COLOURS)[number];
 export type SiliconeTubes = Record<SiliconeColour, number>;
 
-const COLOUR_WORDS: Record<SiliconeColour, string> = { clear: 'Clear', translucent: 'Translucent', white: 'White' };
+const COLOUR_WORDS: Record<SiliconeColour, string> = { clear: 'Clear', white: 'White', black: 'Black' };
 
 /**
  * The optional extras' prices, in pence (Matt, 16 November 2026). Charged on
@@ -260,7 +263,7 @@ export function extrasOf(answers: Record<string, unknown> | null | undefined): E
 
 /** The tube counts in saved answers, of either shape. */
 export function tubesOf(answers: Record<string, unknown>): SiliconeTubes {
-  const tubes: SiliconeTubes = { clear: 0, translucent: 0, white: 0 };
+  const tubes: SiliconeTubes = { clear: 0, white: 0, black: 0 };
   const saved = answers.silicone_tubes as Record<string, unknown> | undefined;
   if (saved && typeof saved === 'object') {
     for (const colour of SILICONE_COLOURS) {
@@ -325,7 +328,7 @@ export function readAnswers(
   if ('error' in date) return date;
   const canUnload = oneOf(form.can_unload, ['yes', 'no'] as const);
   if (!canUnload) return { error: 'Please tell us if someone can help take the glass off the van (section 3).' };
-  const tubes: SiliconeTubes = { clear: 0, translucent: 0, white: 0 };
+  const tubes: SiliconeTubes = { clear: 0, white: 0, black: 0 };
   for (const colour of SILICONE_COLOURS) {
     const raw = text(form[`silicone_${colour}`]);
     const n = raw === '' ? 0 : /^\d{1,2}$/.test(raw) ? Number(raw) : NaN;
@@ -486,7 +489,7 @@ dl.spec dd{margin:0;font-weight:600;color:var(--ink);text-align:right}
 .seg input:checked+label{border-color:var(--navy);background:var(--navy);color:#fff}
 .seg input:focus-visible+label{outline:3px solid #93c5fd;outline-offset:2px}
 .swatch{width:14px;height:14px;border-radius:50%;border:1px solid #94a3b8;margin-right:8px;flex:none}
-.swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.translucent{background:linear-gradient(135deg,#f8fafc,#cbd5e1);opacity:.7}.swatch.white{background:#fff}
+.swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.white{background:#fff}.swatch.black{background:#111}
 .note{background:#f0f7fd;border:1px solid #cfe6f7;color:#12406b;border-radius:10px;padding:12px 14px;font-size:14px;margin:14px 0 0}
 .terms{margin:0;padding-left:18px;color:var(--ink);font-size:14px;line-height:1.5}
 .terms li{margin:0 0 8px}
@@ -670,7 +673,7 @@ ${drawings}
 <p class="sub">Add these to your order if you need them. They're added to your total when you pay.</p>
 <fieldset class="q">
 <legend class="t">Silicone sealant <span class="opt">${esc(pounds(EXTRA_PRICES.siliconeTubePence))} per tube</span></legend>
-<p class="price hint">One tube of clear or translucent is enough to seal the glass into the channel. Add a white tube if you'd also like to seal where the channel meets the tiles.</p>
+<p class="price hint">${esc(SILICONE_HINT)}</p>
 ${SILICONE_COLOURS.map((c) => tubeRow(c, v[`silicone_${c}`])).join('')}
 </fieldset>
 <label class="check priced"><input type="checkbox" name="silicone_tool" value="yes"${ticked(v.silicone_tool) ? ' checked' : ''}><span class="ex"><strong>Silicone finishing tool</strong><span class="price">For a neat, smooth silicone bead.</span></span><span class="amt">${esc(pounds(EXTRA_PRICES.toolPence))}</span></label>
@@ -708,7 +711,7 @@ ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` :
   const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent='Sending\\u2026'},0)});
 (function(){var f=document.getElementById('form'),out=document.getElementById('extras_total'),T=${EXTRA_PRICES.siliconeTubePence},K=${EXTRA_PRICES.toolPence},M=${LIMITS.tubes};
 function n(c){var x=parseInt(f.elements['silicone_'+c].value,10);return isNaN(x)?0:Math.max(0,Math.min(M,x))}
-function sum(){var p=(n('clear')+n('translucent')+n('white'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: \\u00a3'+(p/100).toFixed(2)}
+function sum(){var p=(n('clear')+n('white')+n('black'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: \\u00a3'+(p/100).toFixed(2)}
 f.addEventListener('click',function(e){var b=e.target.closest('.qb');if(!b)return;var c=b.getAttribute('data-k');f.elements['silicone_'+c].value=Math.max(0,Math.min(M,n(c)+Number(b.getAttribute('data-d'))));sum()});
 f.addEventListener('input',sum);f.addEventListener('change',sum)})();`;
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
