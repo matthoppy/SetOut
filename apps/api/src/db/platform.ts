@@ -205,6 +205,44 @@ export async function resolveQuoteLink(env: Pick<Env, 'DB'>, token: unknown): Pr
 }
 
 // ---------------------------------------------------------------------------
+// Order confirmation links
+// ---------------------------------------------------------------------------
+
+/**
+ * The link a customer confirms their order with: the sizes, how the glass is
+ * taken off the van, any extras, and their name. Whoever holds it can see that
+ * one job's order summary and confirm it, and nothing else, so it is long,
+ * random and never stored: only its hash is.
+ */
+export function newConfirmationToken(): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let token = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(32))) token += alphabet[byte & 31];
+  return `oc_${token}`;
+}
+
+const CONFIRMATION_TOKEN = /^oc_[a-z0-9]{32}$/;
+
+/**
+ * Which confirmation a link opens, and so which company the request belongs
+ * to. Null for a link that is not one, is unknown, or whose company is no
+ * longer active.
+ */
+export async function resolveConfirmationLink(
+  env: Pick<Env, 'DB'>,
+  token: unknown
+): Promise<{ companyId: string; confirmationId: string } | null> {
+  if (typeof token !== 'string' || !CONFIRMATION_TOKEN.test(token)) return null;
+  const row = await env.DB.prepare(
+    `SELECT o.company_id AS companyId, o.id AS confirmationId FROM order_confirmations o JOIN companies c ON c.id = o.company_id
+      WHERE o.link_token_hash = ? AND c.status = 'active'`
+  )
+    .bind(await hashResumeToken(token))
+    .first<{ companyId: string; confirmationId: string }>();
+  return row ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // People
 // ---------------------------------------------------------------------------
 

@@ -21,7 +21,7 @@ export interface Seeded {
 /**
  * A company with one of everything: a designer, a customer, a job with a
  * design and a revision, a draft, a file, an event, a member of staff, a
- * quote, a price and a subscription.
+ * quote, a price, a subscription and an order confirmation link.
  */
 export async function seedCompany(name: string, prefix: string): Promise<Seeded> {
   const company = await createCompany(env, { name, referencePrefix: prefix });
@@ -100,6 +100,11 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     stripe_customer_id: `cus_${prefix}`,
   });
 
+  const confirmation = await db.insert('order_confirmations', {
+    job_id: job.id,
+    link_token_hash: `hash-of-${prefix}-confirmation`,
+  });
+
   return {
     company,
     db,
@@ -117,6 +122,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       quotes: quote,
       price_list: price,
       subscriptions: subscription,
+      order_confirmations: confirmation,
     },
   };
 }

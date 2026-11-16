@@ -41,6 +41,7 @@ import { signInEmail } from '../lib/sign-in-email';
 import { isPlatformAdmin, signUpsAreOpen } from '../lib/sign-up';
 import { staffBilling } from './billing';
 import { signUp } from './sign-up';
+import { staffConfirmations } from './staff-confirmations';
 import { staffQuotes } from './staff-quotes';
 import { staffSettings } from './settings';
 import { addedToTeamEmail } from '../lib/team-email';
@@ -531,6 +532,7 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
 }
 
 staff.route('/', staffQuotes);
+staff.route('/', staffConfirmations);
 staff.route('/', staffSettings);
 
 // ---------------------------------------------------------------------------

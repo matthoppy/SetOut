@@ -28,6 +28,7 @@ export const ID_PREFIX = {
   price: 'prc',
   subscription: 'sbn',
   siteEnquiry: 'enq',
+  confirmation: 'ocf',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

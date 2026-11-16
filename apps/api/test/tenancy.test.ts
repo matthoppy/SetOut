@@ -33,6 +33,7 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   quotes: { note: 'tampered' },
   price_list: { unit_price_pence: 1 },
   subscriptions: { status: 'active', plan_id: 'free' },
+  order_confirmations: { confirmed_at: '2000-01-01T00:00:00.000Z' },
 };
 
 let ours: Seeded;
