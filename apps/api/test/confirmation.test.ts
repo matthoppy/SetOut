@@ -122,7 +122,6 @@ describe('the page', () => {
     expect(html).not.toMatch(/handle/i);
     expect(html).toContain('data-part="wall-channel"');
     expect(html).toContain('data-part="floor-channel"');
-    expect(html).toContain("They're added to your total when you pay.");
     expect(html).toMatch(/<button type="button" class="paybtn" disabled[^>]*>.*Pay securely<\/button>/s);
     expect(html).toContain('>Confirm my order</button>');
     expect(html).not.toContain('>Confirm and pay');
@@ -132,8 +131,8 @@ describe('the page', () => {
   test('asks for the delivery address in section 3, with the job’s postcode filled in', async () => {
     const html = await (await page(await linkFor(shop, jobId))).text();
     const sections = [...html.matchAll(/<h2><span class="n">(\d)<\/span>([^<]+)/g)].map((m) => `${m[1]} ${m[2]}`);
-    expect(sections).toEqual(['1 Your glass', '2 Drawing', '3 Delivery', '4 Optional extras', '5 Payment', '6 Terms of sale', '7 Confirm']);
-    const delivery = html.slice(html.indexOf('3</span>Delivery'), html.indexOf('4</span>Optional extras'));
+    expect(sections).toEqual(['1 Your glass', '2 Drawing', '3 Delivery', '4 Payment', '5 Terms of sale', '6 Confirm']);
+    const delivery = html.slice(html.indexOf('3</span>Delivery'), html.indexOf('4</span>Payment'));
     for (const name of ['addr_line1', 'addr_line2', 'addr_town', 'addr_postcode']) expect(delivery).toContain(`name="${name}"`);
     expect(delivery).toMatch(/name="addr_postcode"[^>]*value="AL3 5QN"/);
     expect(delivery).toContain('Delivery / site address');
@@ -142,22 +141,20 @@ describe('the page', () => {
     expect(delivery).toContain("we'll confirm the date once the glass is ready.");
   });
 
-  test('sells silicone by the tube in three colours, and the tool as a tick box, with their prices', async () => {
+  test('does not offer silicone tubes or a finishing tool', async () => {
     const html = await (await page(await linkFor(shop, jobId))).text();
-    for (const c of ['clear', 'white', 'black']) expect(html).toMatch(new RegExp(`type="number"[^>]*name="silicone_${c}" min="0" max="10" step="1" value="0"`));
-    expect(html).toContain('£8.50 per tube');
-    expect(html).toContain('This job needs at least one tube of clear silicone to seal the glass into the channel. Add one here, or use your own if you already have some. You can also add white or black, for example to seal where the channel meets the tiles.');
-    expect(html.indexOf('name="silicone_clear"')).toBeLessThan(html.indexOf('name="silicone_white"'));
-    expect(html.indexOf('name="silicone_white"')).toBeLessThan(html.indexOf('name="silicone_black"'));
-    expect(html).not.toMatch(/translucent/i);
-    expect(html).toMatch(/<input type="checkbox" name="silicone_tool" value="yes">.*Silicone finishing tool.*£4\.95/s);
-    expect(html).not.toMatch(/name="silicone"|silicone_colour/);
-    expect(html).toContain('Extras: £0.00');
+    expect(html).not.toContain('Optional extras');
+    expect(html).not.toContain('Silicone sealant');
+    expect(html).not.toContain('Silicone finishing tool');
+    expect(html).not.toContain('£8.50');
+    expect(html).not.toContain('£4.95');
+    expect(html).not.toMatch(/name="silicone_|name="silicone_tool"/);
+    expect(html).not.toContain('Extras:');
   });
 
   test('shows the terms of sale word for word, and a third box to agree to them', async () => {
     const html = await (await page(await linkFor(shop, jobId))).text();
-    const terms = html.slice(html.indexOf('6</span>Terms of sale'), html.indexOf('7</span>Confirm'));
+    const terms = html.slice(html.indexOf('5</span>Terms of sale'), html.indexOf('6</span>Confirm'));
     const unescape = (t: string) => t.replace(/&#39;/g, "'").replace(/&amp;/g, '&');
     const items = [...terms.matchAll(/<li><strong>([^<]+)<\/strong> ([^<]+)<\/li>/g)].map((m) => ({ title: unescape(m[1]), text: unescape(m[2]) }));
     expect(items).toEqual([...DEFAULT_TERMS]);
@@ -179,17 +176,16 @@ describe('the page', () => {
     });
     const html = await (await callWith({ JOB_PAYMENTS_COMPANY: shop.id, JOB_STRIPE_SECRET_KEY: 'sk_test_abc123' }, `/confirm/${await linkFor(shop, made.job.id)}`, {}, DESIGNER)).text();
     expect(html).toContain('Total: £449.00');
-    expect(html).toContain('including any extras you choose in section 4. Delivered kerbside to the address in section 3.');
-    // The price, line by line, kept up to date as extras are chosen.
+    expect(html).toContain('The full amount for your order. Delivered kerbside to the address in section 3.');
     expect(html).toContain('<div class="quote" id="price_lines" data-package="44900">');
     expect(html).toMatch(/Shower glass package<\/span><span class="amt">£449\.00<\/span>/);
     expect(html).toContain('<span class="amt" id="pay_total">£449.00</span>');
     expect(html).toContain('<strong id="pay_headline">Total: £449.00</strong>');
-    expect(html).toContain('Check the total, including any extras you choose in section 4, then press Confirm and pay below.');
+    expect(html).toContain('Check the total, then press Confirm and pay below.');
     expect(html).toContain('>Confirm and pay £449.00</button>');
     expect(html).toContain('data-pay="1"');
     expect(html).toContain('press Confirm and pay');
-    expect(html).toContain('7</span>Confirm and pay');
+    expect(html).toContain('6</span>Confirm and pay');
     expect(html).not.toMatch(/<button type="button" class="paybtn" disabled/);
     expect(html).not.toContain('Pay securely');
     expect(html).not.toContain('Confirm your order below first');
@@ -206,14 +202,12 @@ describe('the page', () => {
     for (const code of scripts) expect(() => new Function(code)).not.toThrow();
   });
 
-  test('a form sent back with extras shows them in the price, and the total with them', async () => {
+  test('a stale form that posts extras still shows only the quote total', async () => {
     const { paymentCard, formPage, summarise } = await import('../src/lib/order-confirmation');
-    const card = paymentCard({ kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } }, extrasOf({ silicone_tubes: { clear: 1, white: 0, black: 2 }, silicone_tool: 'yes' }));
-    expect(card).toContain('Silicone sealant, clear</span><span class="amt">£8.50');
-    expect(card).toContain('Silicone sealant, black × 2</span><span class="amt">£17.00');
-    expect(card).toContain('Silicone finishing tool</span><span class="amt">£4.95');
-    expect(card).toContain('id="pay_total">£479.45</span>');
-    expect(card).toContain('Total: £479.45');
+    const card = paymentCard({ kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } });
+    expect(card).not.toContain('Silicone');
+    expect(card).toContain('id="pay_total">£449.00</span>');
+    expect(card).toContain('Total: £449.00');
     expect(card).not.toMatch(/<button type="button" class="paybtn" disabled/);
     expect(card).not.toContain('Pay securely');
     const [design] = await shop.db.find('designs', { where: { job_id: jobId } });
@@ -226,7 +220,8 @@ describe('the page', () => {
       'n',
       { kind: 'confirm_first', amount: { pence: 44_900, packagePence: 44_900, vat: 'none' } },
     );
-    expect(html).toContain('>Confirm and pay £479.45</button>');
+    expect(html).toContain('>Confirm and pay £449.00</button>');
+    expect(html).not.toContain('Optional extras');
   });
 
   test('the sizing note under the drawing is the reference wording, shown, and leaks nothing', async () => {
@@ -282,10 +277,6 @@ describe('the answers', () => {
       [{ ...FULL, preferred_delivery_date: '30/11/2026' }, 'Please choose a preferred delivery date (section 3).'],
       [{ ...FULL, can_unload: '' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
       [{ ...FULL, can_unload: 'maybe' }, 'Please tell us if someone can help take the glass off the van (section 3).'],
-      [{ ...FULL, silicone_clear: '11' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
-      [{ ...FULL, silicone_white: '-1' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
-      [{ ...FULL, silicone_black: '1.5' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
-      [{ ...FULL, silicone_clear: 'two' }, 'Please choose between 0 and 10 tubes of each silicone colour (section 4).'],
       [{ ...FULL, details_confirmed: '' }, 'Please tick all three confirmation boxes.'],
       [{ ...FULL, measurements_accepted: '' }, 'Please tick all three confirmation boxes.'],
       [{ ...FULL, terms_accepted: '' }, 'Please tick all three confirmation boxes.'],
@@ -299,21 +290,18 @@ describe('the answers', () => {
     for (const [form, error] of tries) expect(readAnswers('CS-1', form, { version: 'v' })).toEqual({ error });
   });
 
-  test('tidy the address, count the tubes, and record the terms with the server’s time', () => {
+  test('tidy the address, ignore posted extras, and record the terms with the server’s time', () => {
     const at = new Date('2026-11-16T19:00:00.000Z');
     const read = readAnswers('CS-1', { ...FULL, preferred_delivery_date: '2026-11-30', silicone_black: '', silicone_tool: 'yes' }, { version: 'sha256:abc' }, at);
     expect('answers' in read && read.answers).toMatchObject({
       delivery_address: { line1: '12 Holly Lane', line2: '', town: 'St Albans', postcode: 'AL3 5QN' },
       preferred_delivery_date: '2026-11-30',
-      silicone_tubes: { clear: 1, white: 2, black: 0 },
-      silicone_tool: 'yes',
+      silicone_tubes: { clear: 0, white: 0, black: 0 },
+      silicone_tool: 'no',
       terms_accepted: true,
       terms_version: 'sha256:abc',
       terms_accepted_at: '2026-11-16T19:00:00.000Z',
     });
-    // An unticked tool box sends nothing at all.
-    const none = readAnswers('CS-1', { ...FULL, silicone_clear: '0', silicone_white: '0' }, { version: 'v' });
-    expect('answers' in none && [none.answers.silicone_tubes, none.answers.silicone_tool]).toEqual([{ clear: 0, white: 0, black: 0 }, 'no']);
   });
 
   test('a delivery date: weekdays only, from 10 working days to 90 days ahead, in London’s dates', () => {
@@ -347,21 +335,10 @@ describe('the answers', () => {
     expect(deliveryWindow(new Date('2026-11-21T12:00:00Z'), 0).min).toBe('2026-11-23');
   });
 
-  test('extras are one line per colour ordered, at 850p a tube, and the tool at 495p', () => {
-    expect(extrasOf({ silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' })).toEqual([
-      { key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 },
-      { key: 'silicone:white', description: 'Silicone sealant, white', quantity: 2, unitPence: 850 },
-      { key: 'silicone-tool', description: 'Silicone finishing tool', quantity: 1, unitPence: 495 },
-    ]);
-    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
-    // Clear can be 0: the customer may use their own.
-    expect(extrasOf({ silicone_tubes: { clear: 0, white: 0, black: 3 }, silicone_tool: 'no' })).toEqual([
-      { key: 'silicone:black', description: 'Silicone sealant, black', quantity: 3, unitPence: 850 },
-    ]);
-    // A colour that is not sold is ignored.
-    expect(extrasOf({ silicone_tubes: { clear: 0, translucent: 2, white: 0, black: 0 }, silicone_tool: 'no' })).toEqual([]);
-    // Saved before tubes were counted: one tube of the colour chosen.
-    expect(extrasOf({ silicone: 'yes', silicone_colour: 'clear', silicone_tool: 'no' })).toEqual([{ key: 'silicone:clear', description: 'Silicone sealant, clear', quantity: 1, unitPence: 850 }]);
+  test('extras are never charged, even from a stale page or stored answers', () => {
+    expect(extrasOf({ silicone_tubes: { clear: 1, white: 2, black: 0 }, silicone_tool: 'yes' })).toEqual([]);
+    expect(extrasOf({ silicone: 'yes', silicone_colour: 'clear', silicone_tool: 'yes' })).toEqual([]);
+    expect(extrasOf(null)).toEqual([]);
   });
 
   test('terms are a company’s own when it has set them, each wording with its own version', async () => {
@@ -384,9 +361,9 @@ describe('the answers', () => {
     expect(html).toContain('value="  Oliver   Milton "');
     expect(html).toContain('Drive is steep.');
     expect(html).toMatch(/name="addr_postcode"[^>]*value="al35qn"/);
-    expect(html).toMatch(/name="silicone_white" min="0" max="10" step="1" value="2"/);
     expect(html).toMatch(/name="terms_accepted" value="yes" checked/);
-    expect(html).toContain('Extras: £25.50');
+    expect(html).not.toContain('Optional extras');
+    expect(html).not.toContain('Extras:');
     expect(html).toContain(`value="${FULL.preferred_delivery_date}" aria-describedby="date_hint"`);
     expect(said(html)).not.toMatch(/392|1795|cut size|deduction/i);
     expect(await events('order_confirmed')).toHaveLength(0);
@@ -447,7 +424,7 @@ describe('confirming', () => {
       preferred_delivery_date: FULL.preferred_delivery_date,
       can_unload: 'yes',
       unload_note: 'Drive is steep.',
-      silicone_tubes: { clear: 1, white: 2, black: 0 },
+      silicone_tubes: { clear: 0, white: 0, black: 0 },
       silicone_tool: 'no',
       signed_name: 'Oliver Milton',
       comments: '',
@@ -461,7 +438,6 @@ describe('confirming', () => {
     expect(mail[0].to).toEqual(['workshop@cs.example']);
     expect(mail[0].subject).toBe('CS-1001: order confirmed by the customer');
     expect(mail[0].html).toContain('<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top;">12 Holly Lane<br>St Albans<br>AL3 5QN</td>');
-    expect(mail[0].html).toContain('1 clear, 2 white');
     expect(mail[0].html).toContain(`(${FULL.preferred_delivery_date}), to be confirmed once the glass is ready`);
     expect(mail[0].html).toContain(`Accepted, version ${await termsVersion(DEFAULT_TERMS)}`);
     expect(mail[0].html).toContain('agree to the terms of sale');

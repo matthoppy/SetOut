@@ -71,7 +71,7 @@ interface Opened {
   summary: OrderSummary;
   revisionId: string;
   designerId: string | null;
-  /** The terms of sale shown in section 6: the company's own, or the default. */
+  /** The terms of sale shown in section 5: the company's own, or the default. */
   terms: TermsOfSale;
   /** The dates a delivery may be asked for, from today in London and the company's lead time. */
   window: DeliveryWindow;
@@ -163,7 +163,7 @@ async function payView(env: Env, found: Opened, confirmPath: string, options: { 
 
   const price = jobPrice(quotes, taxMode);
   if ('missing' in price) return { kind: 'no_price' };
-  // Once confirmed, the extras chosen are part of what is paid.
+  // Optional extras are no longer sold, so the total is the quote alone.
   const extras = await confirmedExtras(found);
   const amount: PayAmount = { pence: price.amountPence + extrasPence(extras), packagePence: price.amountPence, extras, vat: taxMode === 'none' ? 'none' : taxMode === 'inclusive' ? 'included' : 'added' };
   if (!link.confirmed_at) return { kind: 'confirm_first', amount };
@@ -206,8 +206,8 @@ async function startCheckout(c: Ctx, found: Opened, confirmPath: string): Promis
   if (standing.openCheckout?.stripe_checkout_url) return c.redirect(standing.openCheckout.stripe_checkout_url, 303);
   const price = jobPrice(quotes, taxMode);
   if ('missing' in price) return back();
-  // The quote, plus the extras the customer chose when confirming, at the
-  // page's prices. Nothing the browser sends now changes what is charged.
+  // The quote alone. Optional extras are no longer sold, so a stale page
+  // cannot add them. Nothing the browser sends now changes what is charged.
   const answers = await confirmedAnswers(found);
   const extras = extrasOf(answers);
   const amountPence = price.amountPence + extrasPence(extras);
