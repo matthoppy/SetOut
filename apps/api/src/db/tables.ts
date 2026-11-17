@@ -136,6 +136,9 @@ export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 export const QUOTE_UNITS = ['each', 'm2', 'm', 'set', 'job'] as const;
 export type QuoteUnit = (typeof QUOTE_UNITS)[number];
 
+export const SUPPLIER_KINDS = ['glass', 'hardware', 'other'] as const;
+export type SupplierKind = (typeof SUPPLIER_KINDS)[number];
+
 /** One thing priced on a quote. Its total is worked out on the server. */
 export interface QuoteLine {
   /** What it is the price of, so the price can be offered again. Null for a line typed by hand. */
@@ -146,6 +149,9 @@ export interface QuoteLine {
   unit: QuoteUnit;
   /** Before VAT. */
   unitPricePence: number;
+  /** What the default supplier charged, in pence, when this line was written. */
+  costPence?: number;
+  supplierId?: string;
 }
 
 export interface QuoteRow {
@@ -186,6 +192,8 @@ export interface PriceRow {
 export interface SupplierRow {
   id: string;
   name: string;
+  kind: SupplierKind;
+  is_default: number;
   created_at: string;
   updated_at: string;
 }
@@ -197,6 +205,7 @@ export interface SupplierPriceRow {
   key: string;
   unit: QuoteUnit;
   cost_pence: number;
+  sku: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -511,13 +520,13 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
   },
   suppliers: {
     id: 'supplier',
-    columns: ['id', 'name', 'created_at', 'updated_at'],
+    columns: ['id', 'name', 'kind', 'is_default', 'created_at', 'updated_at'],
     json: [],
     tracksUpdates: true,
   },
   supplier_prices: {
     id: 'supplierPrice',
-    columns: ['id', 'supplier_id', 'key', 'unit', 'cost_pence', 'created_at', 'updated_at'],
+    columns: ['id', 'supplier_id', 'key', 'unit', 'cost_pence', 'sku', 'created_at', 'updated_at'],
     json: [],
     tracksUpdates: true,
   },
@@ -536,6 +545,7 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   audit_log: { action: AUDIT_ACTIONS },
   quotes: { status: QUOTE_STATUSES },
   price_list: { unit: QUOTE_UNITS },
+  suppliers: { kind: SUPPLIER_KINDS },
   supplier_prices: { unit: QUOTE_UNITS },
   subscriptions: { status: SUBSCRIPTION_STATUSES },
   job_payments: { kind: PAYMENT_KINDS, method: PAYMENT_METHODS, status: PAYMENT_STATUSES, tax_behavior: PAYMENT_TAX_MODES },

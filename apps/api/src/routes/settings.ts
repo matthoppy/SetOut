@@ -24,6 +24,7 @@ import { companyDb } from '../db/company-db';
 import { saveSetUp, setUpOf } from '../db/onboarding';
 import {
   addSupplier,
+  importSupplierPrices,
   optionsInUse,
   readRules,
   readSettings,
@@ -31,13 +32,17 @@ import {
   removeSupplier,
   renameSupplier,
   savePrices,
+  savePricing,
   saveRules,
   saveSettings,
   saveSupplierPrices,
   settingsChanges,
+  updateSupplier,
 } from '../db/settings';
 import { RequestError } from '../lib/enquiry';
 import { MAX_SUPPLIERS, priceBook, readPriceChanges, readSupplierName, supplierBook, type PriceBook } from '../lib/price-book';
+import { isSupplierKind, pricingSettingsOf, readPricingSettings, storedPricing } from '../lib/pricing';
+import { parseSupplierCsv } from '../lib/supplier-csv';
 import {
   companyChanges,
   companyVersions,
@@ -149,6 +154,12 @@ staffSettings.get('/settings', async (c) => {
   const stored = await readSettings(c.env, session.companyId);
   if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
   const owner = session.role === 'owner';
+  let settings: Record<string, unknown> = {};
+  try {
+    settings = JSON.parse(stored.company.settings) as Record<string, unknown>;
+  } catch {
+    // Unreadable settings are treated as none.
+  }
   const [company, designers, rules, prices, changes] = await Promise.all([
     presentCompany(companyView(stored.company)),
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
@@ -157,7 +168,17 @@ staffSettings.get('/settings', async (c) => {
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
   return c.json(
-    { canChange: owner, company, designers, rules, prices, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) },
+    {
+      canChange: owner,
+      company,
+      designers,
+      rules,
+      prices,
+      limits: LIMITS,
+      embedScript: embedScriptFor(c),
+      ...(owner ? { pricing: pricingSettingsOf(settings) } : {}),
+      ...(changes ? { changes } : {}),
+    },
     200,
     PRIVATE
   );
@@ -387,6 +408,11 @@ staffSettings.post('/settings/suppliers', ownersOnly, async (c) => {
   try {
     const body = await bodyOf(c);
     const name = readSupplierName(body.name);
+    const kind = body.kind === undefined ? 'other' : body.kind;
+    if (!isSupplierKind(kind)) {
+      throw new RequestError(400, 'invalid_supplier', 'A supplier is for glass, hardware, or something else.');
+    }
+    const preferDefault = body.isDefault === true;
     const stored = await readSettings(c.env, session.companyId);
     if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
     const suppliers = await readSuppliers(c.env, session.companyId);
@@ -396,7 +422,7 @@ staffSettings.post('/settings/suppliers', ownersOnly, async (c) => {
     if (suppliers.length >= MAX_SUPPLIERS) {
       return c.json({ error: 'too_many', message: `A company can have up to ${MAX_SUPPLIERS} suppliers.` }, 409, PRIVATE);
     }
-    const id = await addSupplier(c.env, session.companyId, session.userId, name, MAX_SUPPLIERS);
+    const id = await addSupplier(c.env, session.companyId, session.userId, name, kind, MAX_SUPPLIERS, preferDefault);
     if (!id) return c.json(STALE, 409, PRIVATE);
     return c.json({ ok: true, id, prices: await priceBookFor(c.env, session.companyId, stored.designers.map(designerView), true) }, 201, PRIVATE);
   } catch (error) {
@@ -405,22 +431,50 @@ staffSettings.post('/settings/suppliers', ownersOnly, async (c) => {
   }
 });
 
-/** Rename a supplier, from the name the owner saw. */
+/** Rename a supplier, or change its kind and whether it is the default of that kind, from what the owner saw. */
 staffSettings.patch('/settings/suppliers/:id', ownersOnly, async (c) => {
   const session = c.get('session');
   try {
     const body = await bodyOf(c);
-    const name = readSupplierName(body.name);
     const suppliers = await readSuppliers(c.env, session.companyId);
     const supplier = suppliers.find((s) => s.id === c.req.param('id'));
     if (!supplier) return c.json(NO_SUPPLIER, 404, PRIVATE);
-    if (supplier.name === name) return c.json({ ok: true, changed: false }, 200, PRIVATE);
-    if (basedOnOf(body).name !== supplier.name) return c.json(STALE, 409, PRIVATE);
+    const meta = body.kind !== undefined || body.isDefault !== undefined;
+    if (!meta) {
+      const name = readSupplierName(body.name);
+      if (supplier.name === name) return c.json({ ok: true, changed: false }, 200, PRIVATE);
+      if (basedOnOf(body).name !== supplier.name) return c.json(STALE, 409, PRIVATE);
+      if (suppliers.some((s) => s.id !== supplier.id && s.name.toLowerCase() === name.toLowerCase())) {
+        return c.json({ error: 'name_taken', message: `You already have a supplier called ${name}.` }, 409, PRIVATE);
+      }
+      const renamed = await renameSupplier(c.env, session.companyId, session.userId, supplier.id, supplier.name, name);
+      return renamed ? c.json({ ok: true, changed: true }, 200, PRIVATE) : c.json(STALE, 409, PRIVATE);
+    }
+    const name = body.name === undefined ? supplier.name : readSupplierName(body.name);
+    const kind = body.kind === undefined ? supplier.kind : body.kind;
+    if (!isSupplierKind(kind)) throw new RequestError(400, 'invalid_supplier', 'A supplier is for glass, hardware, or something else.');
+    const isDefault = body.isDefault === undefined ? supplier.isDefault : body.isDefault === true;
+    const seen = basedOnOf(body);
+    if (seen.name !== undefined && seen.name !== supplier.name) return c.json(STALE, 409, PRIVATE);
+    if (seen.kind !== undefined && seen.kind !== supplier.kind) return c.json(STALE, 409, PRIVATE);
+    if (supplier.name === name && supplier.kind === kind && supplier.isDefault === isDefault) {
+      return c.json({ ok: true, changed: false }, 200, PRIVATE);
+    }
     if (suppliers.some((s) => s.id !== supplier.id && s.name.toLowerCase() === name.toLowerCase())) {
       return c.json({ error: 'name_taken', message: `You already have a supplier called ${name}.` }, 409, PRIVATE);
     }
-    const renamed = await renameSupplier(c.env, session.companyId, session.userId, supplier.id, supplier.name, name);
-    return renamed ? c.json({ ok: true, changed: true }, 200, PRIVATE) : c.json(STALE, 409, PRIVATE);
+    const saved = await updateSupplier(
+      c.env,
+      session.companyId,
+      session.userId,
+      supplier.id,
+      { name: supplier.name, kind: supplier.kind, isDefault: supplier.isDefault },
+      { name, kind, isDefault }
+    );
+    if (!saved) return c.json(STALE, 409, PRIVATE);
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    return c.json({ ok: true, changed: true, prices: await priceBookFor(c.env, session.companyId, stored.designers.map(designerView), true) }, 200, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;
@@ -459,6 +513,84 @@ staffSettings.patch('/settings/suppliers/:id/prices', ownersOnly, async (c) => {
     });
     if (!saved) return c.json(STALE, 409, PRIVATE);
     return c.json({ ok: true, changed: true, prices: await priceBookFor(c.env, session.companyId, designers, true) }, 200, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+
+/** Import a supplier's price list from a CSV of keys, SKUs and costs. */
+staffSettings.post('/settings/suppliers/:id/import', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c, 1024 * 1024);
+    const csv = typeof body.csv === 'string' ? body.csv : '';
+    if (!csv.trim()) throw new RequestError(400, 'invalid_csv', 'Send the CSV to import.');
+    const items = parseSupplierCsv(csv);
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    const suppliers = await readSuppliers(c.env, session.companyId);
+    const supplier = suppliers.find((s) => s.id === c.req.param('id'));
+    if (!supplier) return c.json(NO_SUPPLIER, 404, PRIVATE);
+    const replace = body.replace === true;
+    const rows = items.map((item) => ({
+      key: item.key ?? `sku:${item.sku}`,
+      unit: item.unit,
+      costPence: item.costPence,
+      sku: item.sku,
+    }));
+    const saved = await importSupplierPrices(
+      c.env,
+      session.companyId,
+      session.userId,
+      supplier.id,
+      rows,
+      replace,
+      { changes: [{ field: 'cost', change: 'imported', supplier: { id: supplier.id, name: supplier.name }, count: rows.length, replace }] }
+    );
+    if (!saved) return c.json(STALE, 409, PRIVATE);
+    return c.json(
+      { ok: true, imported: rows.length, prices: await priceBookFor(c.env, session.companyId, stored.designers.map(designerView), true) },
+      200,
+      PRIVATE
+    );
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+/** Change the company's default markup, or a markup for one kind of line. */
+staffSettings.patch('/settings/pricing', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c);
+    const answer = await withRetry(async () => {
+      const stored = await readSettings(c.env, session.companyId);
+      if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+      let settings: Record<string, unknown> = {};
+      try {
+        settings = JSON.parse(stored.company.settings) as Record<string, unknown>;
+      } catch {
+        // Unreadable settings are treated as none.
+      }
+      const before = pricingSettingsOf(settings);
+      const after = readPricingSettings(body, before);
+      if (before.markupBp === after.markupBp && JSON.stringify(before.categoryMarkupBp) === JSON.stringify(after.categoryMarkupBp)) {
+        return c.json({ ok: true, changed: false, pricing: before }, 200, PRIVATE);
+      }
+      const saved = await savePricing(
+        c.env,
+        session.companyId,
+        session.userId,
+        stored.company.settings,
+        JSON.stringify(storedPricing(settings, after)),
+        { changes: [{ field: 'pricing', from: before, to: after }] }
+      );
+      return saved ? c.json({ ok: true, changed: true, pricing: after }, 200, PRIVATE) : null;
+    });
+    return answer ?? c.json(STALE, 409, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;
