@@ -22,9 +22,22 @@ import { createMiddleware } from 'hono/factory';
 import type { Session } from '../db/auth';
 import { companyDb } from '../db/company-db';
 import { saveSetUp, setUpOf } from '../db/onboarding';
-import { optionsInUse, readRules, readSettings, savePrices, saveRules, saveSettings, settingsChanges } from '../db/settings';
+import {
+  addSupplier,
+  optionsInUse,
+  readRules,
+  readSettings,
+  readSuppliers,
+  removeSupplier,
+  renameSupplier,
+  savePrices,
+  saveRules,
+  saveSettings,
+  saveSupplierPrices,
+  settingsChanges,
+} from '../db/settings';
 import { RequestError } from '../lib/enquiry';
-import { priceBook, readPriceChanges } from '../lib/price-book';
+import { MAX_SUPPLIERS, priceBook, readPriceChanges, readSupplierName, supplierBook, type PriceBook } from '../lib/price-book';
 import {
   companyChanges,
   companyVersions,
@@ -78,6 +91,7 @@ const STALE = {
 const NO_DESIGNER = { error: 'not_found', message: 'There is no such designer.' } as const;
 const HINGE_FIELDS: string[] = ['wallHingesOffered', 'wallHingeStandard', 'inLineHingesOffered', 'inLineHingeStandard', 'viennaCutout', 'bellagioFit'];
 const NO_COMPANY = { error: 'not_found', message: 'This company could not be found.' } as const;
+const NO_SUPPLIER = { error: 'not_found', message: 'There is no such supplier.' } as const;
 
 /** Only an owner may change the settings. The role is read from the membership on every request. */
 const ownersOnly = createMiddleware<Bindings>(async (c, next) => {
@@ -118,20 +132,30 @@ function embedScriptFor(c: Context<Bindings>): string {
 
 const presentCompany = async (company: CompanyView) => ({ ...company, versions: await companyVersions(company) });
 
+/**
+ * The price book as the company's settings show it. Owners also get its
+ * suppliers and what each charges; the rest of the team never sees what the
+ * company pays.
+ */
+async function priceBookFor(env: Env, companyId: string, designers: readonly DesignerView[], owner: boolean): Promise<PriceBook> {
+  const [stored, suppliers] = await Promise.all([companyDb(env, companyId).prices.list(), owner ? readSuppliers(env, companyId) : Promise.resolve([])]);
+  const book = priceBook(designers, stored, suppliers);
+  return owner ? book : { groups: book.groups, prices: book.prices };
+}
+
 /** The settings as they stand. Everyone on the team may see them; owners also see the latest changes. */
 staffSettings.get('/settings', async (c) => {
   const session = c.get('session');
   const stored = await readSettings(c.env, session.companyId);
   if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
   const owner = session.role === 'owner';
-  const [company, designers, rules, prices_stored, changes] = await Promise.all([
+  const [company, designers, rules, prices, changes] = await Promise.all([
     presentCompany(companyView(stored.company)),
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
     readRules(c.env, session.companyId),
-    companyDb(c.env, session.companyId).prices.list(),
+    priceBookFor(c.env, session.companyId, stored.designers.map(designerView), owner),
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
-  const prices = priceBook(designers, prices_stored);
   return c.json(
     { canChange: owner, company, designers, rules, prices, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) },
     200,
@@ -347,6 +371,94 @@ staffSettings.patch('/settings/prices', ownersOnly, async (c) => {
     const saved = await savePrices(c.env, session.companyId, session.userId, changes, { changes: changes.map((ch) => ({ field: 'price', ...ch })) });
     if (!saved) return c.json(STALE, 409, PRIVATE);
     return c.json({ ok: true, changed: true, prices: priceBook(designers, await db.prices.list()) }, 200, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Suppliers
+// ---------------------------------------------------------------------------
+
+/** Add a supplier the company buys from, by name. */
+staffSettings.post('/settings/suppliers', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c);
+    const name = readSupplierName(body.name);
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    const suppliers = await readSuppliers(c.env, session.companyId);
+    if (suppliers.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+      return c.json({ error: 'name_taken', message: `You already have a supplier called ${name}.` }, 409, PRIVATE);
+    }
+    if (suppliers.length >= MAX_SUPPLIERS) {
+      return c.json({ error: 'too_many', message: `A company can have up to ${MAX_SUPPLIERS} suppliers.` }, 409, PRIVATE);
+    }
+    const id = await addSupplier(c.env, session.companyId, session.userId, name, MAX_SUPPLIERS);
+    if (!id) return c.json(STALE, 409, PRIVATE);
+    return c.json({ ok: true, id, prices: await priceBookFor(c.env, session.companyId, stored.designers.map(designerView), true) }, 201, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+/** Rename a supplier, from the name the owner saw. */
+staffSettings.patch('/settings/suppliers/:id', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c);
+    const name = readSupplierName(body.name);
+    const suppliers = await readSuppliers(c.env, session.companyId);
+    const supplier = suppliers.find((s) => s.id === c.req.param('id'));
+    if (!supplier) return c.json(NO_SUPPLIER, 404, PRIVATE);
+    if (supplier.name === name) return c.json({ ok: true, changed: false }, 200, PRIVATE);
+    if (basedOnOf(body).name !== supplier.name) return c.json(STALE, 409, PRIVATE);
+    if (suppliers.some((s) => s.id !== supplier.id && s.name.toLowerCase() === name.toLowerCase())) {
+      return c.json({ error: 'name_taken', message: `You already have a supplier called ${name}.` }, 409, PRIVATE);
+    }
+    const renamed = await renameSupplier(c.env, session.companyId, session.userId, supplier.id, supplier.name, name);
+    return renamed ? c.json({ ok: true, changed: true }, 200, PRIVATE) : c.json(STALE, 409, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+/** Remove a supplier, and every price it has. The price book's own prices stay as they are. */
+staffSettings.delete('/settings/suppliers/:id', ownersOnly, async (c) => {
+  const session = c.get('session');
+  const supplier = (await readSuppliers(c.env, session.companyId)).find((s) => s.id === c.req.param('id'));
+  if (!supplier) return c.json(NO_SUPPLIER, 404, PRIVATE);
+  const removed = await removeSupplier(c.env, session.companyId, session.userId, supplier.id, supplier.name);
+  return removed ? c.json({ ok: true }, 200, PRIVATE) : c.json(NO_SUPPLIER, 404, PRIVATE);
+});
+
+/**
+ * Change what a supplier charges, as the price book's prices are changed:
+ * each from the price the owner saw, or null to take it away, only for what
+ * a supplier sells, and all or none.
+ */
+staffSettings.patch('/settings/suppliers/:id/prices', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c, MAX_PRICES_BYTES);
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    const designers = stored.designers.map(designerView);
+    const book = await priceBookFor(c.env, session.companyId, designers, true);
+    const theirs = supplierBook(book, c.req.param('id'));
+    const supplier = book.suppliers?.find((s) => s.id === c.req.param('id'));
+    if (!theirs || !supplier) return c.json(NO_SUPPLIER, 404, PRIVATE);
+    const changes = readPriceChanges(body.changes, theirs);
+    if (changes.length === 0) return c.json({ ok: true, changed: false, prices: book }, 200, PRIVATE);
+    const saved = await saveSupplierPrices(c.env, session.companyId, session.userId, supplier.id, changes, {
+      changes: changes.map((ch) => ({ field: 'cost', supplier: { id: supplier.id, name: supplier.name }, ...ch })),
+    });
+    if (!saved) return c.json(STALE, 409, PRIVATE);
+    return c.json({ ok: true, changed: true, prices: await priceBookFor(c.env, session.companyId, designers, true) }, 200, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;

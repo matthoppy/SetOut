@@ -30,7 +30,7 @@ import { GLASS_THICKNESSES } from './designer-config';
 import { RequestError } from './enquiry';
 import { channelKey, clampsKey, DELIVERY_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
 import { GLASS_NAMES, HUNG, MAX_UNIT_PRICE_PENCE } from './quote-lines';
-import type { DesignerView } from './settings';
+import { oneLine, type DesignerView } from './settings';
 
 export interface PriceBookRow {
   /** What it is, as the owner reads it: "10mm clear", "Geneva, to the wall, offset back plate". */
@@ -61,15 +61,46 @@ export interface PriceBook {
   groups: PriceBookGroup[];
   /** The company's prices by key: pence before VAT, and when each last changed. */
   prices: Record<string, { pence: number; updatedAt: string }>;
+  /**
+   * The company's suppliers, in the order they were added, and what each
+   * charges. Only owners are sent them: what the company pays, and so its
+   * margins, are never shown to the rest of the team.
+   */
+  suppliers?: SupplierPriceList[];
 }
 
-/** A price as the company has it. */
+/** A price as the company has it, or as a supplier charges it. */
 export interface StoredPrice {
   key: string;
   unit: QuoteUnit;
   pence: number;
   updatedAt: string;
 }
+
+/** A supplier as the company has it, with what it charges. */
+export interface StoredSupplier {
+  id: string;
+  name: string;
+  prices: StoredPrice[];
+}
+
+/** A supplier in the price book. */
+export interface SupplierPriceList {
+  id: string;
+  name: string;
+  /** What it charges for each thing, by the price book's key: pence before VAT, and when each last changed. */
+  prices: Record<string, { pence: number; updatedAt: string }>;
+  /** What it charges for that the price book does not list, such as a finish no longer offered. */
+  others: PriceBookRow[];
+}
+
+/** The parts of the price book a supplier has no price for: fitting and delivery, the company's own, and prices no longer listed. */
+export const NOT_SUPPLIED: readonly PriceGroupId[] = ['job', 'other'];
+
+/** More than any company buys from. */
+export const MAX_SUPPLIERS = 20;
+/** Characters in a supplier's name. */
+export const SUPPLIER_NAME_LIMIT = 60;
 
 /** The first of each, by its id, in the order they come. */
 function firstOf<T extends { id: string }>(items: readonly T[]): T[] {
@@ -139,8 +170,11 @@ function describeKey(key: string, finishes: readonly { id: string; label: string
   return words(key.replace(/:/g, ' '));
 }
 
-/** The company's price book, from its designers' settings and the prices it has. */
-export function priceBook(designers: readonly DesignerView[], stored: readonly StoredPrice[]): PriceBook {
+/**
+ * The company's price book, from its designers' settings and the prices it
+ * has, with its suppliers' prices laid out the same way.
+ */
+export function priceBook(designers: readonly DesignerView[], stored: readonly StoredPrice[], suppliers: readonly StoredSupplier[] = []): PriceBook {
   const finishes = firstOf(designers.flatMap((d) => d.finishes)).map(({ id, label }) => ({ id, label }));
   const handles = firstOf(designers.flatMap((d) => d.handles));
   const thicknesses = GLASS_THICKNESSES.filter((t) => designers.some((d) => d.glass.offered.includes(t)));
@@ -204,18 +238,46 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
   ];
 
   const listed = new Set(groups.flatMap((g) => g.rows.flatMap((r) => r.keys)));
-  const other = stored
-    .filter((p) => !listed.has(p.key))
-    .map((p) => ({ label: describeKey(p.key, finishes, handles), unit: p.unit, keys: [p.key] }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-  groups.push({ id: 'other', title: 'Other prices', rows: other });
+  const supplied = new Set(groups.filter((g) => !NOT_SUPPLIED.includes(g.id)).flatMap((g) => g.rows.flatMap((r) => r.keys)));
+  const unlisted = (prices: readonly StoredPrice[], keep: ReadonlySet<string>) =>
+    prices
+      .filter((p) => !keep.has(p.key))
+      .map((p) => ({ label: describeKey(p.key, finishes, handles), unit: p.unit, keys: [p.key] }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  groups.push({ id: 'other', title: 'Other prices', rows: unlisted(stored, listed) });
+  const byKey = (prices: readonly StoredPrice[]) => Object.fromEntries(prices.map((p) => [p.key, { pence: p.pence, updatedAt: p.updatedAt }]));
 
   return {
     groups: groups
       .map((g) => ({ ...g, rows: g.rows.filter((r) => r.keys.length > 0) }))
       .filter((g) => g.rows.length > 0),
-    prices: Object.fromEntries(stored.map((p) => [p.key, { pence: p.pence, updatedAt: p.updatedAt }])),
+    prices: byKey(stored),
+    suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, prices: byKey(s.prices), others: unlisted(s.prices, supplied) })),
   };
+}
+
+/**
+ * A supplier's price list laid out as the price book is, to show it and to
+ * read a change to it against: everything a supplier sells, and what this
+ * one charges for that the book no longer lists. Null if there is no such
+ * supplier.
+ */
+export function supplierBook(book: PriceBook, supplierId: string): PriceBook | null {
+  const supplier = book.suppliers?.find((s) => s.id === supplierId);
+  if (!supplier) return null;
+  const groups = book.groups.filter((g) => !NOT_SUPPLIED.includes(g.id));
+  return {
+    groups: supplier.others.length > 0 ? [...groups, { id: 'other', title: 'Other prices', rows: supplier.others }] : groups,
+    prices: supplier.prices,
+  };
+}
+
+/** A supplier's name as typed: on one line, and not too long. */
+export function readSupplierName(input: unknown): string {
+  const name = typeof input === 'string' ? oneLine(input) : '';
+  if (!name) throw new RequestError(400, 'invalid_supplier', 'Give the supplier a name.');
+  if (name.length > SUPPLIER_NAME_LIMIT) throw new RequestError(400, 'invalid_supplier', `Keep a supplier’s name to ${SUPPLIER_NAME_LIMIT} characters.`);
+  return name;
 }
 
 /**

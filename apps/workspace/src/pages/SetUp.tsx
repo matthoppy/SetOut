@@ -23,7 +23,6 @@ import {
   HingesPart,
   NamePart,
   PricesPart,
-  priceBookVersion,
   SlidingPart,
   UnsavedContext,
   WebsitesPart,
@@ -155,7 +154,7 @@ export function SetUp({ me, onChanged }: { me: Me; onChanged: () => void }) {
         <UnsavedContext.Provider value={reportUnsaved}>
           {current.id === 'name' && <NamePart key={data.company.versions.name} company={data.company} limits={data.limits} {...part('name')} />}
           {current.id === 'branding' && <BrandingPart key={data.company.versions.branding} company={data.company} {...part('branding')} />}
-          {current.id === 'prices' && <PricesPart key={priceBookVersion(data.prices)} prices={data.prices} {...part('prices')} />}
+          {current.id === 'prices' && <PricesPart prices={data.prices} {...part('prices')} />}
           {!designer && current.id !== 'name' && current.id !== 'branding' && current.id !== 'prices' && (
             <p className="mt-6 rounded-lg border border-rule bg-surface p-4 text-sm text-quiet">This company has no designer yet. SetOut adds one when the company is set up.</p>
           )}

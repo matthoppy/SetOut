@@ -115,6 +115,9 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     revision_number: 1,
   });
 
+  const supplier = await db.insert('suppliers', { name: `${name} toughener` });
+  const supplierPrice = await db.insert('supplier_prices', { supplier_id: supplier.id, key: 'glass:10:clear', unit: 'm2', cost_pence: 8_000 });
+
   const jobPayment = await db.insert('job_payments', {
     job_id: job.id,
     kind: 'full',
@@ -146,6 +149,8 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       order_confirmations: confirmation,
       cut_overrides: cutOverride,
       job_payments: jobPayment,
+      suppliers: supplier,
+      supplier_prices: supplierPrice,
     },
   };
 }

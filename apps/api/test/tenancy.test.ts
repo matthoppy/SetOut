@@ -36,6 +36,8 @@ const TAMPER: { [T in TableName]: RowChanges<T> } = {
   order_confirmations: { confirmed_at: '2000-01-01T00:00:00.000Z' },
   cut_overrides: { width_deduction_mm: 0, reason: 'tampered' },
   job_payments: { status: 'refunded', amount_pence: 1 },
+  suppliers: { name: 'tampered' },
+  supplier_prices: { cost_pence: 1 },
 };
 
 let ours: Seeded;
@@ -115,6 +117,10 @@ describe('pointing a row at another company’s row', () => {
       ours.db.update('files', ours.rows.files.id, { job_id: theirs.rows.jobs.id })],
     ['our design moved to their job', () =>
       ours.db.update('designs', ours.rows.designs.id, { job_id: theirs.rows.jobs.id })],
+    ['a price for their supplier', () =>
+      ours.db.insert('supplier_prices', { supplier_id: theirs.rows.suppliers.id, key: 'cutout:hole', unit: 'each', cost_pence: 1 })],
+    ['our supplier’s price moved to their supplier', () =>
+      ours.db.update('supplier_prices', ours.rows.supplier_prices.id, { supplier_id: theirs.rows.suppliers.id })],
   ];
 
   test.each(links)('%s is refused by the database', async (_name, attempt) => {

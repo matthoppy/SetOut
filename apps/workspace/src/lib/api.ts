@@ -499,7 +499,9 @@ export type SettingsChangeItem =
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'websites'; added: string[]; removed: string[] }
   | { field: 'rule'; rule: string; from: number | string; to: number | string }
-  | { field: 'price'; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null };
+  | { field: 'price'; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null }
+  | { field: 'supplier'; change: 'added' | 'removed' | 'renamed'; id: string; label: string; from?: string; to?: string }
+  | { field: 'cost'; supplier: { id: string; name: string }; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null };
 
 export interface SettingsChange {
   id: string;
@@ -548,6 +550,17 @@ export interface PriceBook {
   groups: PriceBookGroup[];
   /** The company's prices by key, in pence before VAT. */
   prices: Record<string, { pence: number; updatedAt: string }>;
+  /** Owners only: who the company buys from, in the order added, and what each charges. */
+  suppliers?: SupplierPriceList[];
+}
+
+/** A supplier, with what it charges for each thing by the price book's key, in pence before VAT. */
+export interface SupplierPriceList {
+  id: string;
+  name: string;
+  prices: Record<string, { pence: number; updatedAt: string }>;
+  /** What it charges for that the price book no longer lists. */
+  others: PriceBookRow[];
 }
 
 /** A price changed in the price book: what the owner saw, and what they chose. Null is no price. */
@@ -670,6 +683,12 @@ export const api = {
     send<{ ok: true; changed: boolean; rules: RulesSettings }>('PATCH', '/settings/rules', { overrides, basedOn: { rules: basedOn } }),
   /** A list is sent whole, in order. A part left out stays as it is. */
   savePrices: (changes: PriceChange[]) => send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', '/settings/prices', { changes }),
+  addSupplier: (name: string) => send<{ ok: true; id: string; prices: PriceBook }>('POST', '/settings/suppliers', { name }),
+  renameSupplier: (id: string, name: string, seen: string) =>
+    send<{ ok: true; changed: boolean }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}`, { name, basedOn: { name: seen } }),
+  removeSupplier: (id: string) => call<{ ok: true }>(`/settings/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveSupplierPrices: (id: string, changes: PriceChange[]) =>
+    send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}/prices`, { changes }),
 
   saveDesignerSettings: (id: string, changes: DesignerChanges) =>
     send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),

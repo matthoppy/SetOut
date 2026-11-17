@@ -48,11 +48,13 @@ import {
   type DesignerSettings,
   type Me,
   type PriceBook,
+  type PriceChange,
   type QuoteUnit,
   type RulesSettings,
   type Settings as SettingsData,
   type SettingsChange,
   type SettingsChangeItem,
+  type SupplierPriceList,
 } from '../lib/api';
 import { money, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
@@ -208,7 +210,6 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
             onReload={settings.reload}
           />
           <PricesPart
-            key={priceBookVersion(data.prices)}
             prices={data.prices}
             owner={owner}
             justSaved={saved === 'prices'}
@@ -1716,9 +1717,9 @@ const PRICE_HINTS: Record<PriceBook['groups'][number]['id'], string> = {
   other: 'Prices on quotes you have sent, for things you no longer offer. Empty one to take it away.',
 };
 
-/** Changes whenever a price, or what the book lists, does, so the form starts again from the saved prices. */
-export function priceBookVersion(book: PriceBook): string {
-  const text = JSON.stringify([book.groups.map((g) => g.rows.map((r) => r.keys)), book.prices]);
+/** A short fingerprint of what a form was filled from, so the form starts again whenever that changes. */
+function fingerprint(value: unknown): string {
+  const text = JSON.stringify(value);
   let hash = 5381;
   for (let i = 0; i < text.length; i++) hash = ((hash * 33) ^ text.charCodeAt(i)) >>> 0;
   return hash.toString(36);
@@ -1759,51 +1760,136 @@ function PriceCell(props: { editable: boolean; label: string; value: string; inv
   );
 }
 
+/** What one thing costs the company: the cheapest of its suppliers' prices, and whose. */
+interface Cost {
+  pence: number;
+  supplier: string;
+}
+
+function cheapest(suppliers: readonly SupplierPriceList[], key: string): Cost | null {
+  let best: Cost | null = null;
+  for (const s of suppliers) {
+    const pence = s.prices[key]?.pence;
+    if (pence !== undefined && pence > 0 && (!best || pence < best.pence)) best = { pence, supplier: s.name };
+  }
+  return best;
+}
+
+/** How much a price adds to what it costs, as a whole percentage. */
+const markUpOn = (price: number, cost: number) => Math.round(((price - cost) / cost) * 100);
+const span = (low: number, high: number, show: (n: number) => string) => (low === high ? show(low) : `${show(low)}–${show(high)}`);
+
 /**
- * The price book: what each new quote starts from, before VAT. Everything
- * the company's quotes can price is listed, from what its designer offers.
- * Glass in several thicknesses is a table, a column for each. Hardware has
- * one price for every finish until the owner prices a finish on its own.
- * The rest of the team sees the prices and cannot change them.
+ * Under a price, what it costs the company and what the price adds on. For
+ * one price standing for every finish, the range across them.
  */
-export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: PartProps & { prices: PriceBook }) {
-  const keys = prices.groups.flatMap((g) => g.rows.flatMap((r) => r.keys));
-  const original = Object.fromEntries(keys.map((key) => [key, typedPrice(prices.prices[key]?.pence)]));
+function CostNote({ costs, price, compact }: { costs: Cost[]; price: number | null; compact?: boolean }) {
+  if (costs.length === 0) return null;
+  const pence = costs.map((c) => c.pence);
+  const [low, high] = [Math.min(...pence), Math.max(...pence)];
+  const who = [...new Set(costs.map((c) => c.supplier))];
+  const ups = isPrice(price) ? [markUpOn(price, high), markUpOn(price, low)] : null;
+  const under = ups !== null && ups[0] < 0;
+  const added = ups === null ? '' : under ? ` · under cost` : ` · +${span(ups[0], ups[1], (n) => String(n))}%`;
+  const full = `Costs ${span(low, high, money)}${who.length === 1 ? ` from ${who[0]}` : ''}${added}`;
+  return (
+    <span title={full} className={`mt-0.5 block truncate text-xs ${under ? 'text-bad' : 'text-quiet'}`}>
+      {compact ? `${span(low, high, money)} cost${added}` : full}
+    </span>
+  );
+}
+
+interface PriceFormProps {
+  groups: PriceBook['groups'];
+  /** The prices it starts from, by key. */
+  stored: PriceBook['prices'];
+  editable: boolean;
+  intro: string;
+  hints: Record<string, string>;
+  saveLabel: string;
+  savedNote: string;
+  failedNote: string;
+  justSaved: boolean;
+  save: (changes: PriceChange[]) => Promise<unknown>;
+  onSaved: () => void;
+  onReload: () => void;
+  /** Told whether there are changes waiting to be saved. */
+  onDirty?: (dirty: boolean) => void;
+  /** For the company's own prices: its suppliers, to show what each thing costs and fill prices from them. */
+  suppliers?: SupplierPriceList[];
+}
+
+/**
+ * A price list to fill in, laid out as the price book is: glass in several
+ * thicknesses as a table, a column for each; hardware with one price for
+ * every finish until a finish is priced on its own. The company's own prices
+ * and each supplier's are filled in with it.
+ */
+function PriceForm({ groups, stored, editable, intro, hints, saveLabel, savedNote, failedNote, justSaved, save, onSaved, onReload, onDirty, suppliers = [] }: PriceFormProps) {
+  const keys = groups.flatMap((g) => g.rows.flatMap((r) => r.keys));
+  const original = Object.fromEntries(keys.map((key) => [key, typedPrice(stored[key]?.pence)]));
   const [form, setForm] = useState<Record<string, string>>(original);
   // A row of hardware has one price for every finish while its prices are all the same, as they are with none.
   const [sameAtFirst] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
-      prices.groups
-        .filter((g) => g.sameAcross)
-        .flatMap((g) => g.rows.filter((r) => r.keys.length > 1).map((r) => [r.keys[0], new Set(r.keys.map((key) => original[key])).size === 1]))
+      groups.filter((g) => g.sameAcross).flatMap((g) => g.rows.filter((r) => r.keys.length > 1).map((r) => [r.keys[0], new Set(r.keys.map((key) => original[key])).size === 1]))
     )
   );
   const [same, setSame] = useState(sameAtFirst);
+  const [filled, setFilled] = useState<Record<string, string>>({});
   const saving = useSave(onSaved);
   const typed = Object.fromEntries(keys.map((key) => [key, pennies(form[key] ?? '')]));
   const valid = keys.every((key) => !Number.isNaN(typed[key]));
   const changes = keys.flatMap((key) => {
-    const from = prices.prices[key]?.pence ?? null;
+    const from = stored[key]?.pence ?? null;
     const to = typed[key];
     return Number.isNaN(to) || to === from ? [] : [{ key, from, to }];
   });
   const dirty = changes.length > 0 || !valid;
+  useEffect(() => {
+    onDirty?.(dirty);
+  }, [onDirty, dirty]);
+  useEffect(() => () => onDirty?.(false), [onDirty]);
   const set = (key: string, value: string) => setForm((now) => ({ ...now, [key]: value }));
   const setAll = (row: string[], value: string) => setForm((now) => ({ ...now, ...Object.fromEntries(row.map((key) => [key, value])) }));
+  const costsOf = (row: string[]) => row.flatMap((key) => cheapest(suppliers, key) ?? []);
+
+  /** Every price in a part of the list from what a supplier charges, plus a mark-up. Nothing is saved until the owner saves. */
+  const fill = (group: PriceBook['groups'][number], supplier: SupplierPriceList, markUp: number) => {
+    const updates: Record<string, string> = {};
+    for (const key of group.rows.flatMap((r) => r.keys)) {
+      const cost = supplier.prices[key]?.pence;
+      if (cost && cost > 0) updates[key] = typedPrice(Math.min(100_000_000, Math.round(cost * (1 + markUp / 100))));
+    }
+    const count = Object.keys(updates).length;
+    setForm((now) => ({ ...now, ...updates }));
+    setSame((now) => {
+      const next = { ...now };
+      for (const row of group.rows) {
+        if (row.keys.length > 1 && next[row.keys[0]] && new Set(row.keys.map((key) => updates[key] ?? form[key] ?? '')).size > 1) next[row.keys[0]] = false;
+      }
+      return next;
+    });
+    setFilled((now) => ({
+      ...now,
+      [group.id]: count === 0 ? `${supplier.name} has no prices here yet.` : `${count === 1 ? '1 price' : `${count} prices`} filled in from ${supplier.name} plus ${markUp}%. Check them, then save.`,
+    }));
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void saving.save(() => api.savePrices(changes), 'The prices could not be saved. Please try again.');
+    void saving.save(() => save(changes), failedNote);
   };
 
-  const groups = prices.groups.map((group) => {
+  const body = groups.map((group) => {
     const columns = group.columns && group.columns.length > 1 ? group.columns : null;
     // The one finish, where a company offers only one.
     const only = group.columns?.length === 1 ? group.columns[0].label : null;
     return (
-      <fieldset key={group.id} className="mt-6 border-t border-rule pt-4 first-of-type:mt-2 first-of-type:border-t-0 first-of-type:pt-0">
+      // A fieldset is as wide as its widest line unless told otherwise, and a cost note is one line.
+      <fieldset key={group.id} className="mt-6 min-w-0 border-t border-rule pt-4 first-of-type:mt-2 first-of-type:border-t-0 first-of-type:pt-0">
         <legend className="float-left w-full text-sm font-bold">{group.title}</legend>
-        <p className="clear-both pt-1 text-xs text-quiet">{PRICE_HINTS[group.id]}</p>
+        <p className="clear-both pt-1 text-xs text-quiet">{hints[group.id]}</p>
         {!columns ? (
           <div className="divide-y divide-rule pt-1">
             {group.rows.map((row) => {
@@ -1813,8 +1899,9 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
                 <label key={key} className="flex items-center justify-between gap-4 py-2 text-sm">
                   <span className="min-w-0">
                     {label} {row.code && <CodeOf code={row.code} />}
+                    <CostNote costs={costsOf([key])} price={typed[key]} />
                   </span>
-                  <PriceCell editable={owner} label={label} value={form[key] ?? ''} invalid={Number.isNaN(typed[key])} per={PER[row.unit]} onChange={(v) => set(key, v)} />
+                  <PriceCell editable={editable} label={label} value={form[key] ?? ''} invalid={Number.isNaN(typed[key])} per={PER[row.unit]} onChange={(v) => set(key, v)} />
                 </label>
               );
             })}
@@ -1830,8 +1917,8 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
             </div>
             <div className="space-y-4 sm:space-y-2">
               {group.rows.map((row) => (
-                <div key={row.keys[0]} className="sm:grid sm:items-center sm:gap-2" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${columns.length}, 7.5rem)` }}>
-                  <p className="min-w-0">
+                <div key={row.keys[0]} className="sm:grid sm:items-start sm:gap-2" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${columns.length}, 7.5rem)` }}>
+                  <p className="min-w-0 sm:pt-2.5">
                     {row.label} <span className="text-xs text-quiet sm:hidden">{PER[row.unit]}</span>
                   </p>
                   <div className="mt-1.5 grid grid-cols-3 gap-2 sm:contents">
@@ -1839,13 +1926,14 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
                       <label key={key} className="block min-w-0">
                         <span className="block truncate text-xs text-quiet sm:hidden">{columns[i].label}</span>
                         <PriceCell
-                          editable={owner}
+                          editable={editable}
                           wide
                           label={`${columns[i].label} ${row.label}`}
                           value={form[key] ?? ''}
                           invalid={Number.isNaN(typed[key])}
                           onChange={(v) => set(key, v)}
                         />
+                        <CostNote costs={costsOf([key])} price={typed[key]} compact />
                       </label>
                     ))}
                   </div>
@@ -1860,22 +1948,18 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
               const one = same[id] === true;
               return (
                 <div key={id} className="text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                    <p className="min-w-0">
+                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                    <p className="min-w-0 pt-2">
                       <span className="font-medium">{row.label}</span> {row.code && <CodeOf code={row.code} />} {!one && <span className="text-xs text-quiet">{PER[row.unit]}</span>}
                     </p>
                     {one && (
-                      <PriceCell
-                        editable={owner}
-                        label={row.label}
-                        value={form[id] ?? ''}
-                        invalid={Number.isNaN(typed[id])}
-                        per={PER[row.unit]}
-                        onChange={(v) => setAll(row.keys, v)}
-                      />
+                      <span className="block">
+                        <PriceCell editable={editable} label={row.label} value={form[id] ?? ''} invalid={Number.isNaN(typed[id])} per={PER[row.unit]} onChange={(v) => setAll(row.keys, v)} />
+                        <CostNote costs={costsOf(row.keys)} price={typed[id]} compact />
+                      </span>
                     )}
                   </div>
-                  {owner && (
+                  {editable && (
                     <label className="mt-1 inline-flex cursor-pointer items-center gap-2 text-xs text-quiet">
                       <input
                         type="checkbox"
@@ -1896,13 +1980,14 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
                         <label key={key} className="block min-w-0">
                           <span className="block truncate text-xs text-quiet">{columns[i].label}</span>
                           <PriceCell
-                            editable={owner}
+                            editable={editable}
                             wide
                             label={`${row.label}, ${columns[i].label}`}
                             value={form[key] ?? ''}
                             invalid={Number.isNaN(typed[key])}
                             onChange={(v) => set(key, v)}
                           />
+                          <CostNote costs={costsOf([key])} price={typed[key]} compact />
                         </label>
                       ))}
                     </div>
@@ -1912,48 +1997,349 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
             })}
           </div>
         )}
+        {editable && suppliers.length > 0 && group.id !== 'job' && group.id !== 'other' && (
+          <FillFrom
+            suppliers={suppliers}
+            // The first supplier that prices anything here: the toughener for glass, CRL for hinges.
+            initial={suppliers.find((s) => group.rows.some((r) => r.keys.some((key) => s.prices[key])))?.id}
+            onFill={(supplier, markUp) => fill(group, supplier, markUp)}
+          />
+        )}
+        {filled[group.id] && (
+          <p role="status" className="mt-2 text-xs text-ink">
+            {filled[group.id]}
+          </p>
+        )}
       </fieldset>
     );
   });
 
-  if (!owner) {
+  if (!editable) {
     return (
-      <Section title="Prices">
-        <div className={CARD}>
-          <Hint>What each new quote starts from, before VAT. Only an owner can change them.</Hint>
-          {groups}
-        </div>
-      </Section>
+      <div className={CARD}>
+        <Hint>{intro}</Hint>
+        {body}
+      </div>
     );
   }
 
   return (
-    <Section title="Prices">
-      <form onSubmit={submit} className={CARD}>
-        <Hint>
-          What each new quote starts from, before VAT. You can still change any line on a quote before you send it, and a quote you send keeps its prices here for next time. Anything left empty is left for
-          you to price on the quote.
-        </Hint>
-        {groups}
-        {!valid && (
-          <p role="alert" className="mt-4 text-sm text-bad">
-            A price is in pounds and pence, such as 45 or 45.50, up to £1,000,000. The ones outlined in red are not.
-          </p>
+    <form onSubmit={submit} className={CARD}>
+      <Hint>{intro}</Hint>
+      {body}
+      {!valid && (
+        <p role="alert" className="mt-4 text-sm text-bad">
+          A price is in pounds and pence, such as 45 or 45.50, up to £1,000,000. The ones outlined in red are not.
+        </p>
+      )}
+      <SaveRow
+        label={saveLabel}
+        dirty={dirty}
+        valid={valid}
+        saving={saving}
+        onUndo={() => {
+          setForm(original);
+          setSame(sameAtFirst);
+          setFilled({});
+        }}
+        justSaved={justSaved}
+        savedNote={savedNote}
+        onReload={onReload}
+      />
+    </form>
+  );
+}
+
+/** Fill a part of the company's prices from what one of its suppliers charges, plus a mark-up. */
+function FillFrom({ suppliers, initial, onFill }: { suppliers: SupplierPriceList[]; initial?: string; onFill: (supplier: SupplierPriceList, markUp: number) => void }) {
+  const [supplierId, setSupplierId] = useState(initial ?? suppliers[0]?.id ?? '');
+  const [markUp, setMarkUp] = useState('');
+  const supplier = suppliers.find((s) => s.id === supplierId) ?? suppliers[0];
+  const typed = markUp.replace(/[%\s]/g, '');
+  const percent = /^\d{1,4}(\.\d)?$/.test(typed) ? Number(typed) : NaN;
+  const ok = Number.isFinite(percent) && percent <= 1000;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-ground px-3 py-2 text-xs">
+      <span>Fill in from</span>
+      {suppliers.length === 1 ? (
+        <span className="font-medium">{supplier.name}</span>
+      ) : (
+        <select aria-label="Supplier" value={supplier.id} onChange={(e) => setSupplierId(e.target.value)} className="h-8 rounded-md border border-rule bg-surface px-2">
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
+      <span>plus</span>
+      <span className={`flex h-8 w-20 items-center rounded-md border bg-surface px-2 ${markUp && !ok ? 'border-bad/60' : 'border-rule'}`}>
+        <input inputMode="decimal" aria-label="Mark-up" value={markUp} onChange={(e) => setMarkUp(e.target.value)} className="w-full min-w-0 bg-transparent tabular-nums outline-none" />
+        <span className="text-quiet">%</span>
+      </span>
+      <button type="button" disabled={!ok} onClick={() => onFill(supplier, percent)} className="h-8 rounded-md border border-rule bg-surface px-3 font-medium disabled:opacity-50">
+        Fill in
+      </button>
+    </div>
+  );
+}
+
+/** What each part of a supplier's price list says to the owner. */
+const supplierHints = (name: string): Record<string, string> => ({
+  ...PRICE_HINTS,
+  glass: `What ${name} charges by the square metre of each pane.`,
+  cutouts: `What ${name} charges for each notch and each hole.`,
+  other: `${name}’s prices for things you no longer offer. Empty one to take it away.`,
+});
+
+/** A supplier's own price list, with its name to change and the supplier to remove. */
+function SupplierPanel({
+  supplier,
+  groups,
+  justSaved,
+  onSaved,
+  onRemoved,
+  onReload,
+  onDirty,
+}: {
+  supplier: SupplierPriceList;
+  groups: PriceBook['groups'];
+  justSaved: boolean;
+  onSaved: () => void;
+  onRemoved: () => void;
+  onReload: () => void;
+  onDirty: (dirty: boolean) => void;
+}) {
+  const [mode, setMode] = useState<'view' | 'rename' | 'remove'>('view');
+  const [name, setName] = useState(supplier.name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (action: () => Promise<unknown>, done: () => void, otherwise: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      setMode('view');
+      done();
+    } catch (e) {
+      setError(failure(e, otherwise));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        {mode === 'rename' ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(() => api.renameSupplier(supplier.id, name.trim(), supplier.name), onSaved, 'The supplier could not be renamed. Please try again.');
+            }}
+          >
+            <input aria-label="Supplier’s name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={`${FIELD} w-64 border-rule`} />
+            <button type="submit" disabled={busy || !name.trim()} className="h-10 rounded-md bg-accent px-4 font-semibold text-accent-ink disabled:opacity-50">
+              Rename
+            </button>
+            <button type="button" onClick={() => setMode('view')} className="h-10 rounded-md border border-rule bg-surface px-4 font-medium">
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <h3 className="text-lg font-semibold">{supplier.name}</h3>
         )}
-        <SaveRow
-          label="Save the prices"
-          dirty={dirty}
-          valid={valid}
-          saving={saving}
-          onUndo={() => {
-            setForm(original);
-            setSame(sameAtFirst);
-          }}
-          justSaved={justSaved}
+        {mode === 'view' && (
+          <span className="flex gap-4 text-sm">
+            <button type="button" onClick={() => setMode('rename')} className="font-medium text-accent underline underline-offset-2">
+              Rename
+            </button>
+            <button type="button" onClick={() => setMode('remove')} className="font-medium text-bad underline underline-offset-2">
+              Remove
+            </button>
+          </span>
+        )}
+      </div>
+      {mode === 'remove' && (
+        <div role="alert" className="mb-3 rounded-md border border-bad/40 bg-surface p-3 text-sm">
+          <p>Remove {supplier.name}, and every price you have from them? Your own prices stay as they are.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => api.removeSupplier(supplier.id), onRemoved, 'The supplier could not be removed. Please try again.')}
+              className="h-10 rounded-md bg-bad px-4 font-semibold text-white disabled:opacity-50"
+            >
+              Remove {supplier.name}
+            </button>
+            <button type="button" onClick={() => setMode('view')} className="h-10 rounded-md border border-rule bg-surface px-4 font-medium">
+              Keep them
+            </button>
+          </div>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-bad">
+          {error}
+        </p>
+      )}
+      <PriceForm
+        key={fingerprint([groups.map((g) => g.rows.map((r) => r.keys)), supplier.prices])}
+        groups={groups}
+        stored={supplier.prices}
+        editable
+        intro={`What ${supplier.name} charges you, before VAT. Fill in what they supply and leave the rest empty. Only owners see this: your quotes are always priced from your own prices.`}
+        hints={supplierHints(supplier.name)}
+        saveLabel={`Save ${supplier.name}’s prices`}
+        savedNote="Saved. Your own prices now show what each thing costs you."
+        failedNote="The prices could not be saved. Please try again."
+        justSaved={justSaved}
+        save={(changes) => api.saveSupplierPrices(supplier.id, changes)}
+        onSaved={onSaved}
+        onReload={onReload}
+        onDirty={onDirty}
+      />
+    </>
+  );
+}
+
+/** A new supplier, by name. */
+function AddSupplier({ onAdded }: { onAdded: (id: string) => void }) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const { id } = await api.addSupplier(name.trim());
+      onAdded(id);
+    } catch (e) {
+      setError(failure(e, 'The supplier could not be added. Please try again.'));
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={(e) => void submit(e)} className={CARD}>
+      <Hint>
+        Who you buy from: a toughener, CRL, another hardware supplier. Each has its own price list here, laid out like yours, so your prices show what each thing costs you, and you can fill them in from a
+        supplier’s plus your mark-up.
+      </Hint>
+      <label className="block text-sm">
+        <span className="font-medium">The supplier’s name</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={`${FIELD} mt-1 border-rule sm:w-80`} />
+      </label>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-bad">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={busy || !name.trim()} className="mt-4 h-10 rounded-md bg-accent px-4 font-semibold text-accent-ink disabled:opacity-50">
+        {busy ? 'Adding' : 'Add the supplier'}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * The price book: what each new quote starts from, before VAT. Everything
+ * the company's quotes can price is listed, from what its designer offers.
+ * Owners also keep a price list for each supplier they buy from, laid out
+ * the same way: their own prices then show what each thing costs and the
+ * mark-up on it, and can be filled in from a supplier's plus a mark-up. The
+ * rest of the team sees the company's prices, never what it pays.
+ */
+export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: PartProps & { prices: PriceBook }) {
+  const suppliers = owner ? (prices.suppliers ?? []) : [];
+  const [tab, setTab] = useState('ours');
+  const [savedTab, setSavedTab] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const supplier = suppliers.find((s) => s.id === tab) ?? null;
+  // A supplier removed leaves its tab for the company's own prices.
+  const shown = tab === 'add' || supplier ? tab : 'ours';
+  const savedHere = (which: string) => () => {
+    setSavedTab(which);
+    onSaved();
+  };
+  const open = (which: string) => {
+    setTab(which);
+    setSavedTab(null);
+  };
+  const supplierGroups = (s: SupplierPriceList): PriceBook['groups'] => [
+    ...prices.groups.filter((g) => g.id !== 'job' && g.id !== 'other'),
+    ...(s.others.length > 0 ? [{ id: 'other' as const, title: 'Other prices', rows: s.others }] : []),
+  ];
+  const tabClass = (active: boolean) =>
+    `h-9 rounded-full border px-3 text-sm font-medium disabled:opacity-50 ${active ? 'border-accent bg-accent text-accent-ink' : 'border-rule bg-surface text-ink'}`;
+
+  return (
+    <Section title="Prices">
+      {owner && (
+        <>
+          <div role="tablist" aria-label="Price lists" className="mb-3 flex flex-wrap gap-2">
+            <button type="button" role="tab" aria-selected={shown === 'ours'} disabled={dirty && shown !== 'ours'} onClick={() => open('ours')} className={tabClass(shown === 'ours')}>
+              Your prices
+            </button>
+            {suppliers.map((s) => (
+              <button key={s.id} type="button" role="tab" aria-selected={shown === s.id} disabled={dirty && shown !== s.id} onClick={() => open(s.id)} className={tabClass(shown === s.id)}>
+                {s.name}
+              </button>
+            ))}
+            <button type="button" role="tab" aria-selected={shown === 'add'} disabled={dirty} onClick={() => open('add')} className={tabClass(shown === 'add')}>
+              + Add a supplier
+            </button>
+          </div>
+          {dirty && <p className="-mt-1 mb-3 text-xs text-quiet">Save or undo your changes before you open another price list.</p>}
+        </>
+      )}
+      {shown === 'ours' && (
+        <PriceForm
+          key={fingerprint([prices.groups.map((g) => g.rows.map((r) => r.keys)), prices.prices])}
+          groups={prices.groups}
+          stored={prices.prices}
+          editable={owner}
+          intro={
+            owner
+              ? `What each new quote starts from, before VAT. You can still change any line on a quote before you send it, and a quote you send keeps its prices here for next time. Anything left empty is left for you to price on the quote.${suppliers.length > 0 ? ' Under each price is what it costs you from your cheapest supplier, and what you add on.' : ''}`
+              : 'What each new quote starts from, before VAT. Only an owner can change them.'
+          }
+          hints={PRICE_HINTS}
+          saveLabel="Save the prices"
           savedNote="Saved. The next quote you write starts from these."
+          failedNote="The prices could not be saved. Please try again."
+          justSaved={justSaved && savedTab === 'ours'}
+          save={(changes) => api.savePrices(changes)}
+          onSaved={savedHere('ours')}
           onReload={onReload}
+          onDirty={setDirty}
+          suppliers={suppliers}
         />
-      </form>
+      )}
+      {supplier && (
+        <SupplierPanel
+          key={supplier.id}
+          supplier={supplier}
+          groups={supplierGroups(supplier)}
+          justSaved={justSaved && savedTab === supplier.id}
+          onSaved={savedHere(supplier.id)}
+          onRemoved={() => {
+            open('ours');
+            onSaved();
+          }}
+          onReload={onReload}
+          onDirty={setDirty}
+        />
+      )}
+      {shown === 'add' && (
+        <AddSupplier
+          onAdded={(id) => {
+            open(id);
+            onSaved();
+          }}
+        />
+      )}
     </Section>
   );
 }
@@ -2297,14 +2683,17 @@ function Changes({ changes, me, several }: { changes: SettingsChange[]; me: Me; 
           const where = several && change.data.designer ? `On ${change.data.designer.name}: ` : '';
           const items = change.data.changes?.length ? change.data.changes : [null];
           // A price book filled in at once is one line, opened to see each price.
-          const prices = items.filter((item): item is SettingsChangeItem => item?.field === 'price');
+          const prices = items.filter((item): item is SettingsChangeItem => item?.field === 'price' || item?.field === 'cost');
           if (prices.length > 3 && prices.length === items.length) {
+            const first = prices[0];
+            const whose = first.field === 'cost' && prices.every((p) => p.field === 'cost' && p.supplier.id === first.supplier.id) ? ` of ${first.supplier.name}’s` : '';
             return [
               <li key={change.id} className="flex justify-between gap-3">
                 <details className="min-w-0">
                   <summary className="cursor-pointer">
                     {where}
-                    {by} changed {prices.length} prices.
+                    {by} changed {prices.length}
+                    {whose} prices.
                   </summary>
                   <ul className="mt-1 space-y-1 pl-4 text-quiet">
                     {prices.map((item, i) => (
@@ -2350,6 +2739,15 @@ const CHOICE_TEXT: Record<string, Record<string, ChoiceText>> = {
 /** One change to the settings, in words. */
 function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
+    case 'supplier':
+      if (item.change === 'renamed') return `${by} renamed the supplier “${item.from}” to “${item.to}”.`;
+      return item.change === 'added' ? `${by} added the supplier “${item.label}”.` : `${by} removed the supplier “${item.label}” and its prices.`;
+    case 'cost': {
+      const price = (pence: number) => `${money(pence)} ${PER[item.unit] ?? ''}`.trim();
+      const whose = `${item.supplier.name}’s price of “${item.label}”`;
+      if (item.to === null) return `${by} took ${whose} away${item.from === null ? '' : `, which was ${price(item.from)}`}.`;
+      return `${by} set ${whose} to ${price(item.to)}${item.from === null ? '' : `, from ${price(item.from)}`}.`;
+    }
     case 'price': {
       const price = (pence: number) => `${money(pence)} ${PER[item.unit] ?? ''}`.trim();
       if (item.to === null) return `${by} took the price off “${item.label}”${item.from === null ? '' : `, which was ${price(item.from)}`}.`;

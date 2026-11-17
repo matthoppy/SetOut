@@ -21,6 +21,7 @@
 import type { RulesetOverrides } from '@setout/engine';
 import { newId } from '../lib/ids';
 import { DataError } from './company-db';
+import type { QuoteUnit } from './tables';
 
 type Env_ = Pick<Env, 'DB'>;
 
@@ -270,6 +271,146 @@ export async function savePrices(
             LEFT JOIN price_list p ON p.company_id = ?1 AND p.key = json_extract(c.value, '$.key')
            WHERE p.unit_price_pence IS NOT json_extract(c.value, '$.to'))`
     ).bind(companyId, sent, newId('audit'), actorId, JSON.stringify(data), at)
+  );
+  const results = await env.DB.batch(statements);
+  return results[results.length - 1].meta.changes === 1;
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers: who the company buys from, and what each charges
+// ---------------------------------------------------------------------------
+
+/** The company's suppliers, in the order they were added, each with what it charges. */
+export async function readSuppliers(
+  env: Env_,
+  companyId: string
+): Promise<{ id: string; name: string; prices: { key: string; unit: QuoteUnit; pence: number; updatedAt: string }[] }[]> {
+  const [suppliers, prices] = await env.DB.batch([
+    env.DB.prepare('SELECT id, name FROM suppliers WHERE company_id = ? ORDER BY created_at, id').bind(companyId),
+    env.DB.prepare(
+      'SELECT supplier_id AS supplierId, key, unit, cost_pence AS pence, updated_at AS updatedAt FROM supplier_prices WHERE company_id = ? ORDER BY key'
+    ).bind(companyId),
+  ]);
+  const rows = prices.results as { supplierId: string; key: string; unit: QuoteUnit; pence: number; updatedAt: string }[];
+  return (suppliers.results as { id: string; name: string }[]).map((s) => ({
+    id: s.id,
+    name: s.name,
+    prices: rows.filter((p) => p.supplierId === s.id).map(({ key, unit, pence, updatedAt }) => ({ key, unit, pence, updatedAt })),
+  }));
+}
+
+/**
+ * Add a supplier, with the audit entry beside it. Nothing is added if the
+ * company already has a supplier of that name, whatever its capitals, or
+ * already has as many as it may: null if so.
+ */
+export async function addSupplier(env: Env_, companyId: string, actorId: string, name: string, limit: number, now = new Date()): Promise<string | null> {
+  const at = now.toISOString();
+  const id = newId('supplier', now.getTime());
+  const [added] = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO suppliers (company_id, id, name, created_at, updated_at)
+       SELECT ?1, ?2, ?3, ?4, ?4
+        WHERE NOT EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND lower(name) = lower(?3))
+          AND (SELECT COUNT(*) FROM suppliers WHERE company_id = ?1) < ?5`
+    ).bind(companyId, id, name, at, limit),
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
+    ).bind(companyId, newId('audit'), actorId, id, JSON.stringify({ changes: [{ field: 'supplier', change: 'added', id, label: name }] }), at),
+  ]);
+  return added.meta.changes === 1 ? id : null;
+}
+
+/**
+ * Rename a supplier, from the name the owner saw, unless another of the
+ * company's suppliers has the new name. False if not renamed.
+ */
+export async function renameSupplier(env: Env_, companyId: string, actorId: string, id: string, from: string, to: string, now = new Date()): Promise<boolean> {
+  const at = now.toISOString();
+  const [renamed] = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE suppliers SET name = ?4, updated_at = ?5
+        WHERE company_id = ?1 AND id = ?2 AND name = ?3
+          AND NOT EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id <> ?2 AND lower(name) = lower(?4))`
+    ).bind(companyId, id, from, to, at),
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
+    ).bind(companyId, newId('audit'), actorId, id, JSON.stringify({ changes: [{ field: 'supplier', change: 'renamed', id, label: to, from, to }] }), at),
+  ]);
+  return renamed.meta.changes === 1;
+}
+
+/** Remove a supplier and every price it has, with the audit entry beside it. False if there was no such supplier. */
+export async function removeSupplier(env: Env_, companyId: string, actorId: string, id: string, name: string, now = new Date()): Promise<boolean> {
+  const at = now.toISOString();
+  const results = await env.DB.batch([
+    env.DB.prepare('DELETE FROM supplier_prices WHERE company_id = ? AND supplier_id = ?').bind(companyId, id),
+    env.DB.prepare('DELETE FROM suppliers WHERE company_id = ? AND id = ?').bind(companyId, id),
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
+    ).bind(companyId, newId('audit'), actorId, id, JSON.stringify({ changes: [{ field: 'supplier', change: 'removed', id, label: name }] }), at),
+  ]);
+  return results[1].meta.changes === 1;
+}
+
+/**
+ * Change what a supplier charges, as savePrices changes the price book: each
+ * price from the one the owner saw to the one they chose, or none, all of
+ * them or none, and the audit entry only once every price is what the owner
+ * chose. False if any had moved meanwhile, or the supplier has gone.
+ */
+export async function saveSupplierPrices(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  supplierId: string,
+  changes: readonly { key: string; unit: string; from: number | null; to: number | null }[],
+  data: object,
+  now = new Date()
+): Promise<boolean> {
+  if (changes.length === 0) throw new DataError('There is nothing to change.');
+  const at = now.toISOString();
+  const sent = JSON.stringify(changes.map((c) => ({ key: c.key, unit: c.unit, from: c.from, to: c.to, id: newId('supplierPrice') })));
+  const theirs = 'p.company_id = ?1 AND p.supplier_id = ?3 AND p.key = json_extract(c.value, \'$.key\')';
+  const unmoved = `EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id = ?3) AND NOT EXISTS (
+      SELECT 1 FROM json_each(?2) c
+        LEFT JOIN supplier_prices p ON ${theirs}
+       WHERE p.cost_pence IS NOT json_extract(c.value, '$.from')
+         AND p.cost_pence IS NOT json_extract(c.value, '$.to'))`;
+  const statements: D1PreparedStatement[] = [];
+  if (changes.some((c) => c.to === null)) {
+    statements.push(
+      env.DB.prepare(
+        `DELETE FROM supplier_prices
+          WHERE company_id = ?1 AND supplier_id = ?3
+            AND key IN (SELECT json_extract(value, '$.key') FROM json_each(?2) WHERE json_extract(value, '$.to') IS NULL)
+            AND ${unmoved}`
+      ).bind(companyId, sent, supplierId)
+    );
+  }
+  if (changes.some((c) => c.to !== null)) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO supplier_prices (company_id, id, supplier_id, key, unit, cost_pence, created_at, updated_at)
+         SELECT ?1, json_extract(c.value, '$.id'), ?3, json_extract(c.value, '$.key'), json_extract(c.value, '$.unit'), json_extract(c.value, '$.to'), ?4, ?4
+           FROM json_each(?2) c
+          WHERE json_extract(c.value, '$.to') IS NOT NULL AND ${unmoved}
+         ON CONFLICT (company_id, supplier_id, key) DO UPDATE SET unit = excluded.unit, cost_pence = excluded.cost_pence, updated_at = excluded.updated_at`
+      ).bind(companyId, sent, supplierId, at)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?1, ?4, ?5, 'settings_changed', ?3, ?6, ?7
+        WHERE EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id = ?3) AND NOT EXISTS (
+          SELECT 1 FROM json_each(?2) c
+            LEFT JOIN supplier_prices p ON ${theirs}
+           WHERE p.cost_pence IS NOT json_extract(c.value, '$.to'))`
+    ).bind(companyId, sent, supplierId, newId('audit'), actorId, JSON.stringify(data), at)
   );
   const results = await env.DB.batch(statements);
   return results[results.length - 1].meta.changes === 1;

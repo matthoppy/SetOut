@@ -18,7 +18,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/lib/designer-config';
 import { RequestError } from '../src/lib/enquiry';
-import { listedPrices, priceBook, readPriceChanges } from '../src/lib/price-book';
+import { listedPrices, priceBook, readPriceChanges, supplierBook } from '../src/lib/price-book';
 import { draftLines } from '../src/lib/quote-lines';
 import { designerView } from '../src/lib/settings';
 
@@ -179,5 +179,54 @@ describe('a change to a price', () => {
     }
     expect(refused).toBeInstanceOf(RequestError);
     expect([(refused as RequestError).status, (refused as RequestError).code]).toEqual([400, 'invalid_prices']);
+  });
+});
+
+describe('a supplier’s price list', () => {
+  const at = '2026-11-17T00:00:00.000Z';
+  const book = priceBook(
+    [designer({})],
+    [{ key: 'fitting', unit: 'job', pence: 35_000, updatedAt: at }],
+    [
+      {
+        id: 'sup_1',
+        name: 'Smart Glazier',
+        prices: [
+          { key: 'glass:10:clear', unit: 'm2', pence: 8_000, updatedAt: at },
+          { key: 'hinge:gen044:polished-gold', unit: 'each', pence: 5_000, updatedAt: at },
+        ],
+      },
+    ]
+  );
+
+  test('has what the supplier charges, by key, and lists what the book no longer does', () => {
+    expect(book.suppliers).toEqual([
+      {
+        id: 'sup_1',
+        name: 'Smart Glazier',
+        prices: { 'glass:10:clear': { pence: 8_000, updatedAt: at }, 'hinge:gen044:polished-gold': { pence: 5_000, updatedAt: at } },
+        others: [{ label: 'Hinge GEN044, polished gold', unit: 'each', keys: ['hinge:gen044:polished-gold'] }],
+      },
+    ]);
+  });
+
+  test('is laid out as the book is, without fitting and delivery or the company’s own other prices', () => {
+    const theirs = supplierBook(book, 'sup_1');
+    expect(theirs?.groups.map((g) => g.id)).toEqual(['glass', 'cutouts', 'hinges', 'handles', 'fixing', 'other']);
+    expect(theirs?.groups.at(-1)?.rows.map((r) => r.keys[0])).toEqual(['hinge:gen044:polished-gold']);
+    expect(theirs?.prices['glass:10:clear'].pence).toBe(8_000);
+    expect(listedPrices(theirs!).has('fitting')).toBe(false);
+  });
+
+  test('a change to it is read against it alone', () => {
+    const theirs = supplierBook(book, 'sup_1')!;
+    expect(readPriceChanges([{ key: 'glass:10:clear', from: 8_000, to: 8_200 }], theirs)).toEqual([
+      { key: 'glass:10:clear', label: '10mm clear', unit: 'm2', from: 8_000, to: 8_200 },
+    ]);
+    expect(() => readPriceChanges([{ key: 'fitting', from: null, to: 100 }], theirs)).toThrow(RequestError);
+  });
+
+  test('there is none for a supplier the company does not have', () => {
+    expect(supplierBook(book, 'sup_2')).toBeNull();
   });
 });

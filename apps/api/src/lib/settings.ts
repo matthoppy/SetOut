@@ -102,7 +102,7 @@ const isWhole = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
 
 /** Words on one line: invisible formatting goes, and any run of spaces, breaks or control characters becomes one space. */
-const oneLine = (value: string) =>
+export const oneLine = (value: string) =>
   value
     .replace(/\p{Cf}/gu, '')
     .replace(/[\s\p{Cc}]+/gu, ' ')
@@ -605,7 +605,12 @@ export type SettingsChange =
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'rule'; rule: string; from: number | string; to: number | string }
   /** A price in the price book, in pence before VAT. Null is no price. */
-  | { field: 'price'; key: string; label: string; unit: string; from: number | null; to: number | null };
+  | { field: 'price'; key: string; label: string; unit: string; from: number | null; to: number | null }
+  /** A supplier added, renamed or removed. */
+  | { field: 'supplier'; change: 'added' | 'removed'; id: string; label: string }
+  | { field: 'supplier'; change: 'renamed'; id: string; label: string; from: string; to: string }
+  /** What a supplier charges, in pence before VAT. Null is no price. */
+  | { field: 'cost'; supplier: { id: string; name: string }; key: string; label: string; unit: string; from: number | null; to: number | null };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
 

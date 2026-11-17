@@ -31,6 +31,8 @@ export const ID_PREFIX = {
   confirmation: 'ocf',
   cutOverride: 'cov',
   jobPayment: 'jpy',
+  supplier: 'sup',
+  supplierPrice: 'spr',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;
