@@ -195,28 +195,16 @@ export interface DeliveryAddress {
   postcode: string;
 }
 
-/** The silicone colours sold by the tube (Matt, 16 November 2026). */
-/** Word for word from the reference page. Clear may still be 0: the customer may use their own. */
-export const SILICONE_HINT =
-  "This job needs at least one tube of clear silicone to seal the glass into the channel. Add one here, or use your own if you already have some. You can also add white or black, for example to seal where the channel meets the tiles.";
+/** The silicone colours that used to be sold by the tube. Kept so older answers still type-check. */
 export const SILICONE_COLOURS = ['clear', 'white', 'black'] as const;
 export type SiliconeColour = (typeof SILICONE_COLOURS)[number];
 export type SiliconeTubes = Record<SiliconeColour, number>;
-
-const COLOUR_WORDS: Record<SiliconeColour, string> = { clear: 'Clear', white: 'White', black: 'Black' };
-
-/**
- * The optional extras' prices, in pence (Matt, 16 November 2026). Charged on
- * top of the quote at Checkout, one line per colour ordered, and never taken
- * from the browser: the page only says how many.
- */
-export const EXTRA_PRICES = { siliconeTubePence: 850, toolPence: 495 } as const;
 
 export interface ConfirmationAnswers {
   order_ref: string;
   details_confirmed: true;
   measurements_accepted: true;
-  /** The third box: the terms of sale in section 6, at this version, accepted at this time (the server's). */
+  /** The third box: the terms of sale in section 5, at this version, accepted at this time (the server's). */
   terms_accepted: true;
   terms_version: string;
   terms_accepted_at: string;
@@ -225,7 +213,7 @@ export interface ConfirmationAnswers {
   preferred_delivery_date: string;
   can_unload: 'yes' | 'no';
   unload_note: string;
-  /** How many tubes of each colour, 0 to LIMITS.tubes each. */
+  /** Always none: optional silicone extras were withdrawn (the glass supplier does not sell them). Kept so older answers still read. */
   silicone_tubes: SiliconeTubes;
   silicone_tool: 'yes' | 'no';
   signed_name: string;
@@ -233,7 +221,7 @@ export interface ConfirmationAnswers {
   submitted_at: string;
 }
 
-export const LIMITS = { unloadNote: 1000, signedName: 120, comments: 2000, addressLine: 120, town: 60, tubes: 10 } as const;
+export const LIMITS = { unloadNote: 1000, signedName: 120, comments: 2000, addressLine: 120, town: 60 } as const;
 
 /** One extra the customer chose, as a line to charge. */
 export interface ExtraLine {
@@ -244,45 +232,16 @@ export interface ExtraLine {
 }
 
 /**
- * The extras in a confirmation's answers, one line per silicone colour with
- * at least one tube, then the tool. Answers saved before tubes were counted
- * (a yes or no and one colour) are read as one tube of that colour.
+ * Optional extras are no longer sold (the glass supplier does not sell
+ * silicone or a finishing tool), so a confirmation is never charged for
+ * them. Posted fields from a stale page, and answers already stored, are
+ * ignored.
  */
-export function extrasOf(answers: Record<string, unknown> | null | undefined): ExtraLine[] {
-  if (!answers) return [];
-  const lines: ExtraLine[] = [];
-  const tubes = tubesOf(answers);
-  for (const colour of SILICONE_COLOURS) {
-    if (tubes[colour] > 0) {
-      lines.push({ key: `silicone:${colour}`, description: `Silicone sealant, ${colour}`, quantity: tubes[colour], unitPence: EXTRA_PRICES.siliconeTubePence });
-    }
-  }
-  if (answers.silicone_tool === 'yes') lines.push({ key: 'silicone-tool', description: 'Silicone finishing tool', quantity: 1, unitPence: EXTRA_PRICES.toolPence });
-  return lines;
-}
-
-/** The tube counts in saved answers, of either shape. */
-export function tubesOf(answers: Record<string, unknown>): SiliconeTubes {
-  const tubes: SiliconeTubes = { clear: 0, white: 0, black: 0 };
-  const saved = answers.silicone_tubes as Record<string, unknown> | undefined;
-  if (saved && typeof saved === 'object') {
-    for (const colour of SILICONE_COLOURS) {
-      const n = Number(saved[colour]);
-      tubes[colour] = Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0;
-    }
-  } else if (answers.silicone === 'yes' && SILICONE_COLOURS.includes(answers.silicone_colour as SiliconeColour)) {
-    tubes[answers.silicone_colour as SiliconeColour] = 1;
-  }
-  return tubes;
+export function extrasOf(_answers?: Record<string, unknown> | null): ExtraLine[] {
+  return [];
 }
 
 export const extrasPence = (lines: ExtraLine[]) => lines.reduce((sum, l) => sum + l.quantity * l.unitPence, 0);
-
-/** "2 clear, 1 white", or "None". */
-export function tubesWords(tubes: SiliconeTubes): string {
-  const parts = SILICONE_COLOURS.filter((c) => tubes[c] > 0).map((c) => `${tubes[c]} ${c}`);
-  return parts.length ? parts.join(', ') : 'None';
-}
 
 /** The address on lines, as it is printed. */
 export const addressLines = (a: DeliveryAddress) => [a.line1, a.line2, a.town, a.postcode].filter((l) => l.length > 0);
@@ -328,16 +287,9 @@ export function readAnswers(
   if ('error' in date) return date;
   const canUnload = oneOf(form.can_unload, ['yes', 'no'] as const);
   if (!canUnload) return { error: 'Please tell us if someone can help take the glass off the van (section 3).' };
+  // Posted silicone fields from a stale confirm page are ignored.
   const tubes: SiliconeTubes = { clear: 0, white: 0, black: 0 };
-  for (const colour of SILICONE_COLOURS) {
-    const raw = text(form[`silicone_${colour}`]);
-    const n = raw === '' ? 0 : /^\d{1,2}$/.test(raw) ? Number(raw) : NaN;
-    if (!Number.isInteger(n) || n < 0 || n > LIMITS.tubes) {
-      return { error: `Please choose between 0 and ${LIMITS.tubes} tubes of each silicone colour (section 4).` };
-    }
-    tubes[colour] = n;
-  }
-  const tool = ticked(form.silicone_tool) ? 'yes' : 'no';
+  const tool: 'yes' | 'no' = 'no';
   if (!ticked(form.details_confirmed) || !ticked(form.measurements_accepted) || !ticked(form.terms_accepted)) {
     return { error: 'Please tick all three confirmation boxes.' };
   }
@@ -488,17 +440,10 @@ dl.spec dd{margin:0;font-weight:600;color:var(--ink);text-align:right}
 .seg label{display:flex;align-items:center;justify-content:center;min-height:48px;border:1.5px solid #cbd5e1;border-radius:10px;font-weight:600;cursor:pointer;background:#fff;text-align:center;padding:6px;font-size:15px;transition:.15s}
 .seg input:checked+label{border-color:var(--navy);background:var(--navy);color:#fff}
 .seg input:focus-visible+label{outline:3px solid #93c5fd;outline-offset:2px}
-.swatch{width:14px;height:14px;border-radius:50%;border:1px solid #94a3b8;margin-right:8px;flex:none}
-.swatch.clear{background:linear-gradient(135deg,#fff,#e2e8f0)}.swatch.white{background:#fff}.swatch.black{background:#111}
 .note{background:#f0f7fd;border:1px solid #cfe6f7;color:#12406b;border-radius:10px;padding:12px 14px;font-size:14px;margin:14px 0 0}
 .terms{margin:0;padding-left:18px;color:var(--ink);font-size:14px;line-height:1.5}
 .terms li{margin:0 0 8px}
 .addr .lbl{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:8px 0 4px}
-.silrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #e2e8f0}
-.silrow .silname{flex:1;font-weight:600}
-.qb{width:40px;height:40px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;font:inherit;font-size:20px;font-weight:700;color:var(--navy);cursor:pointer}
-.qn{width:56px;height:40px;text-align:center;font:inherit;font-size:16px;border:1.5px solid #cbd5e1;border-radius:10px}
-.check.priced{align-items:center}.check.priced .ex{flex:1;display:flex;flex-direction:column}.check.priced .amt{font-weight:700}
 input[type=date]{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
 textarea,input[type=text]{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
 textarea{min-height:84px;resize:vertical}
@@ -564,32 +509,6 @@ const hero = (s: OrderSummary, line: string, title = 'Please confirm your shower
 const radio = (name: string, id: string, value: string, label: string, chosen: string | undefined, extra = '') =>
   `<input type="radio" name="${name}" id="${id}" value="${value}"${chosen === value ? ' checked' : ''}><label for="${id}">${extra}${esc(label)}</label>`;
 
-/** One silicone colour's counter. A number box that works on its own; the buttons need the page's script. */
-const tubeRow = (colour: SiliconeColour, value: string | undefined) => {
-  const n = /^\d{1,2}$/.test((value ?? '').trim()) ? (value ?? '').trim() : '0';
-  const name = COLOUR_WORDS[colour];
-  return `<div class="silrow"><span class="swatch ${colour}"></span><label class="silname" for="silicone_${colour}">${name}</label><button type="button" class="qb" data-k="${colour}" data-d="-1" aria-label="Remove a ${colour} tube">−</button><input class="qn" type="number" inputmode="numeric" id="silicone_${colour}" name="silicone_${colour}" min="0" max="${LIMITS.tubes}" step="1" value="${esc(n)}"><button type="button" class="qb" data-k="${colour}" data-d="1" aria-label="Add a ${colour} tube">+</button></div>`;
-};
-
-/** The extras the form holds, as lines, ignoring anything out of range. */
-function formExtrasOf(v: Posted): ExtraLine[] {
-  const tubes: Record<string, number> = {};
-  for (const c of SILICONE_COLOURS) {
-    const n = Number((v[`silicone_${c}`] ?? '0').trim() || '0');
-    tubes[c] = Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0;
-  }
-  return extrasOf({ silicone_tubes: tubes, silicone_tool: ticked(v.silicone_tool) ? 'yes' : 'no' });
-}
-
-/** "Extras: £17.00", from what the form holds, as the page first shows it. The page's script keeps it up to date. */
-function extrasWords(v: Posted): string {
-  const tubes = SILICONE_COLOURS.reduce((sum, c) => {
-    const n = Number((v[`silicone_${c}`] ?? '0').trim() || '0');
-    return sum + (Number.isInteger(n) && n > 0 && n <= LIMITS.tubes ? n : 0);
-  }, 0);
-  return `Extras: ${pounds(tubes * EXTRA_PRICES.siliconeTubePence + (ticked(v.silicone_tool) ? EXTRA_PRICES.toolPence : 0))}`;
-}
-
 /**
  * The note under the drawing, word for word from Matt's reference page
  * (16 November 2026). It names no size or deduction from the job.
@@ -619,9 +538,8 @@ export function formPage(
   sizingNote: boolean = SHOW_SIZING_NOTE
 ): string {
   const v = state.values;
-  const liveExtras = formExtrasOf(v);
   const payNow = pay.kind === 'confirm_first' && pay.amount ? pay.amount : null;
-  const payTotal = payNow ? (payNow.packagePence ?? payNow.pence) + extrasPence(liveExtras) : null;
+  const payTotal = payNow ? (payNow.packagePence ?? payNow.pence) : null;
   const press = payTotal != null ? 'press Confirm and pay' : 'press confirm';
   const hello = s.firstName
     ? `Hi ${s.firstName}, check the details below, answer a couple of quick questions and ${press}. It takes about two minutes.`
@@ -683,28 +601,16 @@ ${drawings}
 </div>
 </div>
 
-<div class="card">
-<h2><span class="n">4</span>Optional extras</h2>
-<p class="sub">Add these to your order if you need them. They're added to your total when you pay.</p>
-<fieldset class="q">
-<legend class="t">Silicone sealant <span class="opt">${esc(pounds(EXTRA_PRICES.siliconeTubePence))} per tube</span></legend>
-<p class="price hint">${esc(SILICONE_HINT)}</p>
-${SILICONE_COLOURS.map((c) => tubeRow(c, v[`silicone_${c}`])).join('')}
-</fieldset>
-<label class="check priced"><input type="checkbox" name="silicone_tool" value="yes"${ticked(v.silicone_tool) ? ' checked' : ''}><span class="ex"><strong>Silicone finishing tool</strong><span class="price">For a neat, smooth silicone bead.</span></span><span class="amt">${esc(pounds(EXTRA_PRICES.toolPence))}</span></label>
-<p class="price" id="extras_total" aria-live="polite">${esc(extrasWords(v))}</p>
-</div>
-
-${paymentCard(pay, formExtrasOf(v))}
+${paymentCard(pay)}
 
 <div class="card" id="terms">
-<h2><span class="n">6</span>Terms of sale</h2>
+<h2><span class="n">5</span>Terms of sale</h2>
 <p class="sub">Please read these before you confirm.</p>
 <ul class="terms">${terms.items.map((t) => `<li>${t.title ? `<strong>${esc(t.title)}</strong> ` : ''}${esc(t.text)}</li>`).join('')}</ul>
 </div>
 
 <div class="card">
-<h2><span class="n">7</span>${payTotal != null ? 'Confirm and pay' : 'Confirm'}</h2>
+<h2><span class="n">6</span>${payTotal != null ? 'Confirm and pay' : 'Confirm'}</h2>
 <p class="sub">Please read and tick all three boxes.</p>
 <label class="check"><input type="checkbox" name="details_confirmed" value="yes"${v.details_confirmed ? ' checked' : ''}><span>I've checked the sizes, glass, fixing and drawing above and they're correct.</span></label>
 <label class="check"><input type="checkbox" name="measurements_accepted" value="yes"${v.measurements_accepted ? ' checked' : ''}><span>I measured this myself. I understand the glass is toughened and made to these measurements, so it can't be altered afterwards, and if my measurements turn out to be wrong a replacement panel is a new order at my cost.</span></label>
@@ -723,17 +629,7 @@ ${state.error ? `<p class="err" id="err" role="alert">${esc(state.error)}</p>` :
 </form>
 </div></main>`;
   // Only to stop a second press while the first is on its way. The page works without it.
-  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent=b.getAttribute('data-pay')==='1'?'Opening secure payment\\u2026':'Sending\\u2026'},0)});
-(function(){var f=document.getElementById('form'),out=document.getElementById('extras_total'),T=${EXTRA_PRICES.siliconeTubePence},K=${EXTRA_PRICES.toolPence},M=${LIMITS.tubes};
-function n(c){var x=parseInt(f.elements['silicone_'+c].value,10);return isNaN(x)?0:Math.max(0,Math.min(M,x))}
-function g(p){return '\\u00a3'+(p/100).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
-var W={clear:'clear',white:'white',black:'black'},box=document.getElementById('price_lines'),xl=document.getElementById('extra_lines'),tt=document.getElementById('pay_total'),hd=document.getElementById('pay_headline'),btn=document.getElementById('btn');
-function row(d,p){var r=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');r.className='line';a.className='desc';b.className='amt';a.textContent=d;b.textContent=g(p);r.appendChild(a);r.appendChild(b);return r}
-function sum(){var p=(n('clear')+n('white')+n('black'))*T+(f.elements.silicone_tool.checked?K:0);out.textContent='Extras: '+g(p);
-if(!box)return;xl.textContent='';['clear','white','black'].forEach(function(c){var q=n(c);if(q)xl.appendChild(row('Silicone sealant, '+W[c]+(q>1?' \\u00d7 '+q:''),q*T))});if(f.elements.silicone_tool.checked)xl.appendChild(row('Silicone finishing tool',K));
-var t=Number(box.getAttribute('data-package'))+p;tt.textContent=g(t);if(hd)hd.textContent='Total: '+g(t);if(btn&&btn.getAttribute('data-pay')==='1')btn.textContent='Confirm and pay '+g(t)}
-f.addEventListener('click',function(e){var b=e.target.closest('.qb');if(!b)return;var c=b.getAttribute('data-k');f.elements['silicone_'+c].value=Math.max(0,Math.min(M,n(c)+Number(b.getAttribute('data-d'))));sum()});
-f.addEventListener('input',sum);f.addEventListener('change',sum)})();`;
+  const script = `document.getElementById('form').addEventListener('submit',function(){var b=document.getElementById('btn');setTimeout(function(){b.disabled=true;b.textContent=b.getAttribute('data-pay')==='1'?'Opening secure payment\\u2026':'Sending\\u2026'},0)});`;
   return shell(`Confirm your order ${s.reference}`, body, nonce, script);
 }
 
@@ -783,7 +679,7 @@ export type PayView =
 export interface PayAmount {
   /** The whole order, in pence, paid up front. */
   pence: number;
-  /** The quote's part, and the extras chosen when confirming. Without them, one line for the whole. */
+  /** The quote's part. extras is kept for older payment records but is never charged. */
   packagePence?: number;
   extras?: ExtraLine[];
   /** 'none': this is exactly what is paid, no VAT is charged. Otherwise Stripe Tax's VAT is in it, or added at checkout. */
@@ -794,28 +690,22 @@ export const pounds = (pence: number) => `£${(pence / 100).toLocaleString('en-G
 
 function amountWords(a: PayAmount, confirmed: boolean): { headline: string; detail: string } {
   const vat = a.vat === 'none' ? 'The full amount for your order' : a.vat === 'included' ? 'Including VAT' : 'Plus VAT, added at checkout';
-  // Before confirming, the form is on the page: the address is its section 3,
-  // and extras chosen in section 4 are added when paying.
+  // Before confirming, the form is on the page: the address is its section 3.
   return confirmed
-    ? { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, with any extras you chose. Delivered kerbside to the address you confirmed.` }
-    : { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}, including any extras you choose in section 4. Delivered kerbside to the address in section 3.` };
+    ? { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}. Delivered kerbside to the address you confirmed.` }
+    : { headline: `Total: ${pounds(a.pence)}`, detail: `${vat}. Delivered kerbside to the address in section 3.` };
 }
 
 /**
- * The price, line by line: the package, each extra, and the total. Before
- * confirming, the extras follow the form (the page's script keeps them up to
- * date); afterwards they are the ones saved.
+ * The price, line by line: the package and the total. Optional extras are
+ * no longer sold, so they never appear here even if older answers named them.
  */
-function priceLines(a: PayAmount, live: ExtraLine[] | null): string {
-  const extras = live ?? a.extras ?? [];
-  const packagePence = a.packagePence ?? a.pence - extrasPence(a.extras ?? []);
-  const total = packagePence + extrasPence(extras);
-  const row = (desc: string, pence: number, attrs = '') => `<div class="line"${attrs}><span class="desc">${desc}</span><span class="amt">${esc(pounds(pence))}</span></div>`;
-  const lines = extras.map((e) => row(`${esc(e.description)}${e.quantity > 1 ? ` × ${e.quantity}` : ''}`, e.quantity * e.unitPence, ' data-extra="1"'));
+function priceLines(a: PayAmount): string {
+  const packagePence = a.packagePence ?? a.pence;
+  const row = (desc: string, pence: number) => `<div class="line"><span class="desc">${desc}</span><span class="amt">${esc(pounds(pence))}</span></div>`;
   return `<div class="quote" id="price_lines" data-package="${packagePence}">
 ${row('Shower glass package', packagePence)}
-<div id="extra_lines">${lines.join('')}</div>
-<div class="line total"><span class="desc">Total</span><span class="amt" id="pay_total">${esc(pounds(total))}</span></div>
+<div class="line total"><span class="desc">Total</span><span class="amt" id="pay_total">${esc(pounds(packagePence))}</span></div>
 </div>`;
 }
 
@@ -823,9 +713,9 @@ const LOCK = '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"
 const disabledButton = `<button type="button" class="paybtn" disabled aria-disabled="true">${LOCK}Pay securely</button>`;
 
 /** The payment card, in whichever state paying is in. */
-export function paymentCard(pay: PayView, formExtras: ExtraLine[] | null = null): string {
+export function paymentCard(pay: PayView): string {
   const card = (badge: string, sub: string, inner: string) => `<div class="card" id="payment">
-<h2><span class="n">5</span>Payment${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</h2>
+<h2><span class="n">4</span>Payment${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</h2>
 <p class="sub">${sub}</p>
 ${inner}
 </div>`;
@@ -839,12 +729,12 @@ ${inner}
       return card('', "Your final price isn't ready yet.", box('Total: not set yet', "We'll email your quote, then you can pay here. Nothing is charged until then.", disabledButton));
     case 'confirm_first': {
       if (!pay.amount) return card('', 'Confirm your order below first. Payment opens once a price is set.', box('Total: shown on your quote', 'Payment opens once you confirm.', ''));
-      const shown = { ...pay.amount, pence: (pay.amount.packagePence ?? pay.amount.pence) + extrasPence(formExtras ?? []) };
+      const shown = { ...pay.amount, pence: pay.amount.packagePence ?? pay.amount.pence };
       const words = amountWords(shown, false);
       return card(
         '',
-        'Check the total, including any extras you choose in section 4, then press Confirm and pay below.',
-        `${priceLines(pay.amount, formExtras ?? [])}${box(words.headline, words.detail, '').replace('<strong>', '<strong id="pay_headline">')}`
+        'Check the total, then press Confirm and pay below.',
+        `${priceLines(pay.amount)}${box(words.headline, words.detail, '').replace('<strong>', '<strong id="pay_headline">')}`
       );
     }
     case 'ready':
@@ -854,7 +744,7 @@ ${inner}
       return card(
         '',
         'Pay by card or another method on Stripe\'s secure page. We never see your card details.',
-        `${priceLines(pay.amount, null)}${box(words.headline, words.detail, payForm(pay.action, `Pay ${pounds(pay.amount.pence)}`))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
+        `${priceLines(pay.amount)}${box(words.headline, words.detail, payForm(pay.action, `Pay ${pounds(pay.amount.pence)}`))}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}`
       );
     }
     case 'processing':
@@ -914,8 +804,6 @@ export function confirmedEmail(from: string, to: string[], input: { reference: s
     ['Preferred delivery date', `${prettyDate(a.preferred_delivery_date)} (${a.preferred_delivery_date}), to be confirmed once the glass is ready`],
     ['Help unloading the van', yesNo(a.can_unload)],
     ['Delivery note', a.unload_note || '—'],
-    ['Silicone tubes', tubesWords(a.silicone_tubes)],
-    ['Silicone tool', yesNo(a.silicone_tool)],
     ['Comments', a.comments || '—'],
     ['Confirmed at', a.submitted_at],
   ];

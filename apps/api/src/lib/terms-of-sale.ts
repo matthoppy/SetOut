@@ -1,5 +1,5 @@
 /**
- * The terms of sale on the order confirmation page, section 6.
+ * The terms of sale on the order confirmation page, section 5.
  *
  * The default is Custom Showers' own wording, exactly as Matt approved it in
  * the page's reference (16 November 2026). Do not reword it here without his

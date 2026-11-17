@@ -97,8 +97,6 @@ export function Job({ id }: { id: string }) {
           {confirmed && typeof confirmed.data.preferred_delivery_date === 'string' && (
             <Row label="Preferred delivery date">{`${prettyDay(confirmed.data.preferred_delivery_date)} (to be confirmed)`}</Row>
           )}
-          {confirmed && <Row label="Silicone tubes">{siliconeWords(confirmed.data)}</Row>}
-          {confirmed && <Row label="Finishing tool">{confirmed.data.silicone_tool === 'yes' ? 'Yes' : 'No'}</Row>}
           {confirmed && (
             <Row label="Terms of sale">
               {confirmed.data.terms_accepted === true
@@ -919,7 +917,7 @@ function describe(event: JobEvent): string {
         typeof d.preferred_delivery_date === 'string' ? ` Preferred delivery date: ${prettyDay(d.preferred_delivery_date)}.` : ''
       } Help unloading: ${
         d.can_unload === 'yes' ? 'yes' : 'no'
-      }. Silicone: ${siliconeWords(d)}. Silicone tool: ${d.silicone_tool === 'yes' ? 'yes' : 'no'}.${
+      }.${
         typeof d.unload_note === 'string' && d.unload_note ? ` Delivery: ${d.unload_note}` : ''
       }${typeof d.comments === 'string' && d.comments ? ` Comments: ${d.comments}` : ''}`;
     }
@@ -1028,15 +1026,6 @@ function deliveryAddressOf(d: Record<string, unknown>): string[] | null {
 }
 
 /** "2 clear, 1 white", "none", or for an older confirmation its one colour. */
-function siliconeWords(d: Record<string, unknown>): string {
-  const tubes = d.silicone_tubes as Record<string, unknown> | undefined;
-  if (tubes && typeof tubes === 'object') {
-    const parts = ['clear', 'white', 'black'].filter((c) => Number(tubes[c]) > 0).map((c) => `${Number(tubes[c])} ${c}`);
-    return parts.length ? parts.join(', ') : 'none';
-  }
-  return d.silicone === 'yes' ? String(d.silicone_colour) : 'no';
-}
-
 /** "Mon 30 Nov 2026" for a YYYY-MM-DD date, read as the date it is wherever the browser is. */
 function prettyDay(iso: string): string {
   const d = new Date(`${iso}T12:00:00Z`);
