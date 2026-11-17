@@ -13,11 +13,16 @@ export const NOTCH_KEY = 'cutout:notch';
 export const HOLE_KEY = 'cutout:hole';
 /** Survey and fitting, once a job. A supply-only company never prices it, and its quotes leave it off. */
 export const FITTING_KEY = 'fitting';
-/** Delivery, once a job, added to a quote by hand. */
+/** Delivery, once a job, added to a quote by hand, or from a glass supplier's list. */
 export const DELIVERY_KEY = 'delivery';
+/** Enduroshield, the easy-clean coating, by the square metre. */
+export const ENDUROSHIELD_KEY = 'coating:enduroshield';
+/** Polished edges, by the metre of the rectangle each pane is cut from. */
+export const POLISH_KEY = 'polish:edge';
 
-/** Glass by the square metre, by its thickness, type and coating: glass:10:clear, glass:10:low-iron:easy-clean. */
-export const glassKey = (thicknessMm: number, type: string, coating?: string) => `glass:${thicknessMm}:${type}${coating === 'easy-clean' ? ':easy-clean' : ''}`;
+/** Glass by the square metre, by its thickness and type: glass:10:clear, glass:10:low-iron.
+ *  Easy-clean (Enduroshield) is a line of its own, not a suffix on this key. */
+export const glassKey = (thicknessMm: number, type: string) => `glass:${thicknessMm}:${type}`;
 
 /**
  * A hinge in a finish, by CRL's number for it: hinge:gen044:chrome. Where a

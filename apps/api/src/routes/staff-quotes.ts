@@ -24,6 +24,8 @@ import { dayOf, money, quoteEmail } from '../lib/quote-email';
 import { DELIVERY_KEY, FITTING_KEY } from '../lib/price-keys';
 import { draftLines, lineTotal, readLines, totals } from '../lib/quote-lines';
 import { quoteSettingsOf } from '../lib/settings';
+import { pricingSettingsOf } from '../lib/pricing';
+import { catalogOf, chosenSuppliers, defaultSupplierIds } from '../lib/supplier-catalog';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
 
@@ -91,12 +93,15 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
   if (showers.length === 0) {
     return c.json({ error: 'nothing_to_quote', message: 'This job has no shower to quote for yet.' }, 409, PRIVATE);
   }
-  const [labels, prices, company, number] = await Promise.all([
+  const [labels, prices, company, number, defaults] = await Promise.all([
     optionLabelsFor(db, job),
     db.prices.all(),
     db.company(),
     db.quotes.nextNumber(job.id),
+    defaultSupplierIds(db),
   ]);
+  const chosen = chosenSuppliers(job, null, defaults);
+  const catalog = await catalogOf(db, chosen);
   // Glass is priced as it will be cut: a pane with an override, from the override.
   const overrides = await db.find('cut_overrides', { where: { job_id: job.id } });
   const lines = draftLines(
@@ -106,7 +111,8 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
       spec: applyCutOverrides(revision.computed, overrides.filter((o) => o.design_id === design.id), revision.document.design),
     })),
     labels,
-    prices
+    prices,
+    { catalog, settings: pricingSettingsOf(company?.settings ?? {}) }
   );
   // VAT and how long it stands start as the company's owners set them.
   const { vatRateBp, validDays } = quoteSettingsOf(company?.settings ?? {});
@@ -115,6 +121,8 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
     const quote = await db.insert('quotes', {
       job_id: job.id,
       number,
+      glass_supplier_id: chosen.glassSupplierId,
+      hardware_supplier_id: chosen.hardwareSupplierId,
       lines,
       priced: showers.map(({ design, revision }) => ({ designId: design.id, revisionId: revision.id, number: revision.number })),
       currency: typeof company?.currency === 'string' ? company.currency : 'GBP',

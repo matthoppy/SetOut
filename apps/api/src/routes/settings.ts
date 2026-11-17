@@ -60,6 +60,7 @@ import {
   type CompanyView,
   type DesignerView,
 } from '../lib/settings';
+import { pricingSettingsOf } from '../lib/pricing';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
 
@@ -124,16 +125,18 @@ staffSettings.get('/settings', async (c) => {
   const stored = await readSettings(c.env, session.companyId);
   if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
   const owner = session.role === 'owner';
-  const [company, designers, rules, prices_stored, changes] = await Promise.all([
+  const [company, designers, rules, prices_stored, record, changes] = await Promise.all([
     presentCompany(companyView(stored.company)),
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
     readRules(c.env, session.companyId),
     companyDb(c.env, session.companyId).prices.list(),
+    companyDb(c.env, session.companyId).company(),
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
   const prices = priceBook(designers, prices_stored);
+  const pricing = pricingSettingsOf(record?.settings ?? {});
   return c.json(
-    { canChange: owner, company, designers, rules, prices, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) },
+    { canChange: owner, company, designers, rules, prices, pricing, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) },
     200,
     PRIVATE
   );

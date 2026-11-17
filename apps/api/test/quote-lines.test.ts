@@ -2,6 +2,7 @@
 import { applyTemplate, buildSpec, createInitialState, DEFAULT_RULESET, designFromTemplate, panesOf, TEMPLATES, type ConfiguratorState } from '@setout/engine';
 import { describe, expect, test } from 'vitest';
 import { draftLines } from '../src/lib/quote-lines';
+import type { CatalogItem } from '../src/lib/pricing';
 
 const labels = { finishes: [{ id: 'chrome', label: 'Polished chrome' }], handles: [{ id: 'pull', label: 'Pull handle' }] };
 const shower = (design: ConfiguratorState) => ({ prefix: '', design, spec: buildSpec(design, { rules: DEFAULT_RULESET, companyName: 'Test' }) });
@@ -99,5 +100,56 @@ describe('a sliding shower on a quote', () => {
     if (!template) throw new Error('no template');
     const lines = draftLines([shower(applyTemplate(createInitialState(10), template))], labels, new Map());
     expect(lines.some((l) => l.key?.startsWith('sliding-kit:'))).toBe(false);
+  });
+});
+
+describe('coating, polishing and supplier costs', () => {
+  const template = TEMPLATES.find((t) => t.id === 'alcove-panel-door');
+  if (!template) throw new Error('no template');
+  const design = applyTemplate(createInitialState(10), template);
+  const base = [shower(design)];
+  const squareMetres = (widthMm: number, heightMm: number) => Math.round((widthMm * heightMm) / 10_000) / 100;
+  const metres = (mm: number) => Math.round(mm / 10) / 100;
+
+  test('polished edges are the perimeter of each cut rectangle, and Enduroshield is added only when the shower is easy-clean', () => {
+    const uncoated = draftLines(base, labels, new Map());
+    const spec = buildSpec(design, { rules: DEFAULT_RULESET, companyName: 'Test' });
+    const panes = panesOf(design, spec, DEFAULT_RULESET.fixed);
+    const edge = panes.reduce((sum, pane) => sum + metres(2 * (pane.widthMm + pane.heightMm)), 0);
+    expect(uncoated.find((l) => l.key === 'polish:edge')).toMatchObject({
+      unit: 'm',
+      quantity: Math.round(edge * 100) / 100,
+    });
+    expect(uncoated.some((l) => l.key === 'coating:enduroshield')).toBe(false);
+    const coated = draftLines([shower({ ...design, glassCoating: 'easy-clean' })], labels, new Map());
+    const area = panes.reduce((sum, pane) => sum + squareMetres(pane.widthMm, pane.heightMm), 0);
+    expect(coated.find((l) => l.key === 'coating:enduroshield')).toMatchObject({
+      unit: 'm2',
+      quantity: Math.round(area * 100) / 100,
+    });
+  });
+
+  test('a supplier item sets the selling price from cost plus markup, and stamps the cost on the line', () => {
+    const catalog = new Map<string, CatalogItem>([
+      [
+        'glass:10:clear',
+        {
+          key: 'glass:10:clear',
+          unit: 'm2',
+          costPence: 5000,
+          sellPence: null,
+          rules: {},
+          supplierId: 'sup_esg',
+          priceListId: 'lst_esg',
+        },
+      ],
+    ]);
+    const lines = draftLines(base, labels, new Map([['glass:10:clear', 12_000]]), {
+      catalog,
+      settings: { markupBp: 10_000, categoryMarkupBp: {} },
+    });
+    const glass = lines.filter((l) => l.key === 'glass:10:clear');
+    expect(glass.length).toBeGreaterThan(0);
+    expect(glass.every((l) => l.unitPricePence === 10_000 && l.costPence === 5000 && l.supplierId === 'sup_esg')).toBe(true);
   });
 });

@@ -20,6 +20,7 @@
 
 import type { RulesetOverrides } from '@setout/engine';
 import { newId } from '../lib/ids';
+import { storedPricing, type PricingSettings } from '../lib/pricing';
 import { DataError } from './company-db';
 
 type Env_ = Pick<Env, 'DB'>;
@@ -273,4 +274,41 @@ export async function savePrices(
   );
   const results = await env.DB.batch(statements);
   return results[results.length - 1].meta.changes === 1;
+}
+
+// ---------------------------------------------------------------------------
+// Markups: how a new quote turns a supplier's cost into a selling price
+// ---------------------------------------------------------------------------
+
+
+/**
+ * Save the company's markup. The rest of its settings are left as they are.
+ * The change is written in the audit log.
+ */
+export async function savePricing(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  after: PricingSettings,
+  data: object,
+  now = new Date()
+): Promise<void> {
+  const at = now.toISOString();
+  const row = await env.DB.prepare('SELECT settings FROM companies WHERE id = ?').bind(companyId).first<{ settings: string }>();
+  if (!row) throw new DataError('This company could not be found.');
+  let current: Record<string, unknown> = {};
+  try {
+    const value: unknown = JSON.parse(row.settings);
+    if (value && typeof value === 'object' && !Array.isArray(value)) current = value as Record<string, unknown>;
+  } catch {
+    current = {};
+  }
+  const settings = JSON.stringify(storedPricing(current, after));
+  await env.DB.batch([
+    env.DB.prepare('UPDATE companies SET settings = ?, updated_at = ? WHERE id = ?').bind(settings, at, companyId),
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       VALUES (?, ?, ?, 'settings_changed', ?, ?, ?)`
+    ).bind(companyId, newId('audit'), actorId, companyId, JSON.stringify(data), at),
+  ]);
 }

@@ -267,6 +267,10 @@ export interface QuoteLine {
   unit: QuoteUnit;
   unitPricePence: number;
   totalPence?: number;
+  /** What the supplier charged, in pence, when this line was written. */
+  costPence?: number;
+  supplierId?: string;
+  priceListId?: string;
 }
 
 export interface Quote {
@@ -508,6 +512,76 @@ export interface SettingsChange {
   at: string;
 }
 
+export const SUPPLIER_KINDS = ['glass', 'hardware', 'other'] as const;
+export type SupplierKind = (typeof SUPPLIER_KINDS)[number];
+export const PRICE_LIST_STATUSES = ['draft', 'active', 'superseded'] as const;
+export type PriceListStatus = (typeof PRICE_LIST_STATUSES)[number];
+export const MARKUP_CATEGORIES = ['glass', 'coating', 'process', 'hardware', 'job'] as const;
+export type MarkupCategory = (typeof MARKUP_CATEGORIES)[number];
+
+export interface PricingSettings {
+  /** The company's usual markup, in hundredths of a percent. 10000 is 100%. */
+  markupBp: number;
+  categoryMarkupBp: Partial<Record<MarkupCategory, number>>;
+}
+
+export interface SupplierPriceItem {
+  id: string;
+  key: string | null;
+  sku: string | null;
+  description: string;
+  unit: QuoteUnit;
+  costPence: number;
+  sellPence: number | null;
+  rules: { minAreaM2?: number; glassSurchargePercent?: number; polishSurchargePercent?: number };
+  notes: string | null;
+  updatedAt: string;
+}
+
+export interface SupplierPriceItemInput {
+  key?: string | null;
+  sku?: string | null;
+  description?: string;
+  unit?: QuoteUnit;
+  costPence?: number;
+  sellPence?: number | null;
+  notes?: string | null;
+  rules?: { minAreaM2?: number };
+}
+
+export interface SupplierPriceList {
+  id: string;
+  supplierId: string;
+  name: string;
+  status: PriceListStatus;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  currency: string;
+  vatIncluded: boolean;
+  source: string | null;
+  notes: string | null;
+  itemCount: number;
+  updatedAt: string;
+  items?: SupplierPriceItem[];
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  kind: SupplierKind;
+  accountRef: string | null;
+  notes: string | null;
+  isDefault: boolean;
+  active: boolean;
+  lists: SupplierPriceList[];
+  updatedAt: string;
+}
+
+export interface SuppliersSettings {
+  suppliers: Supplier[];
+  pricing: PricingSettings;
+}
+
 export interface Settings {
   /** Only owners can change anything. */
   canChange: boolean;
@@ -517,6 +591,8 @@ export interface Settings {
   rules: RulesSettings;
   /** Every price a new quote can start from, and the company's price for each. */
   prices: PriceBook;
+  /** How a new quote turns a supplier's cost into a selling price. 10000 is 100%. */
+  pricing?: PricingSettings;
   limits: { options: number; label: number; description: number; notifyEmails: number; websites: number; companyName: number; logoUrl: number };
   /** Where the embed script is served from. */
   embedScript: string;
@@ -670,6 +746,51 @@ export const api = {
     send<{ ok: true; changed: boolean; rules: RulesSettings }>('PATCH', '/settings/rules', { overrides, basedOn: { rules: basedOn } }),
   /** A list is sent whole, in order. A part left out stays as it is. */
   savePrices: (changes: PriceChange[]) => send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', '/settings/prices', { changes }),
+  suppliers: (signal?: AbortSignal) => call<SuppliersSettings>('/settings/suppliers', { signal }),
+  savePricing: (changes: { markupBp?: number; categoryMarkupBp?: Partial<Record<MarkupCategory, number | null>> }) =>
+    send<{ ok: true; changed: boolean; pricing: PricingSettings }>('PATCH', '/settings/pricing', changes),
+  addSupplier: (body: { name: string; kind: SupplierKind; accountRef?: string | null; notes?: string | null; isDefault?: boolean }) =>
+    send<{ ok: true; supplier: Supplier }>('POST', '/settings/suppliers', body),
+  saveSupplier: (id: string, changes: { name?: string; accountRef?: string | null; notes?: string | null; isDefault?: boolean; active?: boolean }) =>
+    send<{ ok: true; changed: boolean; supplier: Supplier }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}`, changes),
+  removeSupplier: (id: string) => call<{ ok: true }>(`/settings/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  addPriceList: (supplierId: string, body: { name: string; status?: PriceListStatus; effectiveFrom?: string | null; effectiveTo?: string | null; source?: string | null; notes?: string | null; vatIncluded?: boolean }) =>
+    send<{ ok: true; list: SupplierPriceList }>('POST', `/settings/suppliers/${encodeURIComponent(supplierId)}/lists`, body),
+  priceList: (supplierId: string, listId: string, signal?: AbortSignal) =>
+    call<{ list: SupplierPriceList }>(`/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}`, { signal }),
+  savePriceList: (supplierId: string, listId: string, changes: Partial<{ name: string; status: PriceListStatus; effectiveFrom: string | null; effectiveTo: string | null; source: string | null; notes: string | null; vatIncluded: boolean }>) =>
+    send<{ ok: true; changed: boolean; list: SupplierPriceList }>(
+      'PATCH',
+      `/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}`,
+      changes
+    ),
+  removePriceList: (supplierId: string, listId: string) =>
+    call<{ ok: true }>(`/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}`, { method: 'DELETE' }),
+  addPriceItem: (supplierId: string, listId: string, body: SupplierPriceItemInput) =>
+    send<{ ok: true; item: SupplierPriceItem }>('POST', `/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}/items`, body),
+  savePriceItem: (supplierId: string, listId: string, itemId: string, changes: Partial<SupplierPriceItemInput>) =>
+    send<{ ok: true; changed: boolean; item: SupplierPriceItem }>(
+      'PATCH',
+      `/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+      changes
+    ),
+  removePriceItem: (supplierId: string, listId: string, itemId: string) =>
+    call<{ ok: true }>(
+      `/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+      { method: 'DELETE' }
+    ),
+  importPriceList: (supplierId: string, listId: string, csv: string, replace = false) =>
+    send<{ ok: true; imported: number; list: SupplierPriceList }>(
+      'POST',
+      `/settings/suppliers/${encodeURIComponent(supplierId)}/lists/${encodeURIComponent(listId)}/import`,
+      { csv, replace }
+    ),
+  saveJobSuppliers: (jobId: string, changes: { glassSupplierId?: string | null; hardwareSupplierId?: string | null }) =>
+    send<{ ok: true; changed: boolean; glassSupplierId: string | null; hardwareSupplierId: string | null }>(
+      'PATCH',
+      `/jobs/${encodeURIComponent(jobId)}/suppliers`,
+      changes
+    ),
 
   saveDesignerSettings: (id: string, changes: DesignerChanges) =>
     send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),

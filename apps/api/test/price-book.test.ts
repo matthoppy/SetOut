@@ -34,9 +34,16 @@ describe('what the book lists', () => {
     expect(book.groups.map((g) => g.id)).toEqual(['glass', 'cutouts', 'hinges', 'handles', 'fixing', 'job']);
     const glass = book.groups.find((g) => g.id === 'glass');
     expect(glass?.columns).toBeUndefined();
-    expect(glass?.rows.map((r) => r.label)).toContain('10mm low-iron, easy-clean coated');
-    expect(glass?.rows).toHaveLength(GLASS_TYPES.length * GLASS_COATINGS.length);
+    expect(glass?.rows.map((r) => r.label)).toContain('10mm low-iron');
+    expect(glass?.rows.map((r) => r.label)).not.toContain('10mm low-iron, easy-clean coated');
+    expect(glass?.rows).toHaveLength(GLASS_TYPES.length);
     expect(glass?.rows.every((r) => r.unit === 'm2' && r.keys.length === 1)).toBe(true);
+    expect(book.groups.find((g) => g.id === 'cutouts')?.rows.map((r) => r.keys[0])).toEqual([
+      'cutout:notch',
+      'cutout:hole',
+      'polish:edge',
+      'coating:enduroshield',
+    ]);
   });
 
   test('the hardware is priced in each finish, one price able to stand for them all', () => {
@@ -57,7 +64,8 @@ describe('what the book lists', () => {
     ]);
     expect(glass?.sameAcross).toBeUndefined();
     expect(glass?.rows[0]).toEqual({ label: 'Clear', unit: 'm2', keys: ['glass:8:clear', 'glass:10:clear', 'glass:12:clear'] });
-    expect(listedPrices(several).get('glass:12:low-iron:easy-clean')).toEqual({ label: '12mm low-iron, easy-clean coated', unit: 'm2' });
+    expect(listedPrices(several).get('glass:12:low-iron')).toEqual({ label: '12mm low-iron', unit: 'm2' });
+    expect(listedPrices(several).get('coating:enduroshield')).toEqual({ label: 'Enduroshield (easy-clean) coating', unit: 'm2' });
   });
 
   test('each hinge a door can hang on, by CRL’s number, in every finish', () => {
@@ -82,6 +90,7 @@ describe('what the book lists', () => {
       []
     );
     expect(narrow.groups.find((g) => g.id === 'glass')?.rows.map((r) => r.label)).toEqual(['10mm clear']);
+    expect(narrow.groups.find((g) => g.id === 'cutouts')?.rows.map((r) => r.keys[0])).toEqual(['cutout:notch', 'cutout:hole', 'polish:edge']);
     const fixing = narrow.groups.find((g) => g.id === 'fixing');
     expect(fixing?.title).toBe('Glass clamps, a shower’s set');
     expect(fixing?.rows.map((r) => r.unit)).toEqual(['set']);

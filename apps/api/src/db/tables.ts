@@ -66,6 +66,10 @@ export interface JobRow {
   site_postcode: string | null;
   /** What the fitters are told, on the installation sheets. */
   install_notes: string | null;
+  /** The glass supplier this job uses, or the company's default if empty. */
+  glass_supplier_id: string | null;
+  /** The hardware supplier this job uses, or the company's default if empty. */
+  hardware_supplier_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +150,12 @@ export interface QuoteLine {
   unit: QuoteUnit;
   /** Before VAT. */
   unitPricePence: number;
+  /** The supplier this line was costed from, frozen once the quote is sent. */
+  supplierId?: string;
+  /** The supplier's price list this line was costed from. */
+  priceListId?: string;
+  /** The supplier's unit cost, in pence before VAT, when it was costed. */
+  costPence?: number;
 }
 
 export interface QuoteRow {
@@ -169,6 +179,8 @@ export interface QuoteRow {
   sent_at: string | null;
   accepted_at: string | null;
   accepted_name: string | null;
+  glass_supplier_id: string | null;
+  hardware_supplier_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -178,6 +190,54 @@ export interface PriceRow {
   key: string;
   unit: QuoteUnit;
   unit_price_pence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const SUPPLIER_KINDS = ['glass', 'hardware', 'other'] as const;
+export type SupplierKind = (typeof SUPPLIER_KINDS)[number];
+
+export const PRICE_LIST_STATUSES = ['draft', 'active', 'superseded'] as const;
+export type PriceListStatus = (typeof PRICE_LIST_STATUSES)[number];
+
+export interface SupplierRow {
+  id: string;
+  name: string;
+  kind: SupplierKind;
+  account_ref: string | null;
+  notes: string | null;
+  is_default: number;
+  active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierPriceListRow {
+  id: string;
+  supplier_id: string;
+  name: string;
+  status: PriceListStatus;
+  effective_from: string | null;
+  effective_to: string | null;
+  currency: string;
+  vat_included: number;
+  source: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierPriceItemRow {
+  id: string;
+  list_id: string;
+  key: string | null;
+  sku: string | null;
+  description: string;
+  unit: QuoteUnit;
+  cost_pence: number;
+  sell_pence: number | null;
+  rules: Record<string, unknown>;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -350,6 +410,9 @@ export interface Tables {
     required: 'job_id' | 'design_id' | 'pane_id' | 'width_deduction_mm' | 'height_deduction_mm' | 'reason' | 'revision_number';
   };
   job_payments: { row: JobPaymentRow; required: 'job_id' | 'kind' | 'method' | 'tax_behavior' | 'amount_pence' };
+  suppliers: { row: SupplierRow; required: 'name' | 'kind' };
+  supplier_price_lists: { row: SupplierPriceListRow; required: 'supplier_id' | 'name' };
+  supplier_price_items: { row: SupplierPriceItemRow; required: 'list_id' | 'description' | 'unit' | 'cost_pence' };
 }
 
 export type TableName = keyof Tables;
@@ -391,7 +454,7 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
   },
   jobs: {
     id: 'job',
-    columns: ['id', 'reference', 'customer_id', 'designer_id', 'stage', 'source', 'assigned_to', 'site_address', 'site_postcode', 'install_notes', 'created_at', 'updated_at'],
+    columns: ['id', 'reference', 'customer_id', 'designer_id', 'stage', 'source', 'assigned_to', 'site_address', 'site_postcode', 'install_notes', 'glass_supplier_id', 'hardware_supplier_id', 'created_at', 'updated_at'],
     json: [],
     tracksUpdates: true,
   },
@@ -442,7 +505,7 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     columns: [
       'id', 'job_id', 'number', 'status', 'lines', 'priced', 'note', 'currency', 'vat_rate_bp',
       'subtotal_pence', 'vat_pence', 'total_pence', 'valid_days', 'valid_until', 'link_token_hash',
-      'created_by', 'sent_by', 'sent_at', 'accepted_at', 'accepted_name', 'created_at', 'updated_at',
+      'created_by', 'sent_by', 'sent_at', 'accepted_at', 'accepted_name', 'glass_supplier_id', 'hardware_supplier_id', 'created_at', 'updated_at',
     ],
     json: ['lines', 'priced'],
     tracksUpdates: true,
@@ -477,6 +540,30 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     json: [],
     tracksUpdates: true,
   },
+  suppliers: {
+    id: 'supplier',
+    columns: ['id', 'name', 'kind', 'account_ref', 'notes', 'is_default', 'active', 'created_at', 'updated_at'],
+    json: [],
+    tracksUpdates: true,
+  },
+  supplier_price_lists: {
+    id: 'priceList',
+    columns: [
+      'id', 'supplier_id', 'name', 'status', 'effective_from', 'effective_to', 'currency', 'vat_included',
+      'source', 'notes', 'created_at', 'updated_at',
+    ],
+    json: [],
+    tracksUpdates: true,
+  },
+  supplier_price_items: {
+    id: 'priceItem',
+    columns: [
+      'id', 'list_id', 'key', 'sku', 'description', 'unit', 'cost_pence', 'sell_pence', 'rules', 'notes',
+      'created_at', 'updated_at',
+    ],
+    json: ['rules'],
+    tracksUpdates: true,
+  },
   job_payments: {
     id: 'jobPayment',
     columns: [
@@ -505,4 +592,7 @@ export const ALLOWED_VALUES: { readonly [T in TableName]?: Readonly<Record<strin
   price_list: { unit: QUOTE_UNITS },
   subscriptions: { status: SUBSCRIPTION_STATUSES },
   job_payments: { kind: PAYMENT_KINDS, method: PAYMENT_METHODS, status: PAYMENT_STATUSES, tax_behavior: PAYMENT_TAX_MODES },
+  suppliers: { kind: SUPPLIER_KINDS },
+  supplier_price_lists: { status: PRICE_LIST_STATUSES },
+  supplier_price_items: { unit: QUOTE_UNITS },
 };

@@ -126,6 +126,28 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     stripe_checkout_session_id: `cs_test_${prefix}`,
   });
 
+  const supplier = await db.insert('suppliers', {
+    name: `${name} glass`,
+    kind: 'glass',
+    is_default: 1,
+    active: 1,
+  });
+  const priceList = await db.insert('supplier_price_lists', {
+    supplier_id: supplier.id,
+    name: `${name} list`,
+    status: 'draft',
+    currency: 'GBP',
+    vat_included: 0,
+  });
+  const priceItem = await db.insert('supplier_price_items', {
+    list_id: priceList.id,
+    key: 'glass:10:clear',
+    description: '10mm clear toughened',
+    unit: 'm2',
+    cost_pence: 5000,
+    rules: {},
+  });
+
   return {
     company,
     db,
@@ -146,6 +168,9 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       order_confirmations: confirmation,
       cut_overrides: cutOverride,
       job_payments: jobPayment,
+      suppliers: supplier,
+      supplier_price_lists: priceList,
+      supplier_price_items: priceItem,
     },
   };
 }

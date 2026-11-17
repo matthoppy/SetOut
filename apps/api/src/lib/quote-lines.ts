@@ -23,7 +23,8 @@ import {
 } from '@setout/engine';
 import { QUOTE_UNITS, type QuoteLine, type QuoteUnit } from '../db/tables';
 import { RequestError } from './enquiry';
-import { channelKey, clampsKey, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
+import { channelKey, clampsKey, DELIVERY_KEY, ENDUROSHIELD_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, POLISH_KEY, slidingKitKey } from './price-keys';
+import { PRICING_DEFAULTS, resolveLine, type CatalogItem, type PricingSettings } from './pricing';
 
 export const MAX_LINES = 100;
 export const MAX_UNIT_PRICE_PENCE = 100_000_000;
@@ -42,6 +43,12 @@ export interface OptionLabels {
   handles: { id: string; label: string }[];
   /** The company's standard hinges, for a shower that has not chosen its own. */
   hinges?: HingeStyles;
+}
+
+/** A supplier catalogue and the company's markup, when a new quote is costed from them. */
+export interface LineCosting {
+  catalog: Map<string, CatalogItem>;
+  settings: PricingSettings;
 }
 
 export const HUNG: Record<HingeMount, string> = {
@@ -63,28 +70,54 @@ export const squareMetres = (widthMm: number, heightMm: number) => Math.round((w
 const metres = (mm: number) => Math.round(mm / 10) / 100;
 const named = (list: { id: string; label: string }[], id: string) => list.find((o) => o.id === id)?.label ?? id.replace(/[-_]+/g, ' ');
 
-/** The lines a new quote starts with, priced from what the company last sent. */
-export function draftLines(showers: PricedShower[], labels: OptionLabels, prices: Map<string, number>): QuoteLine[] {
+/** The lines a new quote starts with, priced from a supplier's cost or what the company last sent. */
+export function draftLines(
+  showers: PricedShower[],
+  labels: OptionLabels,
+  prices: Map<string, number>,
+  costing?: LineCosting
+): QuoteLine[] {
   const lines: QuoteLine[] = [];
+  const settings = costing?.settings ?? PRICING_DEFAULTS;
+  const catalog = costing?.catalog ?? new Map<string, CatalogItem>();
   const line = (key: string | null, description: string, quantity: number, unit: QuoteUnit) => {
     if (quantity <= 0) return;
+    if (key && costing) {
+      const priced = resolveLine(key, quantity, unit, catalog, prices, settings);
+      const row: QuoteLine = { key, description, quantity: priced.quantity, unit, unitPricePence: priced.unitPricePence };
+      if (priced.supplierId) row.supplierId = priced.supplierId;
+      if (priced.priceListId) row.priceListId = priced.priceListId;
+      if (priced.costPence !== undefined) row.costPence = priced.costPence;
+      lines.push(row);
+      return;
+    }
     lines.push({ key, description, quantity, unit, unitPricePence: (key && prices.get(key)) || 0 });
   };
+  const canPrice = (key: string) => prices.has(key) || catalog.has(key);
 
   for (const { prefix, design, spec } of showers) {
     const finish = named(labels.finishes, design.finishId);
-    const coating = design.glassCoating === 'easy-clean' ? ', easy-clean coated' : '';
-    const glass = glassKey(spec.glassThicknessMm, design.glassType, design.glassCoating);
+    const coated = design.glassCoating === 'easy-clean';
+    const glass = glassKey(spec.glassThicknessMm, design.glassType);
     // Priced by the rectangle each pane is cut from, as a toughener prices it.
     const panes = panesOf(design, spec, DEFAULT_RULESET.fixed, labels.hinges);
+    let glassArea = 0;
+    let edgeMetres = 0;
     for (const pane of panes) {
+      const area = squareMetres(pane.widthMm, pane.heightMm);
+      glassArea += area;
+      edgeMetres += metres(2 * (pane.widthMm + pane.heightMm));
       line(
         glass,
-        `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
-        squareMetres(pane.widthMm, pane.heightMm),
+        `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
+        area,
         'm2'
       );
     }
+    if (coated) {
+      line(ENDUROSHIELD_KEY, `${prefix}Enduroshield (easy-clean) coating`, Math.round(glassArea * 100) / 100, 'm2');
+    }
+    line(POLISH_KEY, `${prefix}Polished edges`, Math.round(edgeMetres * 100) / 100, 'm');
     // The toughener charges for each notch cut and each hole drilled: a
     // mouse-ear hinge notch is a notch and two holes (Matt, 12 November 2026).
     let notches = 0;
@@ -122,9 +155,10 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       line(clampsKey(design.finishId), `${prefix}Glass clamps, ${finish}`, 1, 'set');
     }
   }
-  // Fitting goes on when the company has priced it before; supply-only
-  // companies never have.
-  if (prices.has(FITTING_KEY)) line(FITTING_KEY, 'Survey and fitting', 1, 'job');
+  // Fitting goes on when the company has priced it before, or a supplier has;
+  // supply-only companies never have. Delivery is the same, when it has a price.
+  if (canPrice(FITTING_KEY)) line(FITTING_KEY, 'Survey and fitting', 1, 'job');
+  if (canPrice(DELIVERY_KEY)) line(DELIVERY_KEY, 'Delivery', 1, 'job');
   return lines;
 }
 
@@ -150,9 +184,29 @@ export function readLines(input: unknown): QuoteLine[] {
     if (typeof price !== 'number' || !Number.isInteger(price) || price < 0 || price > MAX_UNIT_PRICE_PENCE) {
       throw new RequestError(400, 'invalid_lines', `Line ${n} needs a price in whole pence.`);
     }
-    return { key, description, quantity, unit: l.unit as QuoteUnit, unitPricePence: price };
+    const line: QuoteLine = { key, description, quantity, unit: l.unit as QuoteUnit, unitPricePence: price };
+    const supplierId = optionalId(l.supplierId, n, 'supplier');
+    const priceListId = optionalId(l.priceListId, n, 'price list');
+    if (supplierId) line.supplierId = supplierId;
+    if (priceListId) line.priceListId = priceListId;
+    if (l.costPence !== undefined && l.costPence !== null) {
+      const cost = l.costPence;
+      if (typeof cost !== 'number' || !Number.isInteger(cost) || cost < 0 || cost > MAX_UNIT_PRICE_PENCE) {
+        throw new RequestError(400, 'invalid_lines', `Line ${n} needs a cost in whole pence.`);
+      }
+      line.costPence = cost;
+    }
+    return line;
   });
 }
+
+const optionalId = (value: unknown, n: number, what: string): string | undefined => {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value !== 'string' || !/^[a-z]{2,8}_[0-9A-HJKMNP-TV-Z]{26}$/i.test(value)) {
+    throw new RequestError(400, 'invalid_lines', `Line ${n} has a ${what} that is not one.`);
+  }
+  return value;
+};
 
 export const lineTotal = (line: QuoteLine) => Math.round(line.quantity * line.unitPricePence);
 

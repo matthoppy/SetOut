@@ -58,6 +58,7 @@ import { money, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { Link } from '../lib/router';
 import { Problem, Section } from './parts';
+import { SuppliersPart } from './SuppliersPart';
 
 type Limits = SettingsData['limits'];
 
@@ -205,6 +206,13 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
             owner={owner}
             justSaved={saved === 'rules'}
             onSaved={() => onSaved('rules')}
+            onReload={settings.reload}
+          />
+          <SuppliersPart
+            pricing={data.pricing}
+            owner={owner}
+            justSaved={saved === 'suppliers'}
+            onSaved={() => onSaved('suppliers')}
             onReload={settings.reload}
           />
           <PricesPart
@@ -1707,7 +1715,7 @@ const PER: Record<QuoteUnit, string> = { m2: 'a m²', each: 'each', m: 'a metre'
 /** What the owner is told about each part of the price book. */
 const PRICE_HINTS: Record<PriceBook['groups'][number]['id'], string> = {
   glass: 'By the square metre of each pane, measured as the rectangle it is cut from, as a toughener prices it.',
-  cutouts: 'A mouse-ear hinge cut-out is a notch and two holes.',
+  cutouts: 'A mouse-ear hinge cut-out is a notch and two holes. Polished edges are by the metre of the rectangle each pane is cut from. Enduroshield, the easy-clean coating, is by the square metre.',
   hinges: 'Each hinge a door can hang on, in each finish.',
   handles: 'Each handle, in each finish.',
   fixing: 'In each finish.',

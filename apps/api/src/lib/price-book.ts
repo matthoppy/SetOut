@@ -28,7 +28,7 @@ import {
 import type { QuoteUnit } from '../db/tables';
 import { GLASS_THICKNESSES } from './designer-config';
 import { RequestError } from './enquiry';
-import { channelKey, clampsKey, DELIVERY_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
+import { channelKey, clampsKey, DELIVERY_KEY, ENDUROSHIELD_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, POLISH_KEY, slidingKitKey } from './price-keys';
 import { GLASS_NAMES, HUNG, MAX_UNIT_PRICE_PENCE } from './quote-lines';
 import type { DesignerView } from './settings';
 
@@ -125,6 +125,10 @@ function describeKey(key: string, finishes: readonly { id: string; label: string
   switch (kind) {
     case 'glass':
       return `${first}mm ${GLASS_NAMES[second] ?? words(second)}${third === 'easy-clean' ? ', easy-clean coated' : ''}`;
+    case 'coating':
+      return first === 'enduroshield' ? 'Enduroshield (easy-clean) coating' : words(key.replace(/:/g, ' '));
+    case 'polish':
+      return 'Polished edges';
     case 'hinge':
       return `Hinge ${/\d/.test(first) ? first.toUpperCase() : capitalised(words(first))}, ${finish(second)}`;
     case 'handle':
@@ -147,15 +151,14 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
   const types = GLASS_TYPES.filter((t) => designers.some((d) => d.glassTypes.offered.includes(t)));
   const coatings = GLASS_COATINGS.filter((c) => designers.some((d) => d.coatings.offered.includes(c)));
   const byFinish = (make: (finishId: string) => string) => finishes.map((f) => make(f.id));
-  const glassName = (type: string, coating: string) => `${GLASS_NAMES[type] ?? type}${coating === 'easy-clean' ? ', easy-clean coated' : ''}`;
+  const glassName = (type: string) => GLASS_NAMES[type] ?? type;
 
   // Glass in one thickness is a list; in several, a table with a column for each, as a toughener's price list is.
-  const glass: PriceBookRow[] = types.flatMap((type) =>
-    coatings.map((coating) =>
-      thicknesses.length === 1
-        ? { label: `${thicknesses[0]}mm ${glassName(type, coating)}`, unit: 'm2' as const, keys: [glassKey(thicknesses[0], type, coating)] }
-        : { label: capitalised(glassName(type, coating)), unit: 'm2' as const, keys: thicknesses.map((t) => glassKey(t, type, coating)) }
-    )
+  // Easy-clean (Enduroshield) is a line of its own, not a suffix on the glass key.
+  const glass: PriceBookRow[] = types.map((type) =>
+    thicknesses.length === 1
+      ? { label: `${thicknesses[0]}mm ${glassName(type)}`, unit: 'm2' as const, keys: [glassKey(thicknesses[0], type)] }
+      : { label: capitalised(glassName(type)), unit: 'm2' as const, keys: thicknesses.map((t) => glassKey(t, type)) }
   );
   const finishColumns = { columns: finishes, sameAcross: true };
   const fixing: PriceBookRow[] = [
@@ -178,10 +181,14 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
     },
     {
       id: 'cutouts',
-      title: 'Notches and holes',
+      title: 'Notches, holes and polishing',
       rows: [
         { label: 'A notch cut in the glass', unit: 'each', keys: [NOTCH_KEY] },
         { label: 'A hole drilled in the glass', unit: 'each', keys: [HOLE_KEY] },
+        { label: 'Polished edges', unit: 'm', keys: [POLISH_KEY] },
+        ...(coatings.includes('easy-clean')
+          ? [{ label: 'Enduroshield (easy-clean) coating', unit: 'm2' as const, keys: [ENDUROSHIELD_KEY] }]
+          : []),
       ],
     },
     { id: 'hinges', title: 'Hinges', ...finishColumns, rows: hingeRows(designers, thicknesses, finishes) },

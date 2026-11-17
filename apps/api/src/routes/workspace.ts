@@ -48,6 +48,7 @@ import { paymentViewFor } from '../lib/job-payments';
 import { staffCutOverrides } from './staff-cut-overrides';
 import { staffQuotes } from './staff-quotes';
 import { staffSettings } from './settings';
+import { staffSuppliers } from './staff-suppliers';
 import { addedToTeamEmail } from '../lib/team-email';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
@@ -548,6 +549,7 @@ staff.route('/', staffConfirmations);
 staff.route('/', staffPayments);
 staff.route('/', staffCutOverrides);
 staff.route('/', staffSettings);
+staff.route('/', staffSuppliers);
 
 // ---------------------------------------------------------------------------
 // Changing a design
