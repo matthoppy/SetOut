@@ -94,6 +94,9 @@ export interface SlidingSpec {
 
 const PLANE_NAMES: Record<Plane, string> = { front: 'Front', return_left: 'Return left', return_right: 'Return right', back: 'Back' };
 
+/** CRL's Serenity kits, before their finish: the sliding door's, and the one for a 90° return. */
+export const SERENITY_KITS = { kit: 'SER78', returnKit: 'SER90' } as const;
+
 const SER78 = 'CRL 11M0347 (Deluxe Serenity SER78)';
 const SER90 = 'CRL AVDB3176 (Serenity SER90 return)';
 
@@ -387,8 +390,8 @@ export function buildSlidingSpec(state: ConfiguratorState, context: EngineContex
 
   const sliding: SlidingSpec = {
     system: 'serenity',
-    kit: 'SER78',
-    returnKit: ret ? 'SER90' : null,
+    kit: SERENITY_KITS.kit,
+    returnKit: ret ? SERENITY_KITS.returnKit : null,
     overallWidthMm: W,
     overallHeightMm: H,
     overlapMm: overlap,

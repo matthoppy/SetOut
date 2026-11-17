@@ -23,9 +23,10 @@ import {
 } from '@setout/engine';
 import { QUOTE_UNITS, type QuoteLine, type QuoteUnit } from '../db/tables';
 import { RequestError } from './enquiry';
+import { channelKey, clampsKey, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
 
 export const MAX_LINES = 100;
-const MAX_UNIT_PRICE_PENCE = 100_000_000;
+export const MAX_UNIT_PRICE_PENCE = 100_000_000;
 const MAX_QUANTITY = 100_000;
 const KEY = /^[a-z0-9][a-z0-9:._-]{0,99}$/;
 
@@ -43,13 +44,13 @@ export interface OptionLabels {
   hinges?: HingeStyles;
 }
 
-const HUNG: Record<HingeMount, string> = {
+export const HUNG: Record<HingeMount, string> = {
   'wall-to-glass': 'to the wall',
   'glass-to-glass-180': 'glass to glass',
   'glass-to-glass-90': 'glass to glass at 90°',
 };
 
-const GLASS_NAMES: Record<string, string> = {
+export const GLASS_NAMES: Record<string, string> = {
   clear: 'clear',
   'low-iron': 'low-iron',
   satin: 'satin',
@@ -73,12 +74,12 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
   for (const { prefix, design, spec } of showers) {
     const finish = named(labels.finishes, design.finishId);
     const coating = design.glassCoating === 'easy-clean' ? ', easy-clean coated' : '';
-    const glassKey = `glass:${spec.glassThicknessMm}:${design.glassType}${design.glassCoating === 'easy-clean' ? ':easy-clean' : ''}`;
+    const glass = glassKey(spec.glassThicknessMm, design.glassType, design.glassCoating);
     // Priced by the rectangle each pane is cut from, as a toughener prices it.
     const panes = panesOf(design, spec, DEFAULT_RULESET.fixed, labels.hinges);
     for (const pane of panes) {
       line(
-        glassKey,
+        glass,
         `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
         squareMetres(pane.widthMm, pane.heightMm),
         'm2'
@@ -93,8 +94,8 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       else notches += 1;
       if (f.kind === 'notch' && f.ears) holes += 2;
     }
-    line('cutout:notch', `${prefix}Notches cut in the glass`, notches, 'each');
-    line('cutout:hole', `${prefix}Holes drilled in the glass`, holes, 'each');
+    line(NOTCH_KEY, `${prefix}Notches cut in the glass`, notches, 'each');
+    line(HOLE_KEY, `${prefix}Holes drilled in the glass`, holes, 'each');
 
     const styles = hingeStylesOf(design, labels.hinges ?? STANDARD_HINGES);
     for (const [i, panel] of spec.panels.entries()) {
@@ -104,27 +105,26 @@ export function draftLines(showers: PricedShower[], labels: OptionLabels, prices
       const mount = hingeMountOf(design, spec, i) ?? 'wall-to-glass';
       const { series, style } = doorHingeOf(brand, mount, styles);
       const what = [brand, HUNG[mount], style?.words].filter(Boolean).join(', ');
-      const key = `hinge:${(series ?? brand).toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${design.finishId}`;
-      line(key, `${prefix}${panel.label} hinges: ${what}, ${finish}`, panel.door.hingeCount, 'each');
-      line(`handle:${design.handleId}:${design.finishId}`, `${prefix}${panel.label} handle: ${named(labels.handles, design.handleId)}, ${finish}`, 1, 'each');
+      line(hingeKey(series ?? brand, design.finishId), `${prefix}${panel.label} hinges: ${what}, ${finish}`, panel.door.hingeCount, 'each');
+      line(handleKey(design.handleId, design.finishId), `${prefix}${panel.label} handle: ${named(labels.handles, design.handleId)}, ${finish}`, 1, 'each');
     }
     // A sliding door's kit, in place of hinges and a handle. Unpriced until the company prices one.
     if (spec.sliding) {
-      line(`sliding-kit:${spec.sliding.kit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity sliding door kit (CRL ${spec.sliding.kit}), ${finish}`, 1, 'each');
+      line(slidingKitKey(spec.sliding.kit, design.finishId), `${prefix}Serenity sliding door kit (CRL ${spec.sliding.kit}), ${finish}`, 1, 'each');
       if (spec.sliding.returnKit) {
-        line(`sliding-kit:${spec.sliding.returnKit.toLowerCase()}:${design.finishId}`, `${prefix}Serenity 90° return kit (CRL ${spec.sliding.returnKit}), ${finish}`, 1, 'each');
+        line(slidingKitKey(spec.sliding.returnKit, design.finishId), `${prefix}Serenity 90° return kit (CRL ${spec.sliding.returnKit}), ${finish}`, 1, 'each');
       }
     }
     if (spec.mounting === 'channel') {
       // A door alone has no channel to price.
-      if (spec.totalChannelLengthMm > 0) line(`channel:${design.finishId}`, `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');
+      if (spec.totalChannelLengthMm > 0) line(channelKey(design.finishId), `${prefix}U-channel, ${finish}`, metres(spec.totalChannelLengthMm), 'm');
     } else {
-      line(`clamps:${design.finishId}`, `${prefix}Glass clamps, ${finish}`, 1, 'set');
+      line(clampsKey(design.finishId), `${prefix}Glass clamps, ${finish}`, 1, 'set');
     }
   }
   // Fitting goes on when the company has priced it before; supply-only
   // companies never have.
-  if (prices.has('fitting')) line('fitting', 'Survey and fitting', 1, 'job');
+  if (prices.has(FITTING_KEY)) line(FITTING_KEY, 'Survey and fitting', 1, 'job');
   return lines;
 }
 

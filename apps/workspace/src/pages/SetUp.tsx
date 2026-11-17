@@ -13,7 +13,21 @@ import { api, signInAgain, SignedOut, type DesignerSettings, type Me, type Setti
 import { useLoad } from '../lib/load';
 import { go, Link } from '../lib/router';
 import { Problem } from './parts';
-import { BrandingPart, EmailsPart, FinishesPart, FixingPart, GlassPart, HandlesPart, HingesPart, NamePart, SlidingPart, UnsavedContext, WebsitesPart } from './Settings';
+import {
+  BrandingPart,
+  EmailsPart,
+  FinishesPart,
+  FixingPart,
+  GlassPart,
+  HandlesPart,
+  HingesPart,
+  NamePart,
+  PricesPart,
+  priceBookVersion,
+  SlidingPart,
+  UnsavedContext,
+  WebsitesPart,
+} from './Settings';
 
 interface Step {
   id: string;
@@ -32,6 +46,12 @@ const STEPS: Step[] = [
   { id: 'glass', name: 'Glass', title: 'The glass you offer', about: 'Most companies offer 10mm alone. Offer only the thicknesses, glass types and coatings you make showers in.' },
   { id: 'hinges', name: 'Hinges', title: 'The hinges you offer', about: 'One standard hinge for each way of hanging a door is enough to start. Offer more styles if your customers should choose.' },
   { id: 'sliding', name: 'Sliding doors', title: 'Sliding doors', about: 'Off unless you make them. Turn it on and your customers are offered the sliding layouts too.' },
+  {
+    id: 'prices',
+    name: 'Prices',
+    title: 'Your prices',
+    about: 'What each new quote starts from, for everything you offer. Fill in what you know now: anything left empty is priced on the quote, and a quote you send keeps its prices here.',
+  },
   { id: 'emails', name: 'Who is emailed', title: 'Who hears about each design', about: 'A design that arrives is in your inbox here at once. These addresses are emailed it too.' },
   { id: 'websites', name: 'Your website', title: 'Your website’s address', about: 'Tell us where the designer will go. It will show there and nowhere else.' },
   { id: 'embed', name: 'Add it to your website', title: 'Add the designer to your website', about: 'Two lines to paste into the page where customers should design their shower.' },
@@ -135,7 +155,8 @@ export function SetUp({ me, onChanged }: { me: Me; onChanged: () => void }) {
         <UnsavedContext.Provider value={reportUnsaved}>
           {current.id === 'name' && <NamePart key={data.company.versions.name} company={data.company} limits={data.limits} {...part('name')} />}
           {current.id === 'branding' && <BrandingPart key={data.company.versions.branding} company={data.company} {...part('branding')} />}
-          {!designer && current.id !== 'name' && current.id !== 'branding' && (
+          {current.id === 'prices' && <PricesPart key={priceBookVersion(data.prices)} prices={data.prices} {...part('prices')} />}
+          {!designer && current.id !== 'name' && current.id !== 'branding' && current.id !== 'prices' && (
             <p className="mt-6 rounded-lg border border-rule bg-surface p-4 text-sm text-quiet">This company has no designer yet. SetOut adds one when the company is set up.</p>
           )}
           {designer && current.id === 'finishes' && <FinishesPart key={designer.versions.finishes} designer={designer} limits={data.limits} {...part('finishes')} />}

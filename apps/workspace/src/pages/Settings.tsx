@@ -47,12 +47,14 @@ import {
   type DesignerChanges,
   type DesignerSettings,
   type Me,
+  type PriceBook,
+  type QuoteUnit,
   type RulesSettings,
   type Settings as SettingsData,
   type SettingsChange,
   type SettingsChangeItem,
 } from '../lib/api';
-import { when, whenExactly } from '../lib/format';
+import { money, when, whenExactly } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { Link } from '../lib/router';
 import { Problem, Section } from './parts';
@@ -203,6 +205,14 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
             owner={owner}
             justSaved={saved === 'rules'}
             onSaved={() => onSaved('rules')}
+            onReload={settings.reload}
+          />
+          <PricesPart
+            key={priceBookVersion(data.prices)}
+            prices={data.prices}
+            owner={owner}
+            justSaved={saved === 'prices'}
+            onSaved={() => onSaved('prices')}
             onReload={settings.reload}
           />
           <QuotesPart
@@ -1677,6 +1687,278 @@ function MeasurementsPart({ rules, owner, justSaved, onSaved, onReload }: PartPr
 }
 
 // ---------------------------------------------------------------------------
+// Prices
+// ---------------------------------------------------------------------------
+
+/** "45", "£1,250.5" as pence; null for nothing typed; NaN if it is not a price from 1p to £1,000,000. */
+function pennies(text: string): number | null {
+  const typed = text.replace(/[£,\s]/g, '');
+  if (typed === '') return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(typed)) return NaN;
+  const pence = Math.round(Number(typed) * 100);
+  return pence >= 1 && pence <= 100_000_000 ? pence : NaN;
+}
+const typedPrice = (pence: number | undefined) => (pence === undefined ? '' : (pence / 100).toFixed(2));
+const isPrice = (value: number | null): value is number => typeof value === 'number' && !Number.isNaN(value);
+
+/** How each thing is priced, after its price. */
+const PER: Record<QuoteUnit, string> = { m2: 'a m²', each: 'each', m: 'a metre', set: 'a set', job: 'a job' };
+
+/** What the owner is told about each part of the price book. */
+const PRICE_HINTS: Record<PriceBook['groups'][number]['id'], string> = {
+  glass: 'By the square metre of each pane, measured as the rectangle it is cut from, as a toughener prices it.',
+  cutouts: 'A mouse-ear hinge cut-out is a notch and two holes.',
+  hinges: 'Each hinge a door can hang on, in each finish.',
+  handles: 'Each handle, in each finish.',
+  fixing: 'In each finish.',
+  sliding: 'Each of CRL’s Serenity kits, in each finish.',
+  job: 'Fitting goes on every new quote once it has a price: leave it empty if you supply only. Delivery is added to a quote by hand.',
+  other: 'Prices on quotes you have sent, for things you no longer offer. Empty one to take it away.',
+};
+
+/** Changes whenever a price, or what the book lists, does, so the form starts again from the saved prices. */
+export function priceBookVersion(book: PriceBook): string {
+  const text = JSON.stringify([book.groups.map((g) => g.rows.map((r) => r.keys)), book.prices]);
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) hash = ((hash * 33) ^ text.charCodeAt(i)) >>> 0;
+  return hash.toString(36);
+}
+
+function MoneyField({ label, value, invalid, per, onChange, wide }: { label: string; value: string; invalid: boolean; per?: string; onChange: (value: string) => void; wide?: boolean; editable?: boolean }) {
+  return (
+    <span className={`flex h-10 items-center rounded-md border bg-ground px-3 ${wide ? 'w-full' : 'w-40 shrink-0'} ${invalid ? 'border-bad/60' : 'border-rule'}`}>
+      <span className="text-quiet">£</span>
+      <input
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        aria-invalid={invalid ? true : undefined}
+        className="w-full min-w-0 bg-transparent pl-1 text-base tabular-nums outline-none"
+      />
+      {per && <span className="whitespace-nowrap pl-1 text-xs text-quiet">{per}</span>}
+    </span>
+  );
+}
+
+/** A price: a field to type it in, or, for the rest of the team, the price itself. */
+function PriceCell(props: { editable: boolean; label: string; value: string; invalid: boolean; per?: string; onChange: (value: string) => void; wide?: boolean }) {
+  if (props.editable) return <MoneyField {...props} />;
+  const pence = pennies(props.value);
+  return (
+    <span className={`flex h-10 items-center whitespace-nowrap tabular-nums ${props.wide ? '' : 'justify-end'}`}>
+      {isPrice(pence) ? (
+        <>
+          {money(pence)}
+          {props.per && <span className="pl-1 text-xs text-quiet">{props.per}</span>}
+        </>
+      ) : (
+        <span className="text-quiet">No price</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * The price book: what each new quote starts from, before VAT. Everything
+ * the company's quotes can price is listed, from what its designer offers.
+ * Glass in several thicknesses is a table, a column for each. Hardware has
+ * one price for every finish until the owner prices a finish on its own.
+ * The rest of the team sees the prices and cannot change them.
+ */
+export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: PartProps & { prices: PriceBook }) {
+  const keys = prices.groups.flatMap((g) => g.rows.flatMap((r) => r.keys));
+  const original = Object.fromEntries(keys.map((key) => [key, typedPrice(prices.prices[key]?.pence)]));
+  const [form, setForm] = useState<Record<string, string>>(original);
+  // A row of hardware has one price for every finish while its prices are all the same, as they are with none.
+  const [sameAtFirst] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      prices.groups
+        .filter((g) => g.sameAcross)
+        .flatMap((g) => g.rows.filter((r) => r.keys.length > 1).map((r) => [r.keys[0], new Set(r.keys.map((key) => original[key])).size === 1]))
+    )
+  );
+  const [same, setSame] = useState(sameAtFirst);
+  const saving = useSave(onSaved);
+  const typed = Object.fromEntries(keys.map((key) => [key, pennies(form[key] ?? '')]));
+  const valid = keys.every((key) => !Number.isNaN(typed[key]));
+  const changes = keys.flatMap((key) => {
+    const from = prices.prices[key]?.pence ?? null;
+    const to = typed[key];
+    return Number.isNaN(to) || to === from ? [] : [{ key, from, to }];
+  });
+  const dirty = changes.length > 0 || !valid;
+  const set = (key: string, value: string) => setForm((now) => ({ ...now, [key]: value }));
+  const setAll = (row: string[], value: string) => setForm((now) => ({ ...now, ...Object.fromEntries(row.map((key) => [key, value])) }));
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void saving.save(() => api.savePrices(changes), 'The prices could not be saved. Please try again.');
+  };
+
+  const groups = prices.groups.map((group) => {
+    const columns = group.columns && group.columns.length > 1 ? group.columns : null;
+    // The one finish, where a company offers only one.
+    const only = group.columns?.length === 1 ? group.columns[0].label : null;
+    return (
+      <fieldset key={group.id} className="mt-6 border-t border-rule pt-4 first-of-type:mt-2 first-of-type:border-t-0 first-of-type:pt-0">
+        <legend className="float-left w-full text-sm font-bold">{group.title}</legend>
+        <p className="clear-both pt-1 text-xs text-quiet">{PRICE_HINTS[group.id]}</p>
+        {!columns ? (
+          <div className="divide-y divide-rule pt-1">
+            {group.rows.map((row) => {
+              const key = row.keys[0];
+              const label = only ? `${row.label}, ${only}` : row.label;
+              return (
+                <label key={key} className="flex items-center justify-between gap-4 py-2 text-sm">
+                  <span className="min-w-0">
+                    {label} {row.code && <CodeOf code={row.code} />}
+                  </span>
+                  <PriceCell editable={owner} label={label} value={form[key] ?? ''} invalid={Number.isNaN(typed[key])} per={PER[row.unit]} onChange={(v) => set(key, v)} />
+                </label>
+              );
+            })}
+          </div>
+        ) : !group.sameAcross ? (
+          // A table, as a toughener's price list is: on a phone each row has its columns under it.
+          <div className="pt-3 text-sm">
+            <div className="hidden gap-2 pb-1 text-xs font-medium text-quiet sm:grid" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${columns.length}, 7.5rem)` }}>
+              <span>{PER[group.rows[0]?.unit ?? 'each']}</span>
+              {columns.map((c) => (
+                <span key={c.id}>{c.label}</span>
+              ))}
+            </div>
+            <div className="space-y-4 sm:space-y-2">
+              {group.rows.map((row) => (
+                <div key={row.keys[0]} className="sm:grid sm:items-center sm:gap-2" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${columns.length}, 7.5rem)` }}>
+                  <p className="min-w-0">
+                    {row.label} <span className="text-xs text-quiet sm:hidden">{PER[row.unit]}</span>
+                  </p>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2 sm:contents">
+                    {row.keys.map((key, i) => (
+                      <label key={key} className="block min-w-0">
+                        <span className="block truncate text-xs text-quiet sm:hidden">{columns[i].label}</span>
+                        <PriceCell
+                          editable={owner}
+                          wide
+                          label={`${columns[i].label} ${row.label}`}
+                          value={form[key] ?? ''}
+                          invalid={Number.isNaN(typed[key])}
+                          onChange={(v) => set(key, v)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5 pt-3">
+            {group.rows.map((row) => {
+              const id = row.keys[0];
+              const one = same[id] === true;
+              return (
+                <div key={id} className="text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                    <p className="min-w-0">
+                      <span className="font-medium">{row.label}</span> {row.code && <CodeOf code={row.code} />} {!one && <span className="text-xs text-quiet">{PER[row.unit]}</span>}
+                    </p>
+                    {one && (
+                      <PriceCell
+                        editable={owner}
+                        label={row.label}
+                        value={form[id] ?? ''}
+                        invalid={Number.isNaN(typed[id])}
+                        per={PER[row.unit]}
+                        onChange={(v) => setAll(row.keys, v)}
+                      />
+                    )}
+                  </div>
+                  {owner && (
+                    <label className="mt-1 inline-flex cursor-pointer items-center gap-2 text-xs text-quiet">
+                      <input
+                        type="checkbox"
+                        checked={one}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setSame((now) => ({ ...now, [id]: on }));
+                          // One price for them all starts from the first finish priced.
+                          if (on) setAll(row.keys, row.keys.map((key) => form[key] ?? '').find((v) => v.trim() !== '') ?? '');
+                        }}
+                      />
+                      Same price in every finish
+                    </label>
+                  )}
+                  {!one && (
+                    <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {row.keys.map((key, i) => (
+                        <label key={key} className="block min-w-0">
+                          <span className="block truncate text-xs text-quiet">{columns[i].label}</span>
+                          <PriceCell
+                            editable={owner}
+                            wide
+                            label={`${row.label}, ${columns[i].label}`}
+                            value={form[key] ?? ''}
+                            invalid={Number.isNaN(typed[key])}
+                            onChange={(v) => set(key, v)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </fieldset>
+    );
+  });
+
+  if (!owner) {
+    return (
+      <Section title="Prices">
+        <div className={CARD}>
+          <Hint>What each new quote starts from, before VAT. Only an owner can change them.</Hint>
+          {groups}
+        </div>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Prices">
+      <form onSubmit={submit} className={CARD}>
+        <Hint>
+          What each new quote starts from, before VAT. You can still change any line on a quote before you send it, and a quote you send keeps its prices here for next time. Anything left empty is left for
+          you to price on the quote.
+        </Hint>
+        {groups}
+        {!valid && (
+          <p role="alert" className="mt-4 text-sm text-bad">
+            A price is in pounds and pence, such as 45 or 45.50, up to £1,000,000. The ones outlined in red are not.
+          </p>
+        )}
+        <SaveRow
+          label="Save the prices"
+          dirty={dirty}
+          valid={valid}
+          saving={saving}
+          onUndo={() => {
+            setForm(original);
+            setSame(sameAtFirst);
+          }}
+          justSaved={justSaved}
+          savedNote="Saved. The next quote you write starts from these."
+          onReload={onReload}
+        />
+      </form>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Quotes
 // ---------------------------------------------------------------------------
 
@@ -2014,6 +2296,28 @@ function Changes({ changes, me, several }: { changes: SettingsChange[]; me: Me; 
           const by = !change.by ? 'SetOut' : change.by.email === me.user.email ? 'You' : (change.by.name ?? change.by.email);
           const where = several && change.data.designer ? `On ${change.data.designer.name}: ` : '';
           const items = change.data.changes?.length ? change.data.changes : [null];
+          // A price book filled in at once is one line, opened to see each price.
+          const prices = items.filter((item): item is SettingsChangeItem => item?.field === 'price');
+          if (prices.length > 3 && prices.length === items.length) {
+            return [
+              <li key={change.id} className="flex justify-between gap-3">
+                <details className="min-w-0">
+                  <summary className="cursor-pointer">
+                    {where}
+                    {by} changed {prices.length} prices.
+                  </summary>
+                  <ul className="mt-1 space-y-1 pl-4 text-quiet">
+                    {prices.map((item, i) => (
+                      <li key={i}>{describe(item, by)}</li>
+                    ))}
+                  </ul>
+                </details>
+                <span className="shrink-0 text-xs text-quiet" title={whenExactly(change.at)}>
+                  {when(change.at)}
+                </span>
+              </li>,
+            ];
+          }
           return items.map((item, i) => (
             <li key={`${change.id}-${i}`} className="flex justify-between gap-3">
               <span className="min-w-0">
@@ -2046,6 +2350,11 @@ const CHOICE_TEXT: Record<string, Record<string, ChoiceText>> = {
 /** One change to the settings, in words. */
 function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
+    case 'price': {
+      const price = (pence: number) => `${money(pence)} ${PER[item.unit] ?? ''}`.trim();
+      if (item.to === null) return `${by} took the price off “${item.label}”${item.from === null ? '' : `, which was ${price(item.from)}`}.`;
+      return `${by} set the price of “${item.label}” to ${price(item.to)}${item.from === null ? '' : `, from ${price(item.from)}`}.`;
+    }
     case 'rule': {
       const text = (RULE_TEXT as Record<string, (typeof RULE_TEXT)[NamedRule] | undefined>)[item.rule];
       const what = text ? `${lowerFirst(text.group)}, ${lowerFirst(text.label)}` : item.rule;

@@ -235,8 +235,8 @@ function DraftEditor({ detail, jobId, onChanged }: { detail: QuoteDetail; jobId:
         <div className="mt-2 flex flex-wrap gap-2">
           {[
             { label: 'Add a line', line: { key: null, description: '', quantity: 1, unit: 'each' as QuoteUnit, unitPricePence: 0 } },
-            { label: 'Add fitting', line: { key: 'fitting', description: 'Survey and fitting', quantity: 1, unit: 'job' as QuoteUnit, unitPricePence: 0 } },
-            { label: 'Add delivery', line: { key: 'delivery', description: 'Delivery', quantity: 1, unit: 'job' as QuoteUnit, unitPricePence: 0 } },
+            { label: 'Add fitting', line: { key: 'fitting', description: 'Survey and fitting', quantity: 1, unit: 'job' as QuoteUnit, unitPricePence: detail.prices?.fitting ?? 0 } },
+            { label: 'Add delivery', line: { key: 'delivery', description: 'Delivery', quantity: 1, unit: 'job' as QuoteUnit, unitPricePence: detail.prices?.delivery ?? 0 } },
           ].map(({ label, line }) => (
             <button key={label} type="button" onClick={() => changed(setLines)([...lines, toEdit(line)])} className="h-9 rounded-md border border-rule bg-surface px-3 text-sm font-medium">
               {label}

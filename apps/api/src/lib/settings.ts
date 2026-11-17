@@ -603,7 +603,9 @@ export type SettingsChange =
   | { field: 'fixingOffered' | 'glassTypesOffered' | 'coatingsOffered'; from: string[]; to: string[] }
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
-  | { field: 'rule'; rule: string; from: number | string; to: number | string };
+  | { field: 'rule'; rule: string; from: number | string; to: number | string }
+  /** A price in the price book, in pence before VAT. Null is no price. */
+  | { field: 'price'; key: string; label: string; unit: string; from: number | null; to: number | null };
 
 type Option = { id: string; label: string; swatch?: string; description?: string; code?: string };
 

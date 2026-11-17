@@ -295,6 +295,8 @@ export interface QuoteDetail {
   customer: { name: string; email: string | null } | null;
   /** What stands in the way of sending a draft, if anything. */
   blocker: { error: string; message: string } | null;
+  /** For a draft, what fitting and delivery start at when added by hand: the price book's prices, 0 where there is none. */
+  prices?: { fitting: number; delivery: number };
 }
 
 export interface OptionLabel {
@@ -496,7 +498,8 @@ export type SettingsChangeItem =
   | { field: 'fixingStandard' | 'glassTypeStandard' | 'coatingStandard'; from: string; to: string }
   | { field: 'notifyEmails'; added: string[]; removed: string[] }
   | { field: 'websites'; added: string[]; removed: string[] }
-  | { field: 'rule'; rule: string; from: number | string; to: number | string };
+  | { field: 'rule'; rule: string; from: number | string; to: number | string }
+  | { field: 'price'; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null };
 
 export interface SettingsChange {
   id: string;
@@ -512,11 +515,46 @@ export interface Settings {
   designers: DesignerSettings[];
   /** The company's measurements: each rule it differs from SetOut's standard in, and which version that is. */
   rules: RulesSettings;
+  /** Every price a new quote can start from, and the company's price for each. */
+  prices: PriceBook;
   limits: { options: number; label: number; description: number; notifyEmails: number; websites: number; companyName: number; logoUrl: number };
   /** Where the embed script is served from. */
   embedScript: string;
   /** Owners only. */
   changes?: SettingsChange[];
+}
+
+/** One thing in the price book: one price, or one for each finish. */
+export interface PriceBookRow {
+  label: string;
+  /** CRL's number for it, where it is one of CRL's parts. */
+  code?: string;
+  unit: QuoteUnit;
+  /** The row's one price, or one for each of its group's columns, in their order. */
+  keys: string[];
+}
+
+export interface PriceBookGroup {
+  id: 'glass' | 'cutouts' | 'hinges' | 'handles' | 'fixing' | 'sliding' | 'job' | 'other';
+  title: string;
+  /** Where each row has a price for each of several things, what they are, in order: the finishes, or the glass thicknesses. */
+  columns?: { id: string; label: string }[];
+  /** Whether one price may stand for every column, as one hinge's may for every finish. */
+  sameAcross?: boolean;
+  rows: PriceBookRow[];
+}
+
+export interface PriceBook {
+  groups: PriceBookGroup[];
+  /** The company's prices by key, in pence before VAT. */
+  prices: Record<string, { pence: number; updatedAt: string }>;
+}
+
+/** A price changed in the price book: what the owner saw, and what they chose. Null is no price. */
+export interface PriceChange {
+  key: string;
+  from: number | null;
+  to: number | null;
 }
 
 export interface RulesSettings {
@@ -631,6 +669,8 @@ export const api = {
   saveRules: (overrides: RulesetOverrides, basedOn: number) =>
     send<{ ok: true; changed: boolean; rules: RulesSettings }>('PATCH', '/settings/rules', { overrides, basedOn: { rules: basedOn } }),
   /** A list is sent whole, in order. A part left out stays as it is. */
+  savePrices: (changes: PriceChange[]) => send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', '/settings/prices', { changes }),
+
   saveDesignerSettings: (id: string, changes: DesignerChanges) =>
     send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),
 };

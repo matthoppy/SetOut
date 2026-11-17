@@ -171,6 +171,8 @@ export interface CompanyDb {
   prices: {
     /** What the company last sent for each thing it quotes, by key. */
     all(): Promise<Map<string, number>>;
+    /** Every price the company has, with how it is priced and when it last changed, by key. */
+    list(): Promise<{ key: string; unit: QuoteUnit; pence: number; updatedAt: string }[]>;
     /** Keep these as the prices to start from next time. */
     remember(prices: { key: string; unit: QuoteUnit; unitPricePence: number }[]): Promise<void>;
   };
@@ -514,6 +516,14 @@ export function companyDb(env: Pick<Env, 'DB'>, companyId: string): CompanyDb {
           .bind(companyId)
           .all<{ key: string; pence: number }>();
         return new Map(rows.results.map((r) => [r.key, r.pence]));
+      },
+
+      async list() {
+        const rows = await d1
+          .prepare('SELECT key, unit, unit_price_pence AS pence, updated_at AS updatedAt FROM price_list WHERE company_id = ? ORDER BY key')
+          .bind(companyId)
+          .all<{ key: string; unit: QuoteUnit; pence: number; updatedAt: string }>();
+        return rows.results;
       },
 
       async remember(prices) {

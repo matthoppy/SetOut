@@ -12,16 +12,19 @@
  *
  * The company's measurements, what comes off each pane and its other making
  * rules, are kept as versions of its ruleset: each change is a new version,
- * and a design keeps the version it was made with. Setting up, at the foot,
- * is where an owner's place in the set-up wizard is kept.
+ * and a design keeps the version it was made with. The price book holds what
+ * each new quote starts from. Setting up, at the foot, is where an owner's
+ * place in the set-up wizard is kept.
  */
 
 import { Hono, type Context } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import type { Session } from '../db/auth';
+import { companyDb } from '../db/company-db';
 import { saveSetUp, setUpOf } from '../db/onboarding';
-import { optionsInUse, readRules, readSettings, saveRules, saveSettings, settingsChanges } from '../db/settings';
+import { optionsInUse, readRules, readSettings, savePrices, saveRules, saveSettings, settingsChanges } from '../db/settings';
 import { RequestError } from '../lib/enquiry';
+import { priceBook, readPriceChanges } from '../lib/price-book';
 import {
   companyChanges,
   companyVersions,
@@ -65,6 +68,8 @@ export const staffSettings = new Hono<Bindings>();
 const PRIVATE = { 'Cache-Control': 'no-store' };
 /** Thirty finishes and thirty handles, with room to spare. */
 const MAX_BODY_BYTES = 64 * 1024;
+/** Every price in the largest price book, with room to spare. */
+const MAX_PRICES_BYTES = 256 * 1024;
 
 const STALE = {
   error: 'stale',
@@ -83,8 +88,8 @@ const ownersOnly = createMiddleware<Bindings>(async (c, next) => {
 });
 
 /** The request's body, if it is a JSON object of a sensible size. */
-async function bodyOf(c: Context<Bindings>): Promise<Record<string, unknown>> {
-  if (Number(c.req.header('content-length') ?? 0) > MAX_BODY_BYTES) {
+async function bodyOf(c: Context<Bindings>, limit = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
+  if (Number(c.req.header('content-length') ?? 0) > limit) {
     throw new RequestError(413, 'too_large', 'That is too much to save at once.');
   }
   const body: unknown = await c.req.json().catch(() => null);
@@ -119,13 +124,19 @@ staffSettings.get('/settings', async (c) => {
   const stored = await readSettings(c.env, session.companyId);
   if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
   const owner = session.role === 'owner';
-  const [company, designers, rules, changes] = await Promise.all([
+  const [company, designers, rules, prices_stored, changes] = await Promise.all([
     presentCompany(companyView(stored.company)),
     Promise.all(stored.designers.map((d, i) => presentDesigner(c.env, session.companyId, designerView(d), i === 0))),
     readRules(c.env, session.companyId),
+    companyDb(c.env, session.companyId).prices.list(),
     owner ? settingsChanges(c.env, session.companyId) : null,
   ]);
-  return c.json({ canChange: owner, company, designers, rules, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) }, 200, PRIVATE);
+  const prices = priceBook(designers, prices_stored);
+  return c.json(
+    { canChange: owner, company, designers, rules, prices, limits: LIMITS, embedScript: embedScriptFor(c), ...(changes ? { changes } : {}) },
+    200,
+    PRIVATE
+  );
 });
 
 /**
@@ -310,6 +321,32 @@ staffSettings.patch('/settings/rules', ownersOnly, async (c) => {
     const saved = await saveRules(c.env, session.companyId, session.userId, before.version, overrides, { changes });
     if (!saved) return c.json(STALE, 409, PRIVATE);
     return c.json({ ok: true, changed: true, rules: { version: before.version + 1, overrides } }, 200, PRIVATE);
+  } catch (error) {
+    if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
+    throw error;
+  }
+});
+
+/**
+ * Change prices in the price book. Each is sent with the price the owner saw
+ * and the one they chose, or null to take a price away, and only prices the
+ * book lists are taken. Nothing is saved if any of them has moved meanwhile,
+ * by another owner or by a quote sent with it on.
+ */
+staffSettings.patch('/settings/prices', ownersOnly, async (c) => {
+  const session = c.get('session');
+  try {
+    const body = await bodyOf(c, MAX_PRICES_BYTES);
+    const stored = await readSettings(c.env, session.companyId);
+    if (!stored) return c.json(NO_COMPANY, 404, PRIVATE);
+    const db = companyDb(c.env, session.companyId);
+    const designers = stored.designers.map(designerView);
+    const book = priceBook(designers, await db.prices.list());
+    const changes = readPriceChanges(body.changes, book);
+    if (changes.length === 0) return c.json({ ok: true, changed: false, prices: book }, 200, PRIVATE);
+    const saved = await savePrices(c.env, session.companyId, session.userId, changes, { changes: changes.map((ch) => ({ field: 'price', ...ch })) });
+    if (!saved) return c.json(STALE, 409, PRIVATE);
+    return c.json({ ok: true, changed: true, prices: priceBook(designers, await db.prices.list()) }, 200, PRIVATE);
   } catch (error) {
     if (error instanceof RequestError) return c.json({ error: error.code, message: error.message }, error.status, PRIVATE);
     throw error;

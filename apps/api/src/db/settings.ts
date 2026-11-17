@@ -206,3 +206,71 @@ export async function saveRules(
   ]);
   return inserted.meta.changes === 1;
 }
+
+// ---------------------------------------------------------------------------
+// Prices: the price book
+// ---------------------------------------------------------------------------
+
+/**
+ * Change prices in the company's price book, each from the price the owner
+ * saw to the one they chose; a null price is none, and takes the price away.
+ * All of them are changed or none is: nothing is written if any price has
+ * moved since the owner read it, say because a quote with it on was sent
+ * meanwhile, and then false. The audit entry is written in the same batch,
+ * and only once every price is what the owner chose.
+ *
+ * The prices go to the database as one list, so a price book of any size is
+ * one statement of each kind.
+ */
+export async function savePrices(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  changes: readonly { key: string; unit: string; from: number | null; to: number | null }[],
+  data: object,
+  now = new Date()
+): Promise<boolean> {
+  if (changes.length === 0) throw new DataError('There is nothing to change.');
+  const at = now.toISOString();
+  const sent = JSON.stringify(changes.map((c) => ({ key: c.key, unit: c.unit, from: c.from, to: c.to, id: newId('price') })));
+  // Every price still what the owner saw, or already what they chose.
+  const unmoved = `NOT EXISTS (
+      SELECT 1 FROM json_each(?2) c
+        LEFT JOIN price_list p ON p.company_id = ?1 AND p.key = json_extract(c.value, '$.key')
+       WHERE p.unit_price_pence IS NOT json_extract(c.value, '$.from')
+         AND p.unit_price_pence IS NOT json_extract(c.value, '$.to'))`;
+  const statements: D1PreparedStatement[] = [];
+  if (changes.some((c) => c.to === null)) {
+    statements.push(
+      env.DB.prepare(
+        `DELETE FROM price_list
+          WHERE company_id = ?1
+            AND key IN (SELECT json_extract(value, '$.key') FROM json_each(?2) WHERE json_extract(value, '$.to') IS NULL)
+            AND ${unmoved}`
+      ).bind(companyId, sent)
+    );
+  }
+  if (changes.some((c) => c.to !== null)) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO price_list (company_id, id, key, unit, unit_price_pence, created_at, updated_at)
+         SELECT ?1, json_extract(c.value, '$.id'), json_extract(c.value, '$.key'), json_extract(c.value, '$.unit'), json_extract(c.value, '$.to'), ?3, ?3
+           FROM json_each(?2) c
+          WHERE json_extract(c.value, '$.to') IS NOT NULL AND ${unmoved}
+         ON CONFLICT (company_id, key) DO UPDATE SET unit = excluded.unit, unit_price_pence = excluded.unit_price_pence, updated_at = excluded.updated_at`
+      ).bind(companyId, sent, at)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?1, ?3, ?4, 'settings_changed', ?1, ?5, ?6
+        WHERE NOT EXISTS (
+          SELECT 1 FROM json_each(?2) c
+            LEFT JOIN price_list p ON p.company_id = ?1 AND p.key = json_extract(c.value, '$.key')
+           WHERE p.unit_price_pence IS NOT json_extract(c.value, '$.to'))`
+    ).bind(companyId, sent, newId('audit'), actorId, JSON.stringify(data), at)
+  );
+  const results = await env.DB.batch(statements);
+  return results[results.length - 1].meta.changes === 1;
+}

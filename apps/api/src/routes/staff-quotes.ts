@@ -21,6 +21,7 @@ import { sendEmail } from '../lib/email';
 import { RequestError } from '../lib/enquiry';
 import { fromLine, mailIsSetUp } from '../lib/notify';
 import { dayOf, money, quoteEmail } from '../lib/quote-email';
+import { DELIVERY_KEY, FITTING_KEY } from '../lib/price-keys';
 import { draftLines, lineTotal, readLines, totals } from '../lib/quote-lines';
 import { quoteSettingsOf } from '../lib/settings';
 
@@ -140,13 +141,17 @@ staffQuotes.get('/jobs/:id/quotes/:quoteId', async (c) => {
   if (!quote) return c.json(NO_QUOTE, 404, PRIVATE);
   const job = await db.get('jobs', quote.job_id);
   const customer = job ? await db.get('customers', job.customer_id) : null;
+  const draft = quote.status === 'draft';
+  const prices = draft ? await db.prices.all() : null;
   return c.json(
     {
       quote: present(quote),
       job: job && { id: job.id, reference: job.reference, stage: job.stage },
       customer: customer && { name: customer.name, email: customer.email },
       // Only a draft can be sent, and only when nothing stands in its way.
-      blocker: quote.status === 'draft' ? await blockerFor(db, quote) : null,
+      blocker: draft ? await blockerFor(db, quote) : null,
+      // What fitting and delivery start at when added to a draft by hand: the price book's prices.
+      ...(prices ? { prices: { fitting: prices.get(FITTING_KEY) ?? 0, delivery: prices.get(DELIVERY_KEY) ?? 0 } } : {}),
     },
     200,
     PRIVATE
