@@ -5,7 +5,7 @@ import type { Config } from 'tailwindcss';
 const channel = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  content: ['./index.html', './src/**/*.{ts,tsx}', '../../packages/ui/src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {

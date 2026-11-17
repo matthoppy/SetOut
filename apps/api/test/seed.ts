@@ -21,7 +21,8 @@ export interface Seeded {
 /**
  * A company with one of everything: a designer, a customer, a job with a
  * design and a revision, a draft, a file, an event, a member of staff, a
- * quote, a price, a subscription and an order confirmation link.
+ * quote, a price, a subscription, an order confirmation link and an
+ * installation sheet.
  */
 export async function seedCompany(name: string, prefix: string): Promise<Seeded> {
   const company = await createCompany(env, { name, referencePrefix: prefix });
@@ -105,6 +106,13 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
     link_token_hash: `hash-of-${prefix}-confirmation`,
   });
 
+  const installationSheet = await db.insert('installation_sheets', {
+    job_id: job.id,
+    covers: [{ designId: design.id, revisionId: revision.id, number: 1 }],
+    approved_at: '2026-11-17T00:00:00.000Z',
+    link_token_hash: `hash-of-${prefix}-installation`,
+  });
+
   const cutOverride = await db.insert('cut_overrides', {
     job_id: job.id,
     design_id: design.id,
@@ -147,6 +155,7 @@ export async function seedCompany(name: string, prefix: string): Promise<Seeded>
       price_list: price,
       subscriptions: subscription,
       order_confirmations: confirmation,
+      installation_sheets: installationSheet,
       cut_overrides: cutOverride,
       job_payments: jobPayment,
       suppliers: supplier,

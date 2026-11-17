@@ -880,6 +880,7 @@ function describe(event: JobEvent): string {
     case 'email_sent':
       if (d.what === 'quote') return `Quote ${String(d.number)} emailed to the customer.`;
       if (d.what === 'quote_accepted') return `The team was emailed that quote ${String(d.number)} was accepted.`;
+      if (d.what === 'installation_sheet') return 'Installation sheet emailed to the customer.';
       return `Emailed to ${WHO[String(d.to)] ?? String(d.to)}.`;
     case 'email_failed':
       return `The email to ${WHO[String(d.to)] ?? String(d.to)} failed: ${String(d.reason ?? 'no reason given')}`;
@@ -949,6 +950,10 @@ function describe(event: JobEvent): string {
       return `A credit note for ${money(Number(d.creditPence ?? 0), 'GBP')} was issued in Stripe.`;
     case 'bank_transfer_received':
       return `A bank transfer of ${money(Number(d.amountPence ?? 0), 'GBP')} arrived on the customer's Stripe balance. Not paid until Stripe applies it to the invoice.`;
+    case 'installation_sheet_approved':
+      return `${who ?? 'Someone'} approved the installation sheet to send to the customer.`;
+    case 'installation_sheet_sent':
+      return `${who ?? 'Someone'} sent the installation sheet to ${String(d.to ?? 'the customer')}.`;
     case 'installation_changed': {
       const names: Record<string, string> = { address: 'installation address', postcode: 'site postcode', notes: 'installation comments' };
       const changed = Array.isArray(d.changed) ? d.changed.map((c) => names[String(c)] ?? String(c)) : [];

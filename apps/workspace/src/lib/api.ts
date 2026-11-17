@@ -597,6 +597,29 @@ export interface DesignerChanges {
   basedOn: Partial<DesignerSettings['versions']>;
 }
 
+/** An installation sheet staff approved, and sent to the customer once it is. */
+export interface InstallationSheetRecord {
+  id: string;
+  covers: { designId: string; revisionId: string; number: number }[];
+  address: string | null;
+  postcode: string | null;
+  notes: string | null;
+  approved_by: string | null;
+  approved_at: string;
+  sent_by: string | null;
+  sent_at: string | null;
+}
+
+/** Where a job's sheets stand for the customer: the last approval, and what stands in the way. */
+export interface InstallationSheetStatus {
+  sheet: InstallationSheetRecord | null;
+  /** Why the last approval, not yet sent, no longer holds. */
+  changed: { error: string; message: string } | null;
+  /** Why the sheets cannot be approved as things stand. */
+  blocker: { error: string; message: string } | null;
+  customerEmail: string | null;
+}
+
 export const api = {
   me: () => call<Me>('/me'),
   askForLink: (email: string) => send<{ ok: true; link?: string }>('POST', '/sign-in', { email }),
@@ -642,6 +665,16 @@ export const api = {
       'PATCH',
       `/jobs/${encodeURIComponent(id)}/installation`,
       changes
+    ),
+  installationSheet: (id: string, signal?: AbortSignal) =>
+    call<InstallationSheetStatus>(`/jobs/${encodeURIComponent(id)}/installation-sheet`, { signal }),
+  approveInstallationSheet: (id: string) =>
+    send<{ ok: true; sheet: InstallationSheetRecord }>('POST', `/jobs/${encodeURIComponent(id)}/installation-sheet/approve`, {}),
+  sendInstallationSheet: (id: string, sheetId: string) =>
+    send<{ ok: true; sheet: InstallationSheetRecord; link: string; emailed: boolean }>(
+      'POST',
+      `/jobs/${encodeURIComponent(id)}/installation-sheet/${encodeURIComponent(sheetId)}/send`,
+      {}
     ),
   /** revision: the number of the revision the person looked over. */
   check: (jobId: string, designId: string, revision: number) =>

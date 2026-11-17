@@ -43,6 +43,8 @@ const isEmbedScript = (path: string) => path === '/embed.js' || path === '/desig
 const isEditorPath = (path: string) => path.startsWith('/edit/');
 /** Where a customer reads and accepts their quote: /q/<link>. */
 const isQuotePath = (path: string) => path.startsWith('/q/');
+/** Where a customer reads and prints their installation sheets: /i/<link>. */
+const isInstallationPath = (path: string) => path.startsWith('/i/');
 const isDesignerPath = (path: string) => path === '/designer' || path.startsWith('/designer/');
 /** Where the site lives on an address that serves everything by path. */
 const SITE_PREFIX = '/site';
@@ -142,8 +144,8 @@ async function editorPage(c: SiteContext): Promise<Response> {
  * kept by a cache, and its address, which is the customer's link, is never
  * sent on to anywhere it links to.
  */
-async function quotePage(c: SiteContext): Promise<Response> {
-  const page = await c.env.ASSETS.fetch(new Request(new URL('/designer/quote', c.req.url), { headers: c.req.raw.headers }));
+async function quotePage(c: SiteContext, entry: 'quote' | 'installation' = 'quote'): Promise<Response> {
+  const page = await c.env.ASSETS.fetch(new Request(new URL(`/designer/${entry}`, c.req.url), { headers: c.req.raw.headers }));
   return withHeaders(page, {
     ...COMMON,
     'Content-Security-Policy': "frame-ancestors 'none'",
@@ -268,8 +270,10 @@ export async function serveSite(c: SiteContext): Promise<Response> {
 
   if (surface !== 'designer' && isEditorPath(path)) return editorPage(c);
   if (surface !== 'workspace' && isQuotePath(path)) return quotePage(c);
+  // A customer's installation sheet is kept and served exactly as a quote is.
+  if (surface !== 'workspace' && isInstallationPath(path)) return quotePage(c, 'installation');
   if (surface === 'workspace') {
-    if (isEmbedScript(path) || isDesignerPath(path) || isQuotePath(path) || isSitePath(path)) return notFound();
+    if (isEmbedScript(path) || isDesignerPath(path) || isQuotePath(path) || isInstallationPath(path) || isSitePath(path)) return notFound();
     return workspacePage(c);
   }
   if (isEmbedScript(path)) return embedScript(c);

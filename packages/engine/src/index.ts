@@ -12,6 +12,7 @@
  *   shapes       the shape each pane is cut to, and where it stands in the opening
  *   sliding      a sliding door on CRL's Serenity: its sizes, holes and header
  *   fittings     what the fitter takes: hinges, handle, seal, channel or clamps
+ *   fittingGuide how to fit it, step by step, for a customer's own fitter
  *   hinges       which of CRL's hinges each door hangs on: the styles, and each one's number
  *   crl          CRL's catalogue number for each of those, in the shower's finish
  *   photos       CRL's photo of a hinge or a handle, by catalogue number
@@ -36,6 +37,7 @@ export * from './sliding';
 export * from './panes';
 export * from './shapes';
 export * from './fittings';
+export * from './fittingGuide';
 export * from './hinges';
 export * from './crl';
 export { CRL_CATALOGUE_DATE } from './crl-catalogue';
