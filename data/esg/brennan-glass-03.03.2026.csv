@@ -1,0 +1,21 @@
+key,sku,description,unit,cost,notes,min_area_m2
+glass:10:clear,ESG-10-CLEAR-T,10mm Clear Toughened,m2,50.00,"Up to 2800 x 4800. Issued to Brennan Glass, plus VAT. Rough guide for Custom Showers until ESG confirms these rates apply.",0.30
+glass:10:low-iron,ESG-10-LOW-IRON-T,10mm Low Iron Toughened,m2,90.00,"Up to 2800 x 4800. Issued to Brennan Glass, plus VAT.",0.30
+glass:10:satin,ESG-10-SATIN-T,10mm Satin Toughened,m2,85.00,"Up to 2800 x 4800. Issued to Brennan Glass, plus VAT.",0.30
+glass:10:grey,ESG-10-GREY-T,10mm Grey Toughened,m2,90.00,"Up to 2800 x 4800. Issued to Brennan Glass, plus VAT.",0.30
+glass:10:bronze,ESG-10-BRONZE-T,10mm Bronze Toughened,m2,90.00,"Up to 2800 x 4800. Issued to Brennan Glass, plus VAT.",0.30
+,ESG-4-CLEAR-FLOAT,4mm Clear Float,m2,28.00,"No SetOut key yet: the designer quotes toughened glass. Up to 2800 x 4800.",0.30
+,ESG-5-CLEAR-FLOAT,5mm Clear Float,m2,30.00,"No SetOut key yet: the designer quotes toughened glass. Up to 2800 x 4800.",0.30
+,ESG-6.8-ACOUSTIC-LAM,6.8mm Acoustic Float Laminate,m2,60.00,"No SetOut key yet. Toughened laminate / CNC minimum area is 0.50 m².",0.50
+,ESG-10.8-ACOUSTIC-LAM,10.8mm Acoustic Float Laminate,m2,70.00,"No SetOut key yet. Toughened laminate / CNC minimum area is 0.50 m².",0.50
+,ESG-12.8-ACOUSTIC-LAM,12.8mm Acoustic Float Laminate,m2,75.00,"No SetOut key yet. Toughened laminate / CNC minimum area is 0.50 m².",0.50
+polish:edge,ESG-POLISH,Polishing 4–12mm,m,3.21,"Linear metre, as printed. Quantity on a new quote is the perimeter of the cut rectangle; true shaped edge length is a follow-up.",
+coating:enduroshield,ESG-ENDUROSHIELD,Enduroshield 4–12mm,m2,35.00,"PDF header said L/M; Jemma Cadd email 3 March 2026 says this is calculated by m², not L/M.",
+cutout:hole,ESG-HOLE,Holes 4–12mm,each,2.50,,
+delivery,ESG-SITE-DELIVERY,Site delivery,job,75.00,"Note 6: all site deliveries will incur a £75 charge. Activating this list will add delivery to a new quote.",
+,ESG-OVERSIZE-4000,Oversize rectangles 4000mm and above,job,0.00,"Recorded only: 40% of glass cost, 0% of polishing. Not applied automatically. The list is headed up to 2800 x 4800, but oversize starts at 4000mm.",
+,ESG-SHAPE-1,Shape category 1,job,0.00,"Recorded only: 20% of glass cost, 0% of polishing. Categories 1/2/3 are not defined on the list. Not applied automatically.",
+,ESG-SHAPE-2,CNC shape category 2,job,0.00,"Recorded only: 60% of glass cost, 0% of polishing. CNC minimum area 0.50 m²; CNC minimum panel value £88.25. Not applied automatically.",
+,ESG-SHAPE-3,CNC shape category 3,job,0.00,"Recorded only: 100% of glass cost, 100% of polishing. Radius corners over 45mm are produced and charged as CNC. Not applied automatically.",
+,ESG-CNC-MIN-AREA,CNC minimum area,m2,0.00,Any CNC work is charged at a minimum area of 0.50 m². Recorded only; not applied automatically.,
+,ESG-CNC-MIN-PANEL,CNC minimum panel value,each,88.25,"Minimum panel value for CNC is £88.25 per panel. Recorded only; not applied automatically.",

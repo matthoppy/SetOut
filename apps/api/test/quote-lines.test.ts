@@ -101,3 +101,40 @@ describe('a sliding shower on a quote', () => {
     expect(lines.some((l) => l.key?.startsWith('sliding-kit:'))).toBe(false);
   });
 });
+
+describe('polish and Enduroshield', () => {
+  test('every pane has a polished-edge line, by the metre of its cut rectangle', () => {
+    const lines = draftLines([shower(designFromTemplate('sliding-alcove'))], labels, new Map());
+    const polish = lines.find((l) => l.key === 'polish:edge');
+    // 2 × (622 + 1995) mm + 2 × (622 + 1992) mm, in metres to two places.
+    expect(polish).toMatchObject({ unit: 'm', quantity: 10.46, unitPricePence: 0 });
+    expect(lines.some((l) => l.key === 'coating:enduroshield')).toBe(false);
+  });
+
+  test('easy-clean is an Enduroshield line of its own, not a suffix on the glass key', () => {
+    const design = { ...designFromTemplate('sliding-alcove'), glassCoating: 'easy-clean' as const };
+    const lines = draftLines([shower(design)], labels, new Map());
+    expect(lines.filter((l) => l.key?.startsWith('glass:')).every((l) => l.key === 'glass:10:clear')).toBe(true);
+    const coat = lines.find((l) => l.key === 'coating:enduroshield');
+    const glass = lines.filter((l) => l.key?.startsWith('glass:'));
+    const area = glass.reduce((sum, l) => sum + l.quantity, 0);
+    expect(coat).toMatchObject({ unit: 'm2', quantity: area, unitPricePence: 0 });
+  });
+
+  test('a default supplier cost plus markup is stamped on the line, and missing costs fall back to the book', () => {
+    const catalog = new Map([
+      ['glass:10:clear', { key: 'glass:10:clear', costPence: 5_000, supplierId: 'sup_esg' }],
+    ]);
+    const lines = draftLines([shower(designFromTemplate('sliding-alcove'))], labels, new Map([['polish:edge', 321]]), {
+      catalog,
+      settings: { markupBp: 10_000, categoryMarkupBp: {} },
+    });
+    expect(lines.find((l) => l.key === 'glass:10:clear')).toMatchObject({
+      unitPricePence: 10_000,
+      costPence: 5_000,
+      supplierId: 'sup_esg',
+    });
+    expect(lines.find((l) => l.key === 'polish:edge')).toMatchObject({ unitPricePence: 321 });
+    expect(lines.find((l) => l.key === 'polish:edge')?.costPence).toBeUndefined();
+  });
+});

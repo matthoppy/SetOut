@@ -23,7 +23,8 @@ import {
 } from '@setout/engine';
 import { QUOTE_UNITS, type QuoteLine, type QuoteUnit } from '../db/tables';
 import { RequestError } from './enquiry';
-import { channelKey, clampsKey, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
+import { channelKey, clampsKey, ENDUROSHIELD_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, POLISH_KEY, slidingKitKey } from './price-keys';
+import { resolveLine, type CatalogItem, type PricingSettings } from './pricing';
 
 export const MAX_LINES = 100;
 export const MAX_UNIT_PRICE_PENCE = 100_000_000;
@@ -63,27 +64,54 @@ export const squareMetres = (widthMm: number, heightMm: number) => Math.round((w
 const metres = (mm: number) => Math.round(mm / 10) / 100;
 const named = (list: { id: string; label: string }[], id: string) => list.find((o) => o.id === id)?.label ?? id.replace(/[-_]+/g, ' ');
 
-/** The lines a new quote starts with, priced from what the company last sent. */
-export function draftLines(showers: PricedShower[], labels: OptionLabels, prices: Map<string, number>): QuoteLine[] {
+export interface LineCosting {
+  /** Costs from the company's default glass and hardware suppliers. */
+  catalog: Map<string, CatalogItem>;
+  settings: PricingSettings;
+}
+
+/** The lines a new quote starts with, priced from the default supplier's cost
+ *  plus the company's markup, or from the price book when there is no cost. */
+export function draftLines(showers: PricedShower[], labels: OptionLabels, prices: Map<string, number>, costing?: LineCosting): QuoteLine[] {
   const lines: QuoteLine[] = [];
   const line = (key: string | null, description: string, quantity: number, unit: QuoteUnit) => {
     if (quantity <= 0) return;
-    lines.push({ key, description, quantity, unit, unitPricePence: (key && prices.get(key)) || 0 });
+    if (!key || !costing) {
+      lines.push({ key, description, quantity, unit, unitPricePence: (key && prices.get(key)) || 0 });
+      return;
+    }
+    const resolved = resolveLine(key, quantity, costing.catalog, prices, costing.settings);
+    lines.push({
+      key,
+      description,
+      quantity,
+      unit,
+      unitPricePence: resolved.unitPricePence,
+      ...(resolved.costPence !== undefined ? { costPence: resolved.costPence, supplierId: resolved.supplierId } : {}),
+    });
   };
 
   for (const { prefix, design, spec } of showers) {
     const finish = named(labels.finishes, design.finishId);
-    const coating = design.glassCoating === 'easy-clean' ? ', easy-clean coated' : '';
-    const glass = glassKey(spec.glassThicknessMm, design.glassType, design.glassCoating);
+    const glass = glassKey(spec.glassThicknessMm, design.glassType);
     // Priced by the rectangle each pane is cut from, as a toughener prices it.
     const panes = panesOf(design, spec, DEFAULT_RULESET.fixed, labels.hinges);
+    let polishM = 0;
+    let coatingM2 = 0;
     for (const pane of panes) {
+      const area = squareMetres(pane.widthMm, pane.heightMm);
+      coatingM2 += area;
+      polishM += metres(2 * (pane.widthMm + pane.heightMm));
       line(
         glass,
-        `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass${coating}, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
-        squareMetres(pane.widthMm, pane.heightMm),
+        `${prefix}${pane.label}: ${spec.glassThicknessMm}mm toughened ${GLASS_NAMES[design.glassType] ?? design.glassType} glass, ${pane.widthMm} × ${pane.heightMm}mm${pane.shaped ? ', cut to shape' : ''}`,
+        area,
         'm2'
       );
+    }
+    line(POLISH_KEY, `${prefix}Polished edges`, polishM, 'm');
+    if (design.glassCoating === 'easy-clean') {
+      line(ENDUROSHIELD_KEY, `${prefix}Enduroshield easy-clean coating`, coatingM2, 'm2');
     }
     // The toughener charges for each notch cut and each hole drilled: a
     // mouse-ear hinge notch is a notch and two holes (Matt, 12 November 2026).
@@ -150,7 +178,12 @@ export function readLines(input: unknown): QuoteLine[] {
     if (typeof price !== 'number' || !Number.isInteger(price) || price < 0 || price > MAX_UNIT_PRICE_PENCE) {
       throw new RequestError(400, 'invalid_lines', `Line ${n} needs a price in whole pence.`);
     }
-    return { key, description, quantity, unit: l.unit as QuoteUnit, unitPricePence: price };
+    const line: QuoteLine = { key, description, quantity, unit: l.unit as QuoteUnit, unitPricePence: price };
+    if (typeof l.costPence === 'number' && Number.isInteger(l.costPence) && l.costPence >= 0 && l.costPence <= MAX_UNIT_PRICE_PENCE) {
+      line.costPence = l.costPence;
+    }
+    if (typeof l.supplierId === 'string' && KEY.test(l.supplierId)) line.supplierId = l.supplierId;
+    return line;
   });
 }
 

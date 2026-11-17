@@ -34,9 +34,13 @@ describe('what the book lists', () => {
     expect(book.groups.map((g) => g.id)).toEqual(['glass', 'cutouts', 'hinges', 'handles', 'fixing', 'job']);
     const glass = book.groups.find((g) => g.id === 'glass');
     expect(glass?.columns).toBeUndefined();
-    expect(glass?.rows.map((r) => r.label)).toContain('10mm low-iron, easy-clean coated');
-    expect(glass?.rows).toHaveLength(GLASS_TYPES.length * GLASS_COATINGS.length);
+    expect(glass?.rows.map((r) => r.label)).toContain('10mm low-iron');
+    expect(glass?.rows.map((r) => r.label).some((l) => l.includes('easy-clean'))).toBe(false);
+    expect(glass?.rows).toHaveLength(GLASS_TYPES.length);
     expect(glass?.rows.every((r) => r.unit === 'm2' && r.keys.length === 1)).toBe(true);
+    const cutouts = book.groups.find((g) => g.id === 'cutouts');
+    expect(cutouts?.title).toBe('Cutouts, polish and coating');
+    expect(cutouts?.rows.map((r) => r.keys[0])).toEqual(['cutout:notch', 'cutout:hole', 'polish:edge', 'coating:enduroshield']);
   });
 
   test('the hardware is priced in each finish, one price able to stand for them all', () => {
@@ -57,7 +61,9 @@ describe('what the book lists', () => {
     ]);
     expect(glass?.sameAcross).toBeUndefined();
     expect(glass?.rows[0]).toEqual({ label: 'Clear', unit: 'm2', keys: ['glass:8:clear', 'glass:10:clear', 'glass:12:clear'] });
-    expect(listedPrices(several).get('glass:12:low-iron:easy-clean')).toEqual({ label: '12mm low-iron, easy-clean coated', unit: 'm2' });
+    expect(listedPrices(several).get('glass:12:low-iron')).toEqual({ label: '12mm low-iron', unit: 'm2' });
+    expect(listedPrices(several).get('coating:enduroshield')).toEqual({ label: 'Enduroshield easy-clean coating', unit: 'm2' });
+    expect(listedPrices(several).get('polish:edge')).toEqual({ label: 'Polished edges', unit: 'm' });
   });
 
   test('each hinge a door can hang on, by CRL’s number, in every finish', () => {
@@ -191,6 +197,8 @@ describe('a supplier’s price list', () => {
       {
         id: 'sup_1',
         name: 'Smart Glazier',
+        kind: 'glass',
+        isDefault: true,
         prices: [
           { key: 'glass:10:clear', unit: 'm2', pence: 8_000, updatedAt: at },
           { key: 'hinge:gen044:polished-gold', unit: 'each', pence: 5_000, updatedAt: at },
@@ -204,6 +212,8 @@ describe('a supplier’s price list', () => {
       {
         id: 'sup_1',
         name: 'Smart Glazier',
+        kind: 'glass',
+        isDefault: true,
         prices: { 'glass:10:clear': { pence: 8_000, updatedAt: at }, 'hinge:gen044:polished-gold': { pence: 5_000, updatedAt: at } },
         others: [{ label: 'Hinge GEN044, polished gold', unit: 'each', keys: ['hinge:gen044:polished-gold'] }],
       },

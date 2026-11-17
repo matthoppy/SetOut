@@ -21,7 +21,7 @@
 import type { RulesetOverrides } from '@setout/engine';
 import { newId } from '../lib/ids';
 import { DataError } from './company-db';
-import type { QuoteUnit } from './tables';
+import type { QuoteUnit, SupplierKind } from './tables';
 
 type Env_ = Pick<Env, 'DB'>;
 
@@ -284,17 +284,19 @@ export async function savePrices(
 export async function readSuppliers(
   env: Env_,
   companyId: string
-): Promise<{ id: string; name: string; prices: { key: string; unit: QuoteUnit; pence: number; updatedAt: string }[] }[]> {
+): Promise<{ id: string; name: string; kind: SupplierKind; isDefault: boolean; prices: { key: string; unit: QuoteUnit; pence: number; updatedAt: string }[] }[]> {
   const [suppliers, prices] = await env.DB.batch([
-    env.DB.prepare('SELECT id, name FROM suppliers WHERE company_id = ? ORDER BY created_at, id').bind(companyId),
+    env.DB.prepare('SELECT id, name, kind, is_default AS isDefault FROM suppliers WHERE company_id = ? ORDER BY created_at, id').bind(companyId),
     env.DB.prepare(
-      'SELECT supplier_id AS supplierId, key, unit, cost_pence AS pence, updated_at AS updatedAt FROM supplier_prices WHERE company_id = ? ORDER BY key'
+      'SELECT supplier_id AS supplierId, key, unit, cost_pence AS pence, sku, updated_at AS updatedAt FROM supplier_prices WHERE company_id = ? ORDER BY key'
     ).bind(companyId),
   ]);
-  const rows = prices.results as { supplierId: string; key: string; unit: QuoteUnit; pence: number; updatedAt: string }[];
-  return (suppliers.results as { id: string; name: string }[]).map((s) => ({
+  const rows = prices.results as { supplierId: string; key: string; unit: QuoteUnit; pence: number; sku: string | null; updatedAt: string }[];
+  return (suppliers.results as { id: string; name: string; kind: SupplierKind; isDefault: number }[]).map((s) => ({
     id: s.id,
     name: s.name,
+    kind: s.kind,
+    isDefault: s.isDefault === 1,
     prices: rows.filter((p) => p.supplierId === s.id).map(({ key, unit, pence, updatedAt }) => ({ key, unit, pence, updatedAt })),
   }));
 }
@@ -304,21 +306,51 @@ export async function readSuppliers(
  * company already has a supplier of that name, whatever its capitals, or
  * already has as many as it may: null if so.
  */
-export async function addSupplier(env: Env_, companyId: string, actorId: string, name: string, limit: number, now = new Date()): Promise<string | null> {
+export async function addSupplier(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  name: string,
+  kind: SupplierKind,
+  limit: number,
+  preferDefault = false,
+  now = new Date()
+): Promise<string | null> {
   const at = now.toISOString();
   const id = newId('supplier', now.getTime());
-  const [added] = await env.DB.batch([
+  const statements: D1PreparedStatement[] = [];
+  if (preferDefault) {
+    statements.push(
+      env.DB.prepare('UPDATE suppliers SET is_default = 0, updated_at = ?3 WHERE company_id = ?1 AND kind = ?2 AND is_default = 1').bind(
+        companyId,
+        kind,
+        at
+      )
+    );
+  }
+  statements.push(
     env.DB.prepare(
-      `INSERT INTO suppliers (company_id, id, name, created_at, updated_at)
-       SELECT ?1, ?2, ?3, ?4, ?4
+      `INSERT INTO suppliers (company_id, id, name, kind, is_default, created_at, updated_at)
+       SELECT ?1, ?2, ?3, ?4,
+              CASE WHEN ?6 = 1 OR NOT EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND kind = ?4 AND is_default = 1) THEN 1 ELSE 0 END,
+              ?5, ?5
         WHERE NOT EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND lower(name) = lower(?3))
-          AND (SELECT COUNT(*) FROM suppliers WHERE company_id = ?1) < ?5`
-    ).bind(companyId, id, name, at, limit),
+          AND (SELECT COUNT(*) FROM suppliers WHERE company_id = ?1) < ?7`
+    ).bind(companyId, id, name, kind, at, preferDefault ? 1 : 0, limit),
     env.DB.prepare(
       `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
        SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
-    ).bind(companyId, newId('audit'), actorId, id, JSON.stringify({ changes: [{ field: 'supplier', change: 'added', id, label: name }] }), at),
-  ]);
+    ).bind(
+      companyId,
+      newId('audit'),
+      actorId,
+      id,
+      JSON.stringify({ changes: [{ field: 'supplier', change: 'added', id, label: name, kind }] }),
+      at
+    )
+  );
+  const results = await env.DB.batch(statements);
+  const added = results[preferDefault ? 1 : 0];
   return added.meta.changes === 1 ? id : null;
 }
 
@@ -410,6 +442,116 @@ export async function saveSupplierPrices(
           SELECT 1 FROM json_each(?2) c
             LEFT JOIN supplier_prices p ON ${theirs}
            WHERE p.cost_pence IS NOT json_extract(c.value, '$.to'))`
+    ).bind(companyId, sent, supplierId, newId('audit'), actorId, JSON.stringify(data), at)
+  );
+  const results = await env.DB.batch(statements);
+  return results[results.length - 1].meta.changes === 1;
+}
+
+
+/**
+ * Change a supplier's name, kind, or whether it is the default of that kind,
+ * from what the owner saw. Making it the default clears any other default of
+ * the same kind. False if it had moved meanwhile.
+ */
+export async function updateSupplier(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  id: string,
+  seen: { name: string; kind: SupplierKind; isDefault: boolean },
+  next: { name: string; kind: SupplierKind; isDefault: boolean },
+  now = new Date()
+): Promise<boolean> {
+  const at = now.toISOString();
+  const statements: D1PreparedStatement[] = [];
+  if (next.isDefault) {
+    statements.push(
+      env.DB.prepare(
+        `UPDATE suppliers SET is_default = 0, updated_at = ?4
+          WHERE company_id = ?1 AND kind = ?3 AND id <> ?2 AND is_default = 1
+            AND EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id = ?2 AND name = ?5 AND kind = ?6 AND is_default = ?7)`
+      ).bind(companyId, id, next.kind, at, seen.name, seen.kind, seen.isDefault ? 1 : 0)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `UPDATE suppliers SET name = ?4, kind = ?5, is_default = ?6, updated_at = ?7
+        WHERE company_id = ?1 AND id = ?2 AND name = ?3 AND kind = ?8 AND is_default = ?9
+          AND NOT EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id <> ?2 AND lower(name) = lower(?4))`
+    ).bind(companyId, id, seen.name, next.name, next.kind, next.isDefault ? 1 : 0, at, seen.kind, seen.isDefault ? 1 : 0)
+  );
+  const changes: object[] = [{ field: 'supplier', change: 'updated', id, label: next.name, from: seen.name, to: next.name, kind: next.kind, isDefault: next.isDefault }];
+  statements.push(
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?, ?, ?, 'settings_changed', ?, ?, ? WHERE changes() = 1`
+    ).bind(companyId, newId('audit'), actorId, id, JSON.stringify({ changes }), at)
+  );
+  const results = await env.DB.batch(statements);
+  return results[next.isDefault ? 1 : 0].meta.changes === 1;
+}
+
+/** Write the company's markups into its settings, from the values just read. False if they had moved. */
+export async function savePricing(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  was: string,
+  nowSettings: string,
+  data: object,
+  now = new Date()
+): Promise<boolean> {
+  return saveSettings(env, companyId, actorId, { table: 'companies', columns: { settings: { was, now: nowSettings } } }, data, now);
+}
+
+/** A supplier's price list as imported from a CSV: all of the rows, or none. */
+export async function importSupplierPrices(
+  env: Env_,
+  companyId: string,
+  actorId: string,
+  supplierId: string,
+  items: readonly { key: string; unit: string; costPence: number; sku: string | null }[],
+  replace: boolean,
+  data: object,
+  now = new Date()
+): Promise<boolean> {
+  const at = now.toISOString();
+  const sent = JSON.stringify(items.map((item) => ({ ...item, id: newId('supplierPrice', now.getTime()) })));
+  const exists = 'EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id = ?3)';
+  const statements: D1PreparedStatement[] = [];
+  if (replace) {
+    statements.push(
+      env.DB.prepare(
+        `DELETE FROM supplier_prices
+          WHERE company_id = ?1 AND supplier_id = ?2
+            AND EXISTS (SELECT 1 FROM suppliers WHERE company_id = ?1 AND id = ?2)`
+      ).bind(companyId, supplierId)
+    );
+  } else if (items.length > 0) {
+    statements.push(
+      env.DB.prepare(
+        `DELETE FROM supplier_prices
+          WHERE company_id = ?1 AND supplier_id = ?3 AND ${exists}
+            AND (key IN (SELECT json_extract(value, '$.key') FROM json_each(?2))
+              OR sku IN (SELECT json_extract(value, '$.sku') FROM json_each(?2) WHERE json_extract(value, '$.sku') IS NOT NULL))`
+      ).bind(companyId, sent, supplierId)
+    );
+  }
+  if (items.length > 0) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO supplier_prices (company_id, id, supplier_id, key, unit, cost_pence, sku, created_at, updated_at)
+         SELECT ?1, json_extract(c.value, '$.id'), ?3, json_extract(c.value, '$.key'), json_extract(c.value, '$.unit'), json_extract(c.value, '$.costPence'), json_extract(c.value, '$.sku'), ?4, ?4
+           FROM json_each(?2) c
+          WHERE ${exists}`
+      ).bind(companyId, sent, supplierId, at)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `INSERT INTO audit_log (company_id, id, actor_id, action, target_id, data, created_at)
+       SELECT ?1, ?4, ?5, 'settings_changed', ?3, ?6, ?7 WHERE ${exists}`
     ).bind(companyId, sent, supplierId, newId('audit'), actorId, JSON.stringify(data), at)
   );
   const results = await env.DB.batch(statements);

@@ -25,10 +25,10 @@ import {
   type InLineHinge,
   type WallHinge,
 } from '@setout/engine';
-import type { QuoteUnit } from '../db/tables';
+import type { QuoteUnit, SupplierKind } from '../db/tables';
 import { GLASS_THICKNESSES } from './designer-config';
 import { RequestError } from './enquiry';
-import { channelKey, clampsKey, DELIVERY_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, slidingKitKey } from './price-keys';
+import { channelKey, clampsKey, DELIVERY_KEY, ENDUROSHIELD_KEY, FITTING_KEY, glassKey, handleKey, hingeKey, HOLE_KEY, NOTCH_KEY, POLISH_KEY, slidingKitKey } from './price-keys';
 import { GLASS_NAMES, HUNG, MAX_UNIT_PRICE_PENCE } from './quote-lines';
 import { oneLine, type DesignerView } from './settings';
 
@@ -81,6 +81,8 @@ export interface StoredPrice {
 export interface StoredSupplier {
   id: string;
   name: string;
+  kind: SupplierKind;
+  isDefault: boolean;
   prices: StoredPrice[];
 }
 
@@ -88,6 +90,9 @@ export interface StoredSupplier {
 export interface SupplierPriceList {
   id: string;
   name: string;
+  kind: SupplierKind;
+  /** Whether new quotes take their cost for this kind from this supplier. */
+  isDefault: boolean;
   /** What it charges for each thing, by the price book's key: pence before VAT, and when each last changed. */
   prices: Record<string, { pence: number; updatedAt: string }>;
   /** What it charges for that the price book does not list, such as a finish no longer offered. */
@@ -151,11 +156,16 @@ const uncapitalised = (text: string) => text.charAt(0).toLowerCase() + text.slic
 
 /** What a price the book does not list is for, from its key alone. */
 function describeKey(key: string, finishes: readonly { id: string; label: string }[], handles: readonly { id: string; label: string }[]): string {
-  const [kind, first = '', second = '', third = ''] = key.split(':');
+  if (key.startsWith('sku:')) return `SKU ${key.slice(4)}`;
+  const [kind, first = '', second = ''] = key.split(':');
   const finish = (id: string) => finishes.find((f) => f.id === id)?.label ?? words(id);
   switch (kind) {
     case 'glass':
-      return `${first}mm ${GLASS_NAMES[second] ?? words(second)}${third === 'easy-clean' ? ', easy-clean coated' : ''}`;
+      return `${first}mm ${GLASS_NAMES[second] ?? words(second)}`;
+    case 'coating':
+      return first === 'enduroshield' ? 'Enduroshield easy-clean coating' : words(key.replace(/:/g, ' '));
+    case 'polish':
+      return first === 'edge' ? 'Polished edges' : words(key.replace(/:/g, ' '));
     case 'hinge':
       return `Hinge ${/\d/.test(first) ? first.toUpperCase() : capitalised(words(first))}, ${finish(second)}`;
     case 'handle':
@@ -181,15 +191,13 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
   const types = GLASS_TYPES.filter((t) => designers.some((d) => d.glassTypes.offered.includes(t)));
   const coatings = GLASS_COATINGS.filter((c) => designers.some((d) => d.coatings.offered.includes(c)));
   const byFinish = (make: (finishId: string) => string) => finishes.map((f) => make(f.id));
-  const glassName = (type: string, coating: string) => `${GLASS_NAMES[type] ?? type}${coating === 'easy-clean' ? ', easy-clean coated' : ''}`;
 
   // Glass in one thickness is a list; in several, a table with a column for each, as a toughener's price list is.
-  const glass: PriceBookRow[] = types.flatMap((type) =>
-    coatings.map((coating) =>
-      thicknesses.length === 1
-        ? { label: `${thicknesses[0]}mm ${glassName(type, coating)}`, unit: 'm2' as const, keys: [glassKey(thicknesses[0], type, coating)] }
-        : { label: capitalised(glassName(type, coating)), unit: 'm2' as const, keys: thicknesses.map((t) => glassKey(t, type, coating)) }
-    )
+  // Easy-clean (Enduroshield) is a line of its own, not a suffix on the glass key.
+  const glass: PriceBookRow[] = types.map((type) =>
+    thicknesses.length === 1
+      ? { label: `${thicknesses[0]}mm ${GLASS_NAMES[type] ?? type}`, unit: 'm2' as const, keys: [glassKey(thicknesses[0], type)] }
+      : { label: capitalised(GLASS_NAMES[type] ?? type), unit: 'm2' as const, keys: thicknesses.map((t) => glassKey(t, type)) }
   );
   const finishColumns = { columns: finishes, sameAcross: true };
   const fixing: PriceBookRow[] = [
@@ -212,10 +220,14 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
     },
     {
       id: 'cutouts',
-      title: 'Notches and holes',
+      title: 'Cutouts, polish and coating',
       rows: [
         { label: 'A notch cut in the glass', unit: 'each', keys: [NOTCH_KEY] },
         { label: 'A hole drilled in the glass', unit: 'each', keys: [HOLE_KEY] },
+        { label: 'Polished edges', unit: 'm', keys: [POLISH_KEY] },
+        ...(coatings.includes('easy-clean')
+          ? [{ label: 'Enduroshield easy-clean coating', unit: 'm2' as const, keys: [ENDUROSHIELD_KEY] }]
+          : []),
       ],
     },
     { id: 'hinges', title: 'Hinges', ...finishColumns, rows: hingeRows(designers, thicknesses, finishes) },
@@ -252,7 +264,7 @@ export function priceBook(designers: readonly DesignerView[], stored: readonly S
       .map((g) => ({ ...g, rows: g.rows.filter((r) => r.keys.length > 0) }))
       .filter((g) => g.rows.length > 0),
     prices: byKey(stored),
-    suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, prices: byKey(s.prices), others: unlisted(s.prices, supplied) })),
+    suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, kind: s.kind, isDefault: s.isDefault, prices: byKey(s.prices), others: unlisted(s.prices, supplied) })),
   };
 }
 

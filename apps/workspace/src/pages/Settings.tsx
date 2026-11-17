@@ -52,8 +52,10 @@ import {
   type QuoteUnit,
   type RulesSettings,
   type Settings as SettingsData,
+  type PricingSettings,
   type SettingsChange,
   type SettingsChangeItem,
+  type SupplierKind,
   type SupplierPriceList,
 } from '../lib/api';
 import { money, when, whenExactly } from '../lib/format';
@@ -211,6 +213,7 @@ export function Settings({ me, onRenamed }: { me: Me; onRenamed?: () => void }) 
           />
           <PricesPart
             prices={data.prices}
+            pricing={data.pricing}
             owner={owner}
             justSaved={saved === 'prices'}
             onSaved={() => onSaved('prices')}
@@ -1708,7 +1711,7 @@ const PER: Record<QuoteUnit, string> = { m2: 'a m²', each: 'each', m: 'a metre'
 /** What the owner is told about each part of the price book. */
 const PRICE_HINTS: Record<PriceBook['groups'][number]['id'], string> = {
   glass: 'By the square metre of each pane, measured as the rectangle it is cut from, as a toughener prices it.',
-  cutouts: 'A mouse-ear hinge cut-out is a notch and two holes.',
+  cutouts: 'A mouse-ear hinge cut-out is a notch and two holes. Polished edges are by the metre of the rectangle each pane is cut from. Enduroshield is the easy-clean coating, by the square metre.',
   hinges: 'Each hinge a door can hang on, in each finish.',
   handles: 'Each handle, in each finish.',
   fixing: 'In each finish.',
@@ -2088,7 +2091,7 @@ function FillFrom({ suppliers, initial, onFill }: { suppliers: SupplierPriceList
 const supplierHints = (name: string): Record<string, string> => ({
   ...PRICE_HINTS,
   glass: `What ${name} charges by the square metre of each pane.`,
-  cutouts: `What ${name} charges for each notch and each hole.`,
+  cutouts: `What ${name} charges for each notch, each hole, polished edges, and Enduroshield.`,
   other: `${name}’s prices for things you no longer offer. Empty one to take it away.`,
 });
 
@@ -2184,12 +2187,13 @@ function SupplierPanel({
           {error}
         </p>
       )}
+      <SupplierMeta supplier={supplier} busy={busy} onChange={(action, done, otherwise) => void run(action, done, otherwise)} onSaved={onSaved} />
       <PriceForm
         key={fingerprint([groups.map((g) => g.rows.map((r) => r.keys)), supplier.prices])}
         groups={groups}
         stored={supplier.prices}
         editable
-        intro={`What ${supplier.name} charges you, before VAT. Fill in what they supply and leave the rest empty. Only owners see this: your quotes are always priced from your own prices.`}
+        intro={`What ${supplier.name} charges you, before VAT. If they are your default ${kindLabel(supplier.kind).toLowerCase()} supplier, a new quote uses these costs plus your mark-up. Fill in what they supply, import a CSV, and leave the rest empty. Only owners see this.`}
         hints={supplierHints(supplier.name)}
         saveLabel={`Save ${supplier.name}’s prices`}
         savedNote="Saved. Your own prices now show what each thing costs you."
@@ -2204,9 +2208,160 @@ function SupplierPanel({
   );
 }
 
+
+
+function SupplierMeta({
+  supplier,
+  busy,
+  onChange,
+  onSaved,
+}: {
+  supplier: SupplierPriceList;
+  busy: boolean;
+  onChange: (action: () => Promise<unknown>, done: () => void, otherwise: string) => void;
+  onSaved: () => void;
+}) {
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const saveMeta = (changes: { kind?: SupplierKind; isDefault?: boolean }) =>
+    onChange(
+      () => api.updateSupplier(supplier.id, changes, { name: supplier.name, kind: supplier.kind }),
+      onSaved,
+      'That could not be saved. Please try again.'
+    );
+  const importFile = async (file: File, replace: boolean) => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const csv = await file.text();
+      await api.importSupplierCsv(supplier.id, csv, replace);
+      onSaved();
+    } catch (e) {
+      setImportError(failure(e, 'The CSV could not be imported. Please try again.'));
+    } finally {
+      setImporting(false);
+    }
+  };
+  return (
+    <div className="mb-4 flex flex-col gap-3 rounded-md bg-ground px-3 py-3 text-sm">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block">
+          <span className="text-xs font-medium text-quiet">What they supply</span>
+          <select
+            value={supplier.kind}
+            disabled={busy}
+            onChange={(e) => saveMeta({ kind: e.target.value as SupplierKind })}
+            className="mt-1 h-8 rounded-md border border-rule bg-surface px-2"
+          >
+            {KIND_OPTIONS.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 pb-1">
+          <input
+            type="checkbox"
+            checked={supplier.isDefault}
+            disabled={busy || (supplier.isDefault && supplier.kind !== 'other')}
+            onChange={(e) => saveMeta({ isDefault: e.target.checked })}
+            className="accent-accent"
+          />
+          <span>Default {kindLabel(supplier.kind).toLowerCase()} supplier for new quotes</span>
+        </label>
+      </div>
+      <div>
+        <p className="text-xs text-quiet">Import a CSV with columns key, sku, description, unit, and cost (pounds) or cost_pence. A row needs a SetOut key or a SKU.</p>
+        <label className="mt-2 inline-flex h-8 cursor-pointer items-center rounded-md border border-rule bg-surface px-3 text-xs font-medium">
+          {importing ? 'Importing…' : 'Import a CSV'}
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            className="sr-only"
+            disabled={importing || busy}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void importFile(file, true);
+            }}
+          />
+        </label>
+        {importError && (
+          <p role="alert" className="mt-2 text-sm text-bad">
+            {importError}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MarkupSettings({ pricing, onSaved }: { pricing: PricingSettings; onSaved: () => void }) {
+  const shown = (pricing.markupBp / 100).toString();
+  const [value, setValue] = useState(shown);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+  const typed = value.replace(/[%\s]/g, '');
+  const percent = /^\d{1,4}(\.\d{1,2})?$/.test(typed) ? Number(typed) : NaN;
+  const markupBp = Number.isFinite(percent) ? Math.round(percent * 100) : NaN;
+  const ok = Number.isInteger(markupBp) && markupBp >= 0 && markupBp <= 100_000;
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.savePricing({ markupBp });
+      setJustSaved(true);
+      onSaved();
+    } catch (e) {
+      setError(failure(e, 'The mark-up could not be saved. Please try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={(e) => void submit(e)} className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-ground px-3 py-2 text-xs">
+      <span>A new quote sells at cost plus</span>
+      <span className={`flex h-8 w-20 items-center rounded-md border bg-surface px-2 ${value && !ok ? 'border-bad/60' : 'border-rule'}`}>
+        <input
+          inputMode="decimal"
+          aria-label="Default mark-up"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setJustSaved(false);
+          }}
+          className="w-full min-w-0 bg-transparent tabular-nums outline-none"
+        />
+        <span className="text-quiet">%</span>
+      </span>
+      <button type="submit" disabled={busy || !ok || markupBp === pricing.markupBp} className="h-8 rounded-md border border-rule bg-surface px-3 font-medium disabled:opacity-50">
+        {busy ? 'Saving' : 'Save the mark-up'}
+      </button>
+      {justSaved && <span className="text-quiet">Saved. The next quote uses this mark-up.</span>}
+      {error && (
+        <span role="alert" className="text-bad">
+          {error}
+        </span>
+      )}
+    </form>
+  );
+}
+
+const KIND_OPTIONS: { id: SupplierKind; label: string }[] = [
+  { id: 'glass', label: 'Glass' },
+  { id: 'hardware', label: 'Hardware' },
+  { id: 'other', label: 'Other' },
+];
+const kindLabel = (kind: SupplierKind) => KIND_OPTIONS.find((k) => k.id === kind)?.label ?? kind;
+
 /** A new supplier, by name. */
 function AddSupplier({ onAdded }: { onAdded: (id: string) => void }) {
   const [name, setName] = useState('');
+  const [kind, setKind] = useState<SupplierKind>('glass');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async (event: FormEvent) => {
@@ -2214,7 +2369,7 @@ function AddSupplier({ onAdded }: { onAdded: (id: string) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const { id } = await api.addSupplier(name.trim());
+      const { id } = await api.addSupplier(name.trim(), kind);
       onAdded(id);
     } catch (e) {
       setError(failure(e, 'The supplier could not be added. Please try again.'));
@@ -2224,12 +2379,22 @@ function AddSupplier({ onAdded }: { onAdded: (id: string) => void }) {
   return (
     <form onSubmit={(e) => void submit(e)} className={CARD}>
       <Hint>
-        Who you buy from: a toughener, CRL, another hardware supplier. Each has its own price list here, laid out like yours, so your prices show what each thing costs you, and you can fill them in from a
-        supplier’s plus your mark-up.
+        Who you buy from: ESG or another toughener for glass, CRL for hardware, or someone else. A company can have more than one of each. The first of a kind becomes the default: a new quote takes its
+        cost from that supplier, plus your mark-up. Each has its own price list here, and you can import a CSV of what they charge.
       </Hint>
       <label className="block text-sm">
         <span className="font-medium">The supplier’s name</span>
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={`${FIELD} mt-1 border-rule sm:w-80`} />
+      </label>
+      <label className="mt-3 block text-sm">
+        <span className="font-medium">What they supply</span>
+        <select value={kind} onChange={(e) => setKind(e.target.value as SupplierKind)} className={`${FIELD} mt-1 border-rule sm:w-80`}>
+          {KIND_OPTIONS.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.label}
+            </option>
+          ))}
+        </select>
       </label>
       {error && (
         <p role="alert" className="mt-2 text-sm text-bad">
@@ -2251,7 +2416,7 @@ function AddSupplier({ onAdded }: { onAdded: (id: string) => void }) {
  * mark-up on it, and can be filled in from a supplier's plus a mark-up. The
  * rest of the team sees the company's prices, never what it pays.
  */
-export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: PartProps & { prices: PriceBook }) {
+export function PricesPart({ prices, pricing, owner, justSaved, onSaved, onReload }: PartProps & { prices: PriceBook; pricing?: PricingSettings }) {
   const suppliers = owner ? (prices.suppliers ?? []) : [];
   const [tab, setTab] = useState('ours');
   const [savedTab, setSavedTab] = useState<string | null>(null);
@@ -2285,6 +2450,7 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
             {suppliers.map((s) => (
               <button key={s.id} type="button" role="tab" aria-selected={shown === s.id} disabled={dirty && shown !== s.id} onClick={() => open(s.id)} className={tabClass(shown === s.id)}>
                 {s.name}
+                {s.isDefault ? ' · default' : ''}
               </button>
             ))}
             <button type="button" role="tab" aria-selected={shown === 'add'} disabled={dirty} onClick={() => open('add')} className={tabClass(shown === 'add')}>
@@ -2292,6 +2458,7 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
             </button>
           </div>
           {dirty && <p className="-mt-1 mb-3 text-xs text-quiet">Save or undo your changes before you open another price list.</p>}
+          {pricing && shown === 'ours' && <MarkupSettings key={pricing.markupBp} pricing={pricing} onSaved={onSaved} />}
         </>
       )}
       {shown === 'ours' && (
@@ -2302,7 +2469,7 @@ export function PricesPart({ prices, owner, justSaved, onSaved, onReload }: Part
           editable={owner}
           intro={
             owner
-              ? `What each new quote starts from, before VAT. You can still change any line on a quote before you send it, and a quote you send keeps its prices here for next time. Anything left empty is left for you to price on the quote.${suppliers.length > 0 ? ' Under each price is what it costs you from your cheapest supplier, and what you add on.' : ''}`
+              ? `A new quote starts from what your default glass and hardware suppliers charge, plus your mark-up, before VAT. If a supplier has no cost for a line, it starts from the price in this book. You can still change any line on a quote before you send it. A quote you have already sent is never changed. Anything left empty here is left for you to price on the quote when there is no supplier cost.${suppliers.length > 0 ? ' Under each price is what it costs you from your cheapest supplier, and what you add on.' : ''}`
               : 'What each new quote starts from, before VAT. Only an owner can change them.'
           }
           hints={PRICE_HINTS}
@@ -2741,13 +2908,19 @@ function describe(item: SettingsChangeItem, by: string): string {
   switch (item.field) {
     case 'supplier':
       if (item.change === 'renamed') return `${by} renamed the supplier “${item.from}” to “${item.to}”.`;
+      if (item.change === 'updated') return `${by} updated the supplier “${item.label}”.`;
       return item.change === 'added' ? `${by} added the supplier “${item.label}”.` : `${by} removed the supplier “${item.label}” and its prices.`;
     case 'cost': {
+      if ('change' in item && item.change === 'imported') {
+        return `${by} imported ${item.count} ${item.count === 1 ? 'price' : 'prices'} for ${item.supplier.name}.`;
+      }
       const price = (pence: number) => `${money(pence)} ${PER[item.unit] ?? ''}`.trim();
       const whose = `${item.supplier.name}’s price of “${item.label}”`;
       if (item.to === null) return `${by} took ${whose} away${item.from === null ? '' : `, which was ${price(item.from)}`}.`;
       return `${by} set ${whose} to ${price(item.to)}${item.from === null ? '' : `, from ${price(item.from)}`}.`;
     }
+    case 'pricing':
+      return `${by} set the mark-up on a supplier’s cost to ${item.to.markupBp / 100}%, from ${item.from.markupBp / 100}%.`;
     case 'price': {
       const price = (pence: number) => `${money(pence)} ${PER[item.unit] ?? ''}`.trim();
       if (item.to === null) return `${by} took the price off “${item.label}”${item.from === null ? '' : `, which was ${price(item.from)}`}.`;

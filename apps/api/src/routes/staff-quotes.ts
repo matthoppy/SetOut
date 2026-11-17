@@ -23,6 +23,8 @@ import { fromLine, mailIsSetUp } from '../lib/notify';
 import { dayOf, money, quoteEmail } from '../lib/quote-email';
 import { DELIVERY_KEY, FITTING_KEY } from '../lib/price-keys';
 import { draftLines, lineTotal, readLines, totals } from '../lib/quote-lines';
+import { pricingSettingsOf } from '../lib/pricing';
+import { catalogOf } from '../lib/supplier-catalog';
 import { quoteSettingsOf } from '../lib/settings';
 
 type Bindings = { Bindings: Env; Variables: { session: Session } };
@@ -91,11 +93,12 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
   if (showers.length === 0) {
     return c.json({ error: 'nothing_to_quote', message: 'This job has no shower to quote for yet.' }, 409, PRIVATE);
   }
-  const [labels, prices, company, number] = await Promise.all([
+  const [labels, prices, company, number, catalog] = await Promise.all([
     optionLabelsFor(db, job),
     db.prices.all(),
     db.company(),
     db.quotes.nextNumber(job.id),
+    catalogOf(db),
   ]);
   // Glass is priced as it will be cut: a pane with an override, from the override.
   const overrides = await db.find('cut_overrides', { where: { job_id: job.id } });
@@ -106,7 +109,8 @@ staffQuotes.post('/jobs/:id/quotes', async (c) => {
       spec: applyCutOverrides(revision.computed, overrides.filter((o) => o.design_id === design.id), revision.document.design),
     })),
     labels,
-    prices
+    prices,
+    { catalog, settings: pricingSettingsOf(company?.settings ?? {}) }
   );
   // VAT and how long it stands start as the company's owners set them.
   const { vatRateBp, validDays } = quoteSettingsOf(company?.settings ?? {});

@@ -267,6 +267,8 @@ export interface QuoteLine {
   unit: QuoteUnit;
   unitPricePence: number;
   totalPence?: number;
+  costPence?: number;
+  supplierId?: string;
 }
 
 export interface Quote {
@@ -500,8 +502,10 @@ export type SettingsChangeItem =
   | { field: 'websites'; added: string[]; removed: string[] }
   | { field: 'rule'; rule: string; from: number | string; to: number | string }
   | { field: 'price'; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null }
-  | { field: 'supplier'; change: 'added' | 'removed' | 'renamed'; id: string; label: string; from?: string; to?: string }
-  | { field: 'cost'; supplier: { id: string; name: string }; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null };
+  | { field: 'supplier'; change: 'added' | 'removed' | 'renamed' | 'updated'; id: string; label: string; from?: string; to?: string; kind?: string; isDefault?: boolean }
+  | { field: 'cost'; supplier: { id: string; name: string }; key: string; label: string; unit: QuoteUnit; from: number | null; to: number | null }
+  | { field: 'cost'; change: 'imported'; supplier: { id: string; name: string }; count: number; replace?: boolean }
+  | { field: 'pricing'; from: PricingSettings; to: PricingSettings };
 
 export interface SettingsChange {
   id: string;
@@ -519,6 +523,8 @@ export interface Settings {
   rules: RulesSettings;
   /** Every price a new quote can start from, and the company's price for each. */
   prices: PriceBook;
+  /** Owners only: the mark-up applied to a supplier's cost on a new quote. */
+  pricing?: PricingSettings;
   limits: { options: number; label: number; description: number; notifyEmails: number; websites: number; companyName: number; logoUrl: number };
   /** Where the embed script is served from. */
   embedScript: string;
@@ -555,9 +561,18 @@ export interface PriceBook {
 }
 
 /** A supplier, with what it charges for each thing by the price book's key, in pence before VAT. */
+export type SupplierKind = 'glass' | 'hardware' | 'other';
+
+export interface PricingSettings {
+  markupBp: number;
+  categoryMarkupBp: Partial<Record<'glass' | 'coating' | 'process' | 'hardware' | 'job', number>>;
+}
+
 export interface SupplierPriceList {
   id: string;
   name: string;
+  kind: SupplierKind;
+  isDefault: boolean;
   prices: Record<string, { pence: number; updatedAt: string }>;
   /** What it charges for that the price book no longer lists. */
   others: PriceBookRow[];
@@ -683,12 +698,23 @@ export const api = {
     send<{ ok: true; changed: boolean; rules: RulesSettings }>('PATCH', '/settings/rules', { overrides, basedOn: { rules: basedOn } }),
   /** A list is sent whole, in order. A part left out stays as it is. */
   savePrices: (changes: PriceChange[]) => send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', '/settings/prices', { changes }),
-  addSupplier: (name: string) => send<{ ok: true; id: string; prices: PriceBook }>('POST', '/settings/suppliers', { name }),
+  addSupplier: (name: string, kind: SupplierKind = 'other', isDefault = false) =>
+    send<{ ok: true; id: string; prices: PriceBook }>('POST', '/settings/suppliers', { name, kind, isDefault }),
   renameSupplier: (id: string, name: string, seen: string) =>
     send<{ ok: true; changed: boolean }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}`, { name, basedOn: { name: seen } }),
+  updateSupplier: (id: string, changes: { name?: string; kind?: SupplierKind; isDefault?: boolean }, seen: { name: string; kind: SupplierKind }) =>
+    send<{ ok: true; changed: boolean; prices?: PriceBook }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}`, { ...changes, basedOn: seen }),
   removeSupplier: (id: string) => call<{ ok: true }>(`/settings/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   saveSupplierPrices: (id: string, changes: PriceChange[]) =>
     send<{ ok: true; changed: boolean; prices: PriceBook }>('PATCH', `/settings/suppliers/${encodeURIComponent(id)}/prices`, { changes }),
+  importSupplierCsv: (id: string, csv: string, replace = false) =>
+    send<{ ok: true; imported: number; prices: PriceBook }>(
+      'POST',
+      `/settings/suppliers/${encodeURIComponent(id)}/import`,
+      { csv, replace }
+    ),
+  savePricing: (changes: { markupBp?: number; categoryMarkupBp?: PricingSettings['categoryMarkupBp'] }) =>
+    send<{ ok: true; changed: boolean; pricing: PricingSettings }>('PATCH', '/settings/pricing', changes),
 
   saveDesignerSettings: (id: string, changes: DesignerChanges) =>
     send<{ ok: true; changed: boolean; designer: DesignerSettings }>('PATCH', `/settings/designers/${encodeURIComponent(id)}`, changes),

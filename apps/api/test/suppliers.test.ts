@@ -1,8 +1,9 @@
 /**
  * Suppliers in the price book: who the company buys from and what each
  * charges, seen and changed by owners alone, all of a change or none of it,
- * every change in the record, and never on a quote unless an owner puts it
- * in the price book. None of it reaches another company.
+ * and every change in the record. A new quote takes its cost from the default
+ * supplier of that kind, plus the company's markup. None of it reaches another
+ * company.
  *
  * The tests run in order, each building on what the last one left.
  */
@@ -19,6 +20,8 @@ interface Row {
 interface Supplier {
   id: string;
   name: string;
+  kind: 'glass' | 'hardware' | 'other';
+  isDefault: boolean;
   prices: Record<string, { pence: number; updatedAt: string }>;
   others: Row[];
 }
@@ -38,12 +41,16 @@ let staff: string;
 let rival: string;
 let glazier = '';
 let crl = '';
+let firstQuote: { jobId: string; id: string; lines: { key: string | null; unitPricePence: number; costPence?: number }[] } | null = null;
 
 const read = async (cookie = owner) => json<SettingsBody>(await api('/settings', { cookie }));
 const suppliers = async (cookie = owner) => (await read(cookie)).prices.suppliers;
 const supplier = async (id: string) => (await suppliers())?.find((s) => s.id === id);
 const send = (method: string, path: string, body: unknown, cookie = owner) => api(path, { cookie, method, body: JSON.stringify(body) });
-const add = (name: unknown, cookie = owner) => post('/settings/suppliers', { name }, { cookie });
+const add = (name: unknown, cookie: string | { kind?: string } = owner, fields: Record<string, unknown> = {}) => {
+  const opts = typeof cookie === 'string' ? { cookie, fields } : { cookie: owner, fields: cookie };
+  return post('/settings/suppliers', { name, ...opts.fields }, { cookie: opts.cookie });
+};
 const costs = (id: string, changes: unknown, cookie = owner) => send('PATCH', `/settings/suppliers/${id}/prices`, { changes }, cookie);
 const errorOf = async (response: Response) => [response.status, (await json<{ error: string }>(response)).error];
 const latest = async () => (await read()).changes?.[0].data.changes;
@@ -67,13 +74,17 @@ describe('adding suppliers', () => {
   });
 
   test('an owner adds the toughener and CRL, in that order, and the record says so', async () => {
-    const first = await add('  Smart   Glazier ');
+    const first = await add('  Smart   Glazier ', { kind: 'glass' });
     expect(first.status).toBe(201);
     glazier = (await json<{ id: string }>(first)).id;
     expect(glazier).toMatch(/^sup_/);
-    expect(await latest()).toEqual([{ field: 'supplier', change: 'added', id: glazier, label: 'Smart Glazier' }]);
-    crl = (await json<{ id: string }>(await add('CRL'))).id;
-    expect((await suppliers())?.map((s) => s.name)).toEqual(['Smart Glazier', 'CRL']);
+    expect(await latest()).toEqual([{ field: 'supplier', change: 'added', id: glazier, label: 'Smart Glazier', kind: 'glass' }]);
+    crl = (await json<{ id: string }>(await add('CRL', { kind: 'hardware' }))).id;
+    const listed = await suppliers();
+    expect(listed?.map((s) => ({ name: s.name, kind: s.kind, isDefault: s.isDefault }))).toEqual([
+      { name: 'Smart Glazier', kind: 'glass', isDefault: true },
+      { name: 'CRL', kind: 'hardware', isDefault: true },
+    ]);
   });
 
   test.each([
@@ -154,13 +165,90 @@ describe('what a supplier charges', () => {
     expect(JSON.stringify(await read(staff))).not.toContain('8000');
   });
 
-  test('never reach a quote: a new quote starts from the price book alone', async () => {
+  test('a new quote starts from the default supplier’s cost plus 100% markup, and keeps a cost snapshot', async () => {
     const { jobs } = await json<{ jobs: { id: string }[] }>(await api('/jobs', { cookie: owner }));
     const made = await json<{ id: string }>(await post(`/jobs/${jobs[0].id}/quotes`, {}, { cookie: owner }));
-    const { quote } = await json<{ quote: { lines: { key: string | null; unitPricePence: number }[] } }>(
+    const { quote } = await json<{
+      quote: { id: string; lines: { key: string | null; unitPricePence: number; costPence?: number; supplierId?: string }[] };
+    }>(await api(`/jobs/${jobs[0].id}/quotes/${made.id}`, { cookie: owner }));
+    const glass = quote.lines.find((l) => l.key === 'glass:10:clear');
+    expect(glass).toMatchObject({ unitPricePence: 16_000, costPence: 8_000, supplierId: glazier });
+    expect(quote.lines.some((l) => l.key === 'polish:edge')).toBe(true);
+    expect(quote.lines.some((l) => l.key === 'delivery')).toBe(false);
+    expect(quote.lines.some((l) => l.key === 'coating:enduroshield')).toBe(false);
+    // Remember this quote: later cost changes must not rewrite it.
+    firstQuote = { jobId: jobs[0].id, id: quote.id, lines: quote.lines };
+  });
+});
+
+
+
+describe('kinds, markup, import, and how a quote is priced', () => {
+  test('the first supplier of a kind is the default, and an owner can name another', async () => {
+    const second = await json<{ id: string }>(await add('Second Toughener', { kind: 'glass' }));
+    expect((await supplier(glazier))?.isDefault).toBe(true);
+    expect((await supplier(second.id))?.isDefault).toBe(false);
+    expect((await supplier(second.id))?.kind).toBe('glass');
+    expect((await send('PATCH', `/settings/suppliers/${second.id}`, { isDefault: true, basedOn: { name: 'Second Toughener', kind: 'glass' } })).status).toBe(200);
+    expect((await supplier(second.id))?.isDefault).toBe(true);
+    expect((await supplier(glazier))?.isDefault).toBe(false);
+    expect((await send('PATCH', `/settings/suppliers/${glazier}`, { isDefault: true, basedOn: { name: 'Smart Glazier', kind: 'glass' } })).status).toBe(200);
+    expect((await send('DELETE', `/settings/suppliers/${second.id}`, {})).status).toBe(200);
+    expect((await supplier(glazier))?.isDefault).toBe(true);
+  });
+
+  test('a new quote falls back to the price book when the default supplier has no cost', async () => {
+    expect((await send('PATCH', '/settings/prices', { changes: [{ key: 'polish:edge', from: null, to: 321 }] })).status).toBe(200);
+    const { jobs } = await json<{ jobs: { id: string }[] }>(await api('/jobs', { cookie: owner }));
+    const made = await json<{ id: string }>(await post(`/jobs/${jobs[0].id}/quotes`, {}, { cookie: owner }));
+    const { quote } = await json<{ quote: { lines: { key: string | null; unitPricePence: number; costPence?: number }[] } }>(
       await api(`/jobs/${jobs[0].id}/quotes/${made.id}`, { cookie: owner })
     );
-    expect(quote.lines.find((l) => l.key === 'glass:10:clear')?.unitPricePence).toBe(0);
+    const polish = quote.lines.find((l) => l.key === 'polish:edge');
+    expect(polish).toMatchObject({ unitPricePence: 321 });
+    expect(polish?.costPence).toBeUndefined();
+  });
+
+  test('a quote already written is not changed when a cost or markup later is', async () => {
+    expect(firstQuote).not.toBeNull();
+    expect((await costs(glazier, [{ key: 'glass:10:clear', from: 8_000, to: 9_000 }])).status).toBe(200);
+    const { quote: again } = await json<{ quote: { lines: { key: string | null; unitPricePence: number }[] } }>(
+      await api(`/jobs/${firstQuote!.jobId}/quotes/${firstQuote!.id}`, { cookie: owner })
+    );
+    expect(again.lines.find((l) => l.key === 'glass:10:clear')?.unitPricePence).toBe(16_000);
+    const made = await json<{ id: string }>(await post(`/jobs/${firstQuote!.jobId}/quotes`, {}, { cookie: owner }));
+    const { quote: next } = await json<{ quote: { lines: { key: string | null; unitPricePence: number; costPence?: number }[] } }>(
+      await api(`/jobs/${firstQuote!.jobId}/quotes/${made.id}`, { cookie: owner })
+    );
+    expect(next.lines.find((l) => l.key === 'glass:10:clear')).toMatchObject({ unitPricePence: 18_000, costPence: 9_000 });
+    expect((await costs(glazier, [{ key: 'glass:10:clear', from: 9_000, to: 8_000 }])).status).toBe(200);
+  });
+
+  test('an owner can set the markup, and staff are not told it', async () => {
+    const settings = await json<{ pricing?: { markupBp: number } }>(await api('/settings', { cookie: owner }));
+    expect(settings.pricing?.markupBp).toBe(10_000);
+    expect((await json<{ pricing?: unknown }>(await api('/settings', { cookie: staff }))).pricing).toBeUndefined();
+    expect((await send('PATCH', '/settings/pricing', { markupBp: 5_000 })).status).toBe(200);
+    const made = await json<{ id: string }>(await post(`/jobs/${firstQuote!.jobId}/quotes`, {}, { cookie: owner }));
+    const { quote } = await json<{ quote: { lines: { key: string | null; unitPricePence: number }[] } }>(
+      await api(`/jobs/${firstQuote!.jobId}/quotes/${made.id}`, { cookie: owner })
+    );
+    expect(quote.lines.find((l) => l.key === 'glass:10:clear')?.unitPricePence).toBe(12_000);
+    expect((await send('PATCH', '/settings/pricing', { markupBp: 10_000 })).status).toBe(200);
+  });
+
+  test('an owner can import a CSV of a supplier’s prices, including a SKU-only row', async () => {
+    const csv =
+      'key,sku,description,unit,cost\n' +
+      'hinge:gen044:matte-black,GEN044MB,Geneva matte black,each,15.00\n' +
+      ',SER78,Serenity kit,each,80.00\n';
+    const response = await send('POST', `/settings/suppliers/${crl}/import`, { csv, replace: false });
+    expect(response.status).toBe(200);
+    const body = await json<{ imported: number }>(response);
+    expect(body.imported).toBe(2);
+    const theirs = await supplier(crl);
+    expect(theirs?.prices['hinge:gen044:matte-black'].pence).toBe(1_500);
+    expect(theirs?.others.some((row) => row.keys[0] === 'sku:SER78')).toBe(true);
   });
 });
 
