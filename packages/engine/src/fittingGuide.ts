@@ -29,8 +29,8 @@ const nameOf = (panel: PanelSpec | undefined) => (panel?.label ?? '').split(' â€
 
 const HUNG: Record<HingeMount, string> = {
   'wall-to-glass': 'hung from the wall',
-  'glass-to-glass-180': 'hung from the glass beside it, in line',
-  'glass-to-glass-90': 'hung from the glass beside it, round the corner',
+  'glass-to-glass-180': 'hung from the glass beside it, in line,',
+  'glass-to-glass-90': 'hung from the glass beside it, round the corner,',
 };
 
 export function fittingGuideOf(spec: ConfiguratorSpec, fittings: Fitting[]): FittingStep[] {

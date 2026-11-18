@@ -64,7 +64,7 @@ describe('the fitting guide', () => {
   test('a door hung from the glass beside it clamps through both panes, and says which way it swings', () => {
     const { steps } = guideFor('panel-door-hinged-off-glass-both-ways');
     const hang = steps.find((s) => s.title === 'Hang the door')!;
-    expect(hang.lines.join(' ')).toContain('hung from the glass beside it, in line');
+    expect(hang.lines.join(' ')).toContain('hung from the glass beside it, in line, on 2');
     expect(hang.lines.join(' ')).toContain('clamp through the holes');
     expect(hang.lines.join(' ')).toContain('opens both ways');
   });
