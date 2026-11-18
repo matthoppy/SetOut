@@ -10,19 +10,60 @@
  * afresh: every size is the spec's, and every part is one of `fittings`, as
  * fittingsOf gives them.
  *
+ * The hardware is this shower's own too. Its hinges are named by range and
+ * style, as the shower or the company's standard has them, and a hinge that
+ * fits differently says so: an adjustable one is set once hung, a pre-set
+ * one does not close square.
+ *
  * The words are a starting point that a company's staff read before any
  * customer does: a sheet is sent only once a member of staff has approved
  * it, and anything particular to a job goes in its installation comments.
+ * What the guide cannot explain, because it is worked out by hand for the
+ * job (a glass transom, say), is named in `byHand`: the sheet is not
+ * approved until the installation comments say how it is fitted.
+ *
+ * Every kind of fitting has its step. A new kind does not build until it
+ * has one (GUIDED, below), so no shower's guide can leave a part out.
  */
 
 import type { Fitting, HingeMount } from './fittings';
+import { hasTransom } from './geometry';
+import { doorHingeOf, hingeStylesOf, STANDARD_HINGES, type HingeStyles } from './hinges';
 import type { ConfiguratorSpec, PanelSpec } from './spec';
+import type { ConfiguratorState } from './types';
 
 export interface FittingStep {
   title: string;
   /** Each a sentence or two, in the order the fitter does them. */
   lines: string[];
 }
+
+export interface FittingGuide {
+  steps: FittingStep[];
+  /** Parts fitted as worked out by hand for the job, which the installation comments must explain. */
+  byHand: string[];
+  /** What makes the guide wrong until the shower changes: a hinge its range does not make. */
+  problems: string[];
+}
+
+/**
+ * Where each kind of fitting is covered. A kind added to Fitting without its
+ * step here fails the type check, so a part is never left out of a guide.
+ */
+const GUIDED: { [K in Fitting['kind']]: string } = {
+  channel: 'Fix the U-channel',
+  clamps: 'Fix the clamps',
+  'support-bar': 'Fit the support bar',
+  'support-panel': 'Fit the support panel',
+  hinges: 'Hang the door',
+  handle: 'Hang the door',
+  'sliding-kit': 'Fit the sliding door',
+  'sliding-return-kit': 'Fit the sliding door',
+  seal: 'Fit the seals',
+  'bottom-seal': 'Fit the seals',
+  threshold: 'Fit the seals',
+};
+export const GUIDED_STEPS: Readonly<Record<Fitting['kind'], string>> = GUIDED;
 
 /** "P1" from "P1 — Door (Front)". */
 const nameOf = (panel: PanelSpec | undefined) => (panel?.label ?? '').split(' — ')[0] || 'the';
@@ -33,8 +74,16 @@ const HUNG: Record<HingeMount, string> = {
   'glass-to-glass-90': 'hung from the glass beside it, round the corner,',
 };
 
-export function fittingGuideOf(spec: ConfiguratorSpec, fittings: Fitting[]): FittingStep[] {
+export function fittingGuideOf(
+  design: ConfiguratorState,
+  spec: ConfiguratorSpec,
+  fittings: Fitting[],
+  standards: HingeStyles = STANDARD_HINGES
+): FittingGuide {
   const steps: FittingStep[] = [];
+  const byHand: string[] = [];
+  const problems: string[] = [];
+  const styles = hingeStylesOf(design, standards);
   const panes = spec.panels;
   const of = <K extends Fitting['kind']>(kind: K) => fittings.filter((f): f is Extract<Fitting, { kind: K }> => f.kind === kind);
   const doorName = (pane: number) => `${nameOf(panes[pane])} door`;
@@ -119,15 +168,55 @@ export function fittingGuideOf(spec: ConfiguratorSpec, fittings: Fitting[]): Fit
   for (const h of hinges) {
     const door = panes[h.pane];
     const handle = fittings.some((f) => f.kind === 'handle' && f.pane === h.pane);
+    // The range's own style where it makes more than one, as this shower takes it.
+    const hinge = doorHingeOf(h.brand, h.mount, styles);
+    const style = hinge.style ? (h.mount === 'wall-to-glass' ? styles.wall : styles.inLine) : null;
+    const preset = style?.endsWith('preset') ?? false;
+    const adjustable = style?.endsWith('adjustable') ?? false;
     const lines = [
-      `${doorName(h.pane)}: ${door ? `${door.cutWidthMm} × ${door.cutHeightMm}mm, ` : ''}${HUNG[h.mount]} on ${h.count} ${h.brand} hinges.`,
+      `${doorName(h.pane)}: ${door ? `${door.cutWidthMm} × ${door.cutHeightMm}mm, ` : ''}${HUNG[h.mount]} on ${h.count} ${h.brand}${
+        hinge.style ? ` ${hinge.style.words}` : ''
+      } hinges.`,
       h.mount === 'wall-to-glass'
         ? `Fit the hinges to the door. Hold the door in place on packers at the gaps on the sheet, mark the hinge plates on the wall, then take the door down, drill and plug the wall, and fix the hinges.`
         : `The hinges clamp through the holes in the door and the panel beside it. Fit them loosely, set the door's gaps with packers, then tighten them.`,
-      `Check the door opens ${door?.door?.swing === 'both' ? 'both ways' : 'outwards'} freely and closes square, without touching glass, tiles or the tray, before going on.`,
     ];
+    if (hinge.style && !hinge.series) problems.push(`${h.brand} makes no ${hinge.style.words} hinge, which the ${doorName(h.pane)} is set to hang on.`);
+    if (h.brand === 'Vienna' && styles.viennaCutout === 'rectangular') {
+      lines.push(`The glass is cut with rectangular cut-outs for these hinges: take the two screws out of each hinge before fitting it.`);
+    }
+    if (h.brand === 'Bellagio' && styles.bellagioFit === 'without-seals') lines.push(`These hinges are fitted without their seals.`);
+    if (preset) {
+      lines.push(`These hinges are set at the factory to close the door 5° further into the shower, so it closes onto its seal, not square. Do not pack it square.`);
+    }
+    if (adjustable) {
+      lines.push(`Once the door is hung, set where it closes with the hinges' own adjustment, as their instructions say. It can be adjusted later without taking the door down.`);
+    }
+    lines.push(
+      `Check the door opens ${door?.door?.swing === 'both' ? 'both ways' : 'outwards'} freely and closes ${preset ? 'onto its seal' : 'square'}, without touching glass, tiles or the tray, before going on.`
+    );
     if (handle) lines.push(`Fit the handle through the holes in the door.`);
     steps.push({ title: hinges.length > 1 ? `Hang the ${doorName(h.pane)}` : 'Hang the door', lines });
+  }
+
+  // Above a door, to the ceiling: a glass transom, or a gap left open, is
+  // sized and fixed by hand for the job, so the comments say how it goes in.
+  if (hasTransom(design) && hinges.length > 0) {
+    const what =
+      design.aboveDoor === 'glass'
+        ? 'the glass over the door'
+        : design.aboveDoor === 'open'
+          ? 'the top of the glass, with the space over the door left open'
+          : 'what goes over the door';
+    byHand.push(what);
+    steps.push({
+      title: design.aboveDoor === 'open' ? 'Fix the top of the glass' : 'Fit the glass over the door',
+      lines: [
+        design.aboveDoor === 'open'
+          ? `The space over the door is left open for air. The fixed glass runs to the ceiling: fix its top as the installation comments say.`
+          : `The glass over the door is sized and fixed for this job. Fit it as the installation comments say, once the door is hung and closes as it should.`,
+      ],
+    });
   }
 
   if (sliding) {
@@ -193,5 +282,5 @@ export function fittingGuideOf(spec: ConfiguratorSpec, fittings: Fitting[]): Fit
     ],
   });
 
-  return steps;
+  return { steps, byHand, problems };
 }

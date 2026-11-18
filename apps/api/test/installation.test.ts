@@ -203,3 +203,28 @@ describe('the customer’s link', () => {
     expect(unsent?.link_token_hash).toBeNull();
   });
 });
+
+describe('what the fitting guide cannot explain', () => {
+  test('a glass transom, sized by hand, cannot be approved until the comments say how it is fitted', async () => {
+    const { designs } = await job();
+    const document = structuredClone(designs[0].revision.document) as { design: Record<string, unknown> & { opening: { runs: Record<string, unknown>[] } } };
+    Object.assign(document.design, { heightMm: 2400, isFloorToCeiling: true, aboveDoor: 'glass', doorHeightMm: 2000 });
+    for (const run of document.design.opening.runs) Object.assign(run, { ceilingStartMm: 2400, ceilingEndMm: 2400 });
+    const revised = await post(`/jobs/${jobId}/designs/${designId}/revisions`, { basedOn: designs[0].revision.number, document, reason: 'To the ceiling' }, { cookie: owner });
+    expect(revised.status).toBe(201);
+    const { revision } = await json<{ revision: number }>(revised);
+    expect((await post(`/jobs/${jobId}/designs/${designId}/check`, { revision }, { cookie: owner })).status).toBe(200);
+
+    const clear = async (notes: string) =>
+      expect((await api(`/jobs/${jobId}/installation`, { cookie: owner, method: 'PATCH', body: JSON.stringify({ notes }) })).status).toBe(200);
+    await clear('');
+    expect((await status()).blocker?.error).toBe('by_hand');
+    const refused = await approve();
+    expect(refused.status).toBe(409);
+    expect((await json<{ message: string }>(refused)).message).toContain('the glass over the door');
+
+    await clear('Transom: 10mm clear, clamped to the fixed panel with two glass-to-glass clamps.');
+    expect((await status()).blocker).toBeNull();
+    expect((await approve()).status).toBe(201);
+  });
+});

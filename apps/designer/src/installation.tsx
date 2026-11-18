@@ -110,7 +110,7 @@ function Sheets({ sheets }: { sheets: CustomerSheets }) {
         {sheets.showers.map((shower, i) => {
           const panes = panesOf(shower.design, shower.spec, DEFAULT_RULESET.fixed, sheets.hinges);
           const setOut = setOutOf(shower.design, shower.spec, DEFAULT_RULESET.fixed);
-          const steps = fittingGuideOf(shower.spec, fittingsOf(shower.design, shower.spec, DEFAULT_RULESET.fixed));
+          const { steps } = fittingGuideOf(shower.design, shower.spec, fittingsOf(shower.design, shower.spec, DEFAULT_RULESET.fixed), sheets.hinges);
           const glass = `${shower.spec.glassThicknessMm}mm ${GLASS[shower.design.glassType] ?? shower.design.glassType}`;
           return (
             <div key={i}>

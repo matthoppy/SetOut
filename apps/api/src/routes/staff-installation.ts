@@ -13,11 +13,13 @@
  * record, and its link keeps opening what was sent.
  */
 
+import { DEFAULT_RULESET, fittingGuideOf, fittingsOf, type HingeStyles } from '@setout/engine';
 import { Hono } from 'hono';
 import type { Session } from '../db/auth';
 import { companyDb, type CompanyDb } from '../db/company-db';
 import { hashResumeToken, newInstallationToken } from '../db/platform';
 import type { CoveredRevision, InstallationSheetRow, Row } from '../db/tables';
+import { optionLabelsFor } from '../lib/designer-config';
 import { sendEmail } from '../lib/email';
 import { installationEmail } from '../lib/installation-email';
 import { fromLine, mailIsSetUp } from '../lib/notify';
@@ -55,15 +57,22 @@ async function detailsOf(db: CompanyDb, job: Row<'jobs'>) {
   };
 }
 
-/** Why the job's sheets cannot be approved as things stand, or null if they can. */
-function approvalBlocker(showers: Awaited<ReturnType<typeof showersOf>>): Problem | null {
+/**
+ * Why the job's sheets cannot be approved as things stand, or null if they
+ * can. Every shower checked; none sliding; its fitting guide right for the
+ * hardware it takes; and anything the guide cannot explain, being worked out
+ * by hand for the job, explained in the installation comments.
+ */
+function approvalBlocker(
+  showers: Awaited<ReturnType<typeof showersOf>>,
+  standards: HingeStyles,
+  notes: string | null
+): Problem | null {
   if (showers.length === 0) return { error: 'no_shower', message: 'This job has no shower yet, so it has no installation sheet.' };
+  const name = (i: number) => showerName(showers[i].design.label, i, showers.length);
   const unchecked = showers.findIndex(({ revision }) => !revision.checked_at);
   if (unchecked >= 0) {
-    return {
-      error: 'not_checked',
-      message: `Check ${showerName(showers[unchecked].design.label, unchecked, showers.length)} on the job page before approving its installation sheet.`,
-    };
+    return { error: 'not_checked', message: `Check ${name(unchecked)} on the job page before approving its installation sheet.` };
   }
   // Sliding door sizes are not confirmed against a job yet (Sliding.tsx), so
   // a sliding shower's sheet does not go to a customer's own fitter.
@@ -71,8 +80,19 @@ function approvalBlocker(showers: Awaited<ReturnType<typeof showersOf>>): Proble
   if (sliding >= 0) {
     return {
       error: 'sliding',
-      message: `${showerName(showers[sliding].design.label, sliding, showers.length)} has a sliding door, whose sizes are not confirmed yet, so its sheet cannot go to a customer.`,
+      message: `${name(sliding)} has a sliding door, whose sizes are not confirmed yet, so its sheet cannot go to a customer.`,
     };
+  }
+  for (const [i, { revision }] of showers.entries()) {
+    const design = revision.document.design;
+    const guide = fittingGuideOf(design, revision.computed, fittingsOf(design, revision.computed, DEFAULT_RULESET.fixed), standards);
+    if (guide.problems.length > 0) return { error: 'hardware', message: `${name(i)}: ${guide.problems[0]} Change its hinges first.` };
+    if (guide.byHand.length > 0 && !notes) {
+      return {
+        error: 'by_hand',
+        message: `The fitting guide cannot explain ${guide.byHand.join(' or ')} on ${name(i)}, as it is worked out for this job. Say how it is fitted in the installation comments, then approve.`,
+      };
+    }
   }
   return null;
 }
@@ -110,13 +130,13 @@ staffInstallation.get('/jobs/:id/installation-sheet', async (c) => {
   const db = companyDb(c.env, c.get('session').companyId);
   const job = await db.get('jobs', c.req.param('id'));
   if (!job) return c.json(NO_JOB, 404, PRIVATE);
-  const [sheet, showers, details] = await Promise.all([latestOn(db, job.id), showersOf(db, job.id), detailsOf(db, job)]);
+  const [sheet, showers, details, labels] = await Promise.all([latestOn(db, job.id), showersOf(db, job.id), detailsOf(db, job), optionLabelsFor(db, job)]);
   return c.json(
     {
       sheet: sheet && present(sheet),
       // Only an approval not yet sent can go stale; a sent one is what was sent.
       changed: sheet && !sheet.sent_at ? changedSince(sheet, showers, details) : null,
-      blocker: approvalBlocker(showers),
+      blocker: approvalBlocker(showers, labels.hinges, details.notes),
       customerEmail: details.customer?.email ?? null,
     },
     200,
@@ -130,12 +150,13 @@ staffInstallation.post('/jobs/:id/installation-sheet/approve', async (c) => {
   const db = companyDb(c.env, session.companyId);
   const job = await db.get('jobs', c.req.param('id'));
   if (!job) return c.json(NO_JOB, 404, PRIVATE);
-  const [showers, details, existing] = await Promise.all([
+  const [showers, details, existing, labels] = await Promise.all([
     showersOf(db, job.id),
     detailsOf(db, job),
     db.find('installation_sheets', { where: { job_id: job.id } }),
+    optionLabelsFor(db, job),
   ]);
-  const blocker = approvalBlocker(showers);
+  const blocker = approvalBlocker(showers, labels.hinges, details.notes);
   if (blocker) return c.json(blocker, 409, PRIVATE);
 
   const covers: CoveredRevision[] = showers.map(({ design, revision }) => ({ designId: design.id, revisionId: revision.id, number: revision.number }));

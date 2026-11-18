@@ -154,7 +154,11 @@ export function InstallationSheet({ id, companyName }: { id: string; companyName
             />
             <div className={withGuide ? '' : 'print:hidden'}>
               <PrintedPage companyName={companyName} number={i * pages + 2} of={checked.length * pages}>
-                <FittingGuide title={title} reference={detail.job.reference} steps={fittingGuideOf(spec, fittings(revision.document.design, spec))} />
+                <FittingGuide
+                  title={title}
+                  reference={detail.job.reference}
+                  steps={fittingGuideOf(revision.document.design, spec, fittings(revision.document.design, spec), detail.labels.hinges).steps}
+                />
               </PrintedPage>
             </div>
           </Fragment>
