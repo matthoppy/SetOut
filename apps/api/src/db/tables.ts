@@ -265,6 +265,30 @@ export interface OrderConfirmationRow {
   updated_at: string;
 }
 
+/** One shower's revision, as an installation sheet covers it. */
+export interface CoveredRevision {
+  designId: string;
+  revisionId: string;
+  number: number;
+}
+
+/** An installation sheet approved by staff, and sent to the customer once it is. */
+export interface InstallationSheetRow {
+  id: string;
+  job_id: string;
+  covers: CoveredRevision[];
+  address: string | null;
+  postcode: string | null;
+  notes: string | null;
+  approved_by: string | null;
+  approved_at: string;
+  link_token_hash: string | null;
+  sent_by: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** A different deduction for one pane of one job, in place of the company's rule. Never shown to the customer. */
 export interface CutOverrideRow {
   id: string;
@@ -364,6 +388,7 @@ export interface Tables {
   price_list: { row: PriceRow; required: 'key' | 'unit' | 'unit_price_pence' };
   subscriptions: { row: SubscriptionRow; required: 'status' };
   order_confirmations: { row: OrderConfirmationRow; required: 'job_id' | 'link_token_hash' };
+  installation_sheets: { row: InstallationSheetRow; required: 'job_id' | 'covers' | 'approved_at' };
   cut_overrides: {
     row: CutOverrideRow;
     required: 'job_id' | 'design_id' | 'pane_id' | 'width_deduction_mm' | 'height_deduction_mm' | 'reason' | 'revision_number';
@@ -487,6 +512,15 @@ export const TABLES: { readonly [T in TableName]: TableInfo } = {
     id: 'confirmation',
     columns: ['id', 'job_id', 'link_token_hash', 'created_by', 'confirmed_at', 'created_at', 'updated_at'],
     json: [],
+    tracksUpdates: true,
+  },
+  installation_sheets: {
+    id: 'installationSheet',
+    columns: [
+      'id', 'job_id', 'covers', 'address', 'postcode', 'notes', 'approved_by', 'approved_at',
+      'link_token_hash', 'sent_by', 'sent_at', 'created_at', 'updated_at',
+    ],
+    json: ['covers'],
     tracksUpdates: true,
   },
   cut_overrides: {

@@ -1,6 +1,7 @@
 /**
  * The installation sheets for a job: a printed page for each checked shower,
- * for the fitters, laid out as Custom Showers' own are.
+ * for the fitters, laid out as Custom Showers' own are, each followed by a
+ * page of step-by-step fitting guide for a customer's own fitter.
  *
  * Across the top, the shower seen from outside, beside who it is for, where it
  * goes, and how far out of square the opening is. Below, every pane as cut
@@ -12,10 +13,18 @@
  * member of staff has looked over. Every size comes from the revision that was
  * checked, as the engine works it out. The address and the comments are the
  * job's own, and are written here.
+ *
+ * For a supply-only customer the same pages go to the customer, for whoever
+ * fits the shower. Nothing goes that a member of staff has not looked over:
+ * they approve the sheets as they stand here, and only then can send them.
+ * A change to a shower, the address or the comments after approving means
+ * approving again. CRL's catalogue numbers are for the office, so the
+ * customer's copy goes without them.
  */
 
 import {
   crlFinishCode,
+  fittingGuideOf,
   crlPartOf,
   hingeStylesOf,
   type ConfiguratorSpec,
@@ -25,12 +34,12 @@ import {
   type HingeMount,
 } from '@setout/engine';
 import { Fragment, useState, type FormEvent } from 'react';
-import { api, ApiError, signInAgain, SignedOut, type JobDetail, type OptionLabel, type Revision } from '../lib/api';
+import { api, ApiError, signInAgain, SignedOut, type InstallationSheetStatus, type JobDetail, type OptionLabel, type Revision } from '../lib/api';
 import { humanise, layoutName } from '../lib/format';
 import { useLoad } from '../lib/load';
 import { fittings, hingeStyle, panes as panesFor, setOut as setOutFor } from '../lib/panes';
 import { Link } from '../lib/router';
-import { Elevation, OutOfSquare, paneName, SetOutBand } from './InstallDrawings';
+import { Elevation, FittingGuide, OutOfSquare, paneName, SetOutBand } from '@setout/ui';
 import { Problem, PrintedPage } from './parts';
 import { SlidingNotice } from './Sliding';
 
@@ -59,6 +68,8 @@ function addressOf(detail: JobDetail): string {
 
 export function InstallationSheet({ id, companyName }: { id: string; companyName: string }) {
   const job = useLoad<JobDetail>(`installation:${id}`, (signal) => api.job(id, signal));
+  const forCustomer = useLoad<InstallationSheetStatus>(`installation-sheet:${id}`, (signal) => api.installationSheet(id, signal));
+  const [withGuide, setWithGuide] = useState(true);
   const detail = job.data;
   if (!detail) {
     return (
@@ -84,17 +95,39 @@ export function InstallationSheet({ id, companyName }: { id: string; companyName
         <Link to={`/jobs/${detail.job.id}`} className="text-sm font-medium text-accent">
           ← Back to the job
         </Link>
-        <button
-          type="button"
-          disabled={checked.length === 0}
-          onClick={() => window.print()}
-          className="h-10 rounded-md bg-accent px-4 text-sm font-semibold text-accent-ink disabled:opacity-50"
-        >
-          Print
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={withGuide} onChange={(e) => setWithGuide(e.target.checked)} />
+            Print the fitting guide
+          </label>
+          <button
+            type="button"
+            disabled={checked.length === 0}
+            onClick={() => window.print()}
+            className="h-10 rounded-md bg-accent px-4 text-sm font-semibold text-accent-ink disabled:opacity-50"
+          >
+            Print
+          </button>
+        </div>
       </div>
 
-      <Details key={detail.job.id} detail={detail} said={typeof received?.data.notes === 'string' ? received.data.notes.trim() : ''} onSaved={job.reload} />
+      <Details
+        key={detail.job.id}
+        detail={detail}
+        said={typeof received?.data.notes === 'string' ? received.data.notes.trim() : ''}
+        onSaved={() => {
+          job.reload();
+          forCustomer.reload();
+        }}
+      />
+
+      <ForTheCustomer
+        jobId={detail.job.id}
+        status={forCustomer.data}
+        error={forCustomer.error}
+        onChanged={forCustomer.reload}
+        customerName={detail.customer?.name ?? null}
+      />
 
       {unchecked.length > 0 && (
         <p className="mt-4 rounded-lg border border-warn/40 bg-warn/10 p-4 text-sm print:hidden">
@@ -105,18 +138,30 @@ export function InstallationSheet({ id, companyName }: { id: string; companyName
 
       {checked.map(({ design, title }, i) => {
         const revision = design.revision as Revision;
+        const pages = withGuide ? 2 : 1;
+        const spec = revision.computed;
         return (
-          <Sheet
-            key={design.id}
-            detail={detail}
-            title={title}
-            revision={revision}
-            design={revision.document.design}
-            spec={revision.computed}
-            number={i + 1}
-            of={checked.length}
-            companyName={companyName}
-          />
+          <Fragment key={design.id}>
+            <Sheet
+              detail={detail}
+              title={title}
+              revision={revision}
+              design={revision.document.design}
+              spec={spec}
+              number={i * pages + 1}
+              of={checked.length * pages}
+              companyName={companyName}
+            />
+            <div className={withGuide ? '' : 'print:hidden'}>
+              <PrintedPage companyName={companyName} number={i * pages + 2} of={checked.length * pages}>
+                <FittingGuide
+                  title={title}
+                  reference={detail.job.reference}
+                  steps={fittingGuideOf(revision.document.design, spec, fittings(revision.document.design, spec), detail.labels.hinges).steps}
+                />
+              </PrintedPage>
+            </div>
+          </Fragment>
         );
       })}
     </div>
@@ -194,6 +239,156 @@ function Details({ detail, said, onSaved }: { detail: JobDetail; said: string; o
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * Sending the sheets to the customer, for their own fitter: approve them as
+ * they stand on this page, then send. What stands in the way is said.
+ */
+function ForTheCustomer({
+  jobId,
+  status,
+  error,
+  onChanged,
+  customerName,
+}: {
+  jobId: string;
+  status: InstallationSheetStatus | undefined;
+  error: unknown;
+  onChanged: () => void;
+  customerName: string | null;
+}) {
+  const [state, setState] = useState<{ busy: 'approving' | 'sending' | null; error: string | null; confirming: boolean; sent: { link: string; emailed: boolean } | null }>({
+    busy: null,
+    error: null,
+    confirming: false,
+    sent: null,
+  });
+  const run = async (busy: 'approving' | 'sending', act: () => Promise<void>, otherwise: string) => {
+    setState((s) => ({ ...s, busy, error: null }));
+    try {
+      await act();
+      setState((s) => ({ ...s, busy: null }));
+    } catch (failure) {
+      if (failure instanceof SignedOut) return signInAgain();
+      setState((s) => ({ ...s, busy: null, confirming: false, error: failure instanceof ApiError ? failure.message : otherwise }));
+    }
+  };
+
+  if (error) return <div className="mt-4 print:hidden"><Problem error={error} retry={onChanged} /></div>;
+  if (!status) return null;
+  const { sheet, changed, blocker, customerEmail } = status;
+  const sent = sheet?.sent_at ? sheet : null;
+  const approved = sheet && !sheet.sent_at ? sheet : null;
+  const canSend = approved && !changed && customerEmail;
+
+  return (
+    <section className="mt-4 rounded-lg border border-rule bg-surface p-4 text-sm print:hidden">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-quiet">For the customer’s own fitter</h2>
+      <p className="mt-1 text-quiet">
+        For a supply-only job. Look over the sheets and the fitting guide below, approve them, then send them to {customerName ?? 'the customer'}. They get a link
+        to read and print them, without CRL’s numbers.
+      </p>
+
+      {state.sent ? (
+        <div className="mt-3 rounded-lg border border-good/40 bg-good/10 p-4">
+          <p className="font-semibold">
+            {state.sent.emailed ? `The installation sheets are on their way to ${customerEmail}.` : 'The sheets are sent, but this place has no mail, so nothing was emailed.'}
+          </p>
+          <p className="mt-2">This is the customer’s own link. It is shown only now, so copy it if you want to send it another way.</p>
+          <p className="mt-2 break-all rounded border border-rule bg-surface p-2 font-mono text-xs">{state.sent.link}</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => navigator.clipboard?.writeText(state.sent?.link ?? '')} className="h-9 rounded-md border border-rule bg-surface px-3 font-medium">
+              Copy the link
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setState((s) => ({ ...s, sent: null }));
+                onChanged();
+              }}
+              className="h-9 rounded-md bg-accent px-3 font-semibold text-accent-ink"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <ul className="mt-3 space-y-1">
+            {sent && <li className="text-good">Sent {day(sent.sent_at as string)}, as approved {day(sent.approved_at)}.</li>}
+            {approved && !changed && <li>Approved {day(approved.approved_at)}, not sent yet.</li>}
+            {approved && changed && <li className="text-warn">{changed.message}</li>}
+            {!sheet && !blocker && <li className="text-quiet">Not approved yet.</li>}
+            {blocker && <li className="text-warn">{blocker.message}</li>}
+            {!customerEmail && <li className="text-warn">The customer has no email address, so the sheets cannot be sent.</li>}
+          </ul>
+
+          {state.confirming && approved ? (
+            <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 p-4">
+              <p className="font-semibold">Send the installation sheets to {customerEmail}?</p>
+              <p className="mt-1">They will see exactly what was approved. To change anything afterwards, approve and send them again.</p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  disabled={!!state.busy}
+                  onClick={() =>
+                    run(
+                      'sending',
+                      async () => {
+                        const result = await api.sendInstallationSheet(jobId, approved.id);
+                        setState((s) => ({ ...s, confirming: false, sent: { link: result.link, emailed: result.emailed } }));
+                      },
+                      'The sheets could not be sent.'
+                    )
+                  }
+                  className="h-10 rounded-md bg-accent px-4 font-semibold text-accent-ink disabled:opacity-60"
+                >
+                  {state.busy === 'sending' ? 'Sending' : 'Send them'}
+                </button>
+                <button type="button" onClick={() => setState((s) => ({ ...s, confirming: false }))} className="h-10 rounded-md border border-rule bg-surface px-4 font-medium">
+                  Not yet
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!!blocker || !!state.busy || (!!approved && !changed)}
+                onClick={() =>
+                  run(
+                    'approving',
+                    async () => {
+                      await api.approveInstallationSheet(jobId);
+                      onChanged();
+                    },
+                    'The sheets could not be approved.'
+                  )
+                }
+                className="h-10 rounded-md border border-rule bg-surface px-4 font-semibold disabled:opacity-50"
+              >
+                {state.busy === 'approving' ? 'Approving' : sheet ? 'Approve again' : 'I’ve checked them: approve'}
+              </button>
+              <button
+                type="button"
+                disabled={!canSend || !!state.busy}
+                onClick={() => setState((s) => ({ ...s, confirming: true, error: null }))}
+                className="h-10 rounded-md bg-accent px-4 font-semibold text-accent-ink disabled:opacity-50"
+              >
+                Send to the customer
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {state.error && (
+        <p role="alert" className="mt-2 text-bad">
+          {state.error}
+        </p>
+      )}
+    </section>
   );
 }
 

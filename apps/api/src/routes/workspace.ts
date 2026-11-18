@@ -43,6 +43,7 @@ import { isPlatformAdmin, signUpsAreOpen } from '../lib/sign-up';
 import { staffBilling } from './billing';
 import { signUp } from './sign-up';
 import { staffConfirmations } from './staff-confirmations';
+import { staffInstallation } from './staff-installation';
 import { staffPayments } from './staff-payments';
 import { paymentViewFor } from '../lib/job-payments';
 import { staffCutOverrides } from './staff-cut-overrides';
@@ -545,6 +546,7 @@ async function currentRevision(db: ReturnType<typeof companyDb>, jobId: string, 
 
 staff.route('/', staffQuotes);
 staff.route('/', staffConfirmations);
+staff.route('/', staffInstallation);
 staff.route('/', staffPayments);
 staff.route('/', staffCutOverrides);
 staff.route('/', staffSettings);

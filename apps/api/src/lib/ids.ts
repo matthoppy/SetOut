@@ -29,6 +29,7 @@ export const ID_PREFIX = {
   subscription: 'sbn',
   siteEnquiry: 'enq',
   confirmation: 'ocf',
+  installationSheet: 'ins',
   cutOverride: 'cov',
   jobPayment: 'jpy',
   supplier: 'sup',

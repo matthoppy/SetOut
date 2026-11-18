@@ -243,6 +243,43 @@ export async function resolveConfirmationLink(
 }
 
 // ---------------------------------------------------------------------------
+// Installation sheet links
+// ---------------------------------------------------------------------------
+
+/**
+ * The link a customer reads their installation sheets with, once staff have
+ * approved and sent them. Whoever holds it can see that one job's sheets and
+ * nothing else, so it is long, random and never stored: only its hash is.
+ */
+export function newInstallationToken(): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let token = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(32))) token += alphabet[byte & 31];
+  return `is_${token}`;
+}
+
+const INSTALLATION_TOKEN = /^is_[a-z0-9]{32}$/;
+
+/**
+ * Which sent installation sheet a link opens, and so which company the
+ * request belongs to. Null for a link that is not one, is unknown, or whose
+ * company is no longer active.
+ */
+export async function resolveInstallationLink(
+  env: Pick<Env, 'DB'>,
+  token: unknown
+): Promise<{ companyId: string; sheetId: string } | null> {
+  if (typeof token !== 'string' || !INSTALLATION_TOKEN.test(token)) return null;
+  const row = await env.DB.prepare(
+    `SELECT s.company_id AS companyId, s.id AS sheetId FROM installation_sheets s JOIN companies c ON c.id = s.company_id
+      WHERE s.link_token_hash = ? AND s.sent_at IS NOT NULL AND c.status = 'active'`
+  )
+    .bind(await hashResumeToken(token))
+    .first<{ companyId: string; sheetId: string }>();
+  return row ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // People
 // ---------------------------------------------------------------------------
 

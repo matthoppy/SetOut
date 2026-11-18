@@ -13,6 +13,7 @@ import { DOCUMENT_FORMAT, ENGINE_VERSION, selfCheck } from '@setout/engine';
 import { Hono } from 'hono';
 import { databaseStatus } from './db/platform';
 import { confirmation } from './routes/confirm';
+import { installation } from './routes/installation';
 import { designer } from './routes/designer';
 import { platform } from './routes/platform';
 import { quote } from './routes/quote';
@@ -73,6 +74,16 @@ app.use('/api/quote/*', async (c, next) => {
   await next();
 });
 app.route('/api/quote', quote);
+
+// So is a customer's installation sheet, once staff have approved and sent it.
+app.use('/api/installation/*', async (c, next) => {
+  const surface = surfaceFor(c.env, new URL(c.req.url).hostname);
+  if (surface === 'workspace' || surface === 'site') {
+    return c.json({ error: 'not_found' }, 404);
+  }
+  await next();
+});
+app.route('/api/installation', installation);
 
 app.use('/api/workspace/*', async (c, next) => {
   const surface = surfaceFor(c.env, new URL(c.req.url).hostname);

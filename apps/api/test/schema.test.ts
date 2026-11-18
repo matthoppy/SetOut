@@ -23,6 +23,7 @@ const GLOBAL_LOOKUPS = [
   'memberships.user_id',
   'quotes.link_token_hash',
   'order_confirmations.link_token_hash',
+  'installation_sheets.link_token_hash',
   // How Stripe's webhook comes to belong to a company.
   'subscriptions.stripe_customer_id',
 ];

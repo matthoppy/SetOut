@@ -20,6 +20,8 @@ export default defineConfig({
         edit: path.resolve(import.meta.dirname, 'edit.html'),
         // A customer's quote, served on the designer's address at /q/<link>.
         quote: path.resolve(import.meta.dirname, 'quote.html'),
+        // A customer's installation sheets, served on the designer's address at /i/<link>.
+        installation: path.resolve(import.meta.dirname, 'installation.html'),
       },
     },
   },
